@@ -1860,9 +1860,11 @@ mono_metadata_signature_alloc (MonoImage *m, guint32 nparams)
 static MonoMethodSignature*
 mono_metadata_signature_dup_internal (MonoImage *image, MonoMemPool *mp, MonoMethodSignature *sig)
 {
-	int sigsize;
+	int sigsize, sig_header_size;
 	MonoMethodSignature *ret;
-	sigsize = MONO_SIZEOF_METHOD_SIGNATURE + sig->param_count * sizeof (MonoType *);
+	sigsize = sig_header_size = MONO_SIZEOF_METHOD_SIGNATURE + sig->param_count * sizeof (MonoType *);
+	if (sig->ret)
+		sigsize += sizeof (MonoType);
 
 	if (image) {
 		ret = mono_image_alloc (image, sigsize);
@@ -1871,7 +1873,16 @@ mono_metadata_signature_dup_internal (MonoImage *image, MonoMemPool *mp, MonoMet
 	} else {
 		ret = g_malloc (sigsize);
 	}
+
 	memcpy (ret, sig, sigsize);
+
+	// Copy return value because of ownership semantics.
+	if (sig->ret) {
+		intptr_t end_of_header = (intptr_t)( (char*)(ret) + sig_header_size );
+		ret->ret = (MonoType *)end_of_header;
+		*ret->ret = *sig->ret;
+	}
+
 	return ret;
 }
 
