@@ -149,7 +149,8 @@ sgen_pointer_queue_find (SgenPointerQueue *queue, void *ptr)
 gboolean
 sgen_pointer_queue_is_empty (SgenPointerQueue *queue)
 {
-	return !queue->next_slot;
+	gboolean tmp = !queue->next_slot;
+	return tmp;
 }
 
 void

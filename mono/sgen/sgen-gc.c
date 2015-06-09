@@ -2505,6 +2505,7 @@ sgen_queue_finalization_entry (GCObject *obj)
 {
 	gboolean critical = sgen_client_object_has_critical_finalizer (obj);
 
+	MOSTLY_ASYNC_SAFE_PRINTF ("Adding %s to finalization queue.\n", obj->vtable->klass->name);
 	sgen_pointer_queue_add (critical ? &critical_fin_queue : &fin_ready_queue, obj);
 
 	sgen_client_object_queued_for_finalization (obj);
@@ -2532,6 +2533,7 @@ static volatile gboolean pending_unqueued_finalizer = FALSE;
 int
 sgen_gc_invoke_finalizers (void)
 {
+	MOSTLY_ASYNC_SAFE_PRINTF ("Invoking finalizers\n");
 	int count = 0;
 
 	g_assert (!pending_unqueued_finalizer);
@@ -2546,15 +2548,19 @@ sgen_gc_invoke_finalizers (void)
 		 * We need to set `pending_unqueued_finalizer` before dequeing the
 		 * finalizable object.
 		 */
+		int origin = 0;
 		if (!sgen_pointer_queue_is_empty (&fin_ready_queue)) {
+			origin = 1;
 			pending_unqueued_finalizer = TRUE;
 			mono_memory_write_barrier ();
 			obj = sgen_pointer_queue_pop (&fin_ready_queue);
 		} else if (!sgen_pointer_queue_is_empty (&critical_fin_queue)) {
+			origin = 2;
 			pending_unqueued_finalizer = TRUE;
 			mono_memory_write_barrier ();
 			obj = sgen_pointer_queue_pop (&critical_fin_queue);
 		} else {
+			origin = 3;
 			obj = NULL;
 		}
 
@@ -2563,12 +2569,14 @@ sgen_gc_invoke_finalizers (void)
 
 		UNLOCK_GC;
 
-		if (!obj)
+		if (!obj) {
+			MOSTLY_ASYNC_SAFE_PRINTF ("Set pending finalizer but didn't run from %d\n", origin);
 			break;
+		}
 
 		count++;
 		/* the object is on the stack so it is pinned */
-		/*g_print ("Calling finalizer for object: %p (%s)\n", obj, sgen_client_object_safe_name (obj));*/
+		MOSTLY_ASYNC_SAFE_PRINTF ("Invoking finalizer from %d\n", origin);
 		sgen_client_run_finalize (obj);
 	}
 
@@ -2576,6 +2584,7 @@ sgen_gc_invoke_finalizers (void)
 		mono_memory_write_barrier ();
 		pending_unqueued_finalizer = FALSE;
 	}
+	MOSTLY_ASYNC_SAFE_PRINTF ("Invoked %d finalizers\n", count);
 
 	return count;
 }
@@ -2583,7 +2592,10 @@ sgen_gc_invoke_finalizers (void)
 gboolean
 sgen_have_pending_finalizers (void)
 {
-	return pending_unqueued_finalizer || !sgen_pointer_queue_is_empty (&fin_ready_queue) || !sgen_pointer_queue_is_empty (&critical_fin_queue);
+	gboolean tmp = pending_unqueued_finalizer;
+	tmp = tmp || !sgen_pointer_queue_is_empty (&fin_ready_queue);
+	tmp = tmp || !sgen_pointer_queue_is_empty (&critical_fin_queue);
+	return tmp;
 }
 
 /*

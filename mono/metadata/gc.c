@@ -480,28 +480,45 @@ ves_icall_System_GC_SuppressFinalize (MonoObject *obj)
 void
 ves_icall_System_GC_WaitForPendingFinalizers (void)
 {
+	MOSTLY_ASYNC_SAFE_PRINTF ("Entering wait for pending finalizers....\n");
 	if (mono_gc_is_null ())
+	{
+		MOSTLY_ASYNC_SAFE_PRINTF (" Returning %s :: %d\n", __FILE__, __LINE__);
 		return;
+	}
+	MOSTLY_ASYNC_SAFE_PRINTF ("%s :: %d\n", __FILE__, __LINE__);
 
 	if (!mono_gc_pending_finalizers ())
+	{
+		MOSTLY_ASYNC_SAFE_PRINTF (" Returning %s :: %d\n", __FILE__, __LINE__);
 		return;
+	}
+	MOSTLY_ASYNC_SAFE_PRINTF ("%s :: %d\n", __FILE__, __LINE__);
 
 	if (mono_thread_internal_current () == gc_thread)
-		/* Avoid deadlocks */
+	{
+		MOSTLY_ASYNC_SAFE_PRINTF (" Returning %s :: %d\n", __FILE__, __LINE__);
 		return;
+	}
+	MOSTLY_ASYNC_SAFE_PRINTF ("%s :: %d\n", __FILE__, __LINE__);
 
 	/*
 	If the finalizer thread is not live, lets pretend no finalizers are pending since the current thread might
 	be the one responsible for starting it up.
 	*/
 	if (gc_thread == NULL)
+	{
+		MOSTLY_ASYNC_SAFE_PRINTF (" Returning %s :: %d\n", __FILE__, __LINE__);
 		return;
+	}
+	MOSTLY_ASYNC_SAFE_PRINTF ("%s :: %d\n", __FILE__, __LINE__);
 
 	ResetEvent (pending_done_event);
+	MOSTLY_ASYNC_SAFE_PRINTF ("%s :: %d\n", __FILE__, __LINE__);
 	mono_gc_finalize_notify ();
-	/* g_print ("Waiting for pending finalizers....\n"); */
+	MOSTLY_ASYNC_SAFE_PRINTF ("Waiting for pending finalizers....\n");
 	guarded_wait (pending_done_event, INFINITE, TRUE);
-	/* g_print ("Done pending....\n"); */
+	MOSTLY_ASYNC_SAFE_PRINTF ("Done pending....\n");
 }
 
 void
@@ -1125,7 +1142,9 @@ finalizer_thread (gpointer unused)
 		/* If finished == TRUE, mono_gc_cleanup has been called (from mono_runtime_cleanup),
 		 * before the domain is unloaded.
 		 */
+		MOSTLY_ASYNC_SAFE_PRINTF("Starting invoking finalizers.\n");
 		mono_gc_invoke_finalizers ();
+		MOSTLY_ASYNC_SAFE_PRINTF("Finishing invoking finalizers.\n");
 
 		mono_threads_join_threads ();
 

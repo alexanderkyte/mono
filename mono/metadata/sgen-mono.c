@@ -483,6 +483,7 @@ mono_gc_register_finalizer_callbacks (MonoGCFinalizerCallbacks *callbacks)
 void
 sgen_client_run_finalize (MonoObject *obj)
 {
+	MOSTLY_ASYNC_SAFE_PRINTF ("Calling finalizer for object: %p (%s)\n", obj, obj->vtable->klass->name);
 	mono_gc_run_finalize (obj, NULL);
 }
 

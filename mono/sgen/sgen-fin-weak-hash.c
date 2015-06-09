@@ -196,40 +196,53 @@ sgen_finalize_in_range (int generation, ScanCopyContext ctx)
 	SGEN_HASH_TABLE_FOREACH (hash_table, object, dummy) {
 		int tag = tagged_object_get_tag (object);
 		object = tagged_object_get_object (object);
+		gboolean verbose = !strcmp("FinalizerException", sgen_client_vtable_get_name (SGEN_LOAD_VTABLE (object)));
 		if (!major_collector.is_object_live ((char*)object)) {
+			if (verbose)
+				MOSTLY_ASYNC_SAFE_PRINTF ("Finalizer Exception not alive. Pinned? %d\n", SGEN_OBJECT_IS_PINNED (object));
 			gboolean is_fin_ready = sgen_gc_is_object_ready_for_finalization (object);
 			GCObject *copy = object;
 			copy_func ((void**)&copy, queue);
 			if (is_fin_ready) {
+				if (verbose)
+					MOSTLY_ASYNC_SAFE_PRINTF ("is_fin_ready for FinalizerException\n");
 				/* remove and put in fin_ready_list */
 				SGEN_HASH_TABLE_FOREACH_REMOVE (TRUE);
 				sgen_queue_finalization_entry (copy);
 				/* Make it survive */
-				SGEN_LOG (5, "Queueing object for finalization: %p (%s) (was at %p) (%d)", copy, sgen_client_vtable_get_name (SGEN_LOAD_VTABLE (copy)), object, sgen_hash_table_num_entries (hash_table));
 				continue;
 			} else {
+				if (verbose)
+					MOSTLY_ASYNC_SAFE_PRINTF ("else is_fin_ready for FinalizerException\n");
+
 				if (hash_table == &minor_finalizable_hash && !ptr_in_nursery (copy)) {
+					if (verbose)
+						MOSTLY_ASYNC_SAFE_PRINTF ("else is_fin_ready for FinalizerException, route 1\n");
+
 					/* remove from the list */
 					SGEN_HASH_TABLE_FOREACH_REMOVE (TRUE);
 
 					/* insert it into the major hash */
 					sgen_hash_table_replace (&major_finalizable_hash, tagged_object_apply (copy, tag), NULL, NULL);
 
-					SGEN_LOG (5, "Promoting finalization of object %p (%s) (was at %p) to major table", copy, sgen_client_vtable_get_name (SGEN_LOAD_VTABLE (copy)), object);
 
 					continue;
 				} else if (copy != object) {
+					if (verbose)
+						MOSTLY_ASYNC_SAFE_PRINTF ("else is_fin_ready for FinalizerException, route 2\n");
+
 					/* update pointer */
 					SGEN_HASH_TABLE_FOREACH_REMOVE (TRUE);
 
 					/* register for reinsertion */
 					sgen_pointer_queue_add (&moved_fin_objects, tagged_object_apply (copy, tag));
 
-					SGEN_LOG (5, "Updating object for finalization: %p (%s) (was at %p)", copy, sgen_client_vtable_get_name (SGEN_LOAD_VTABLE (copy)), object);
 
 					continue;
 				}
 			}
+		} else {
+			MOSTLY_ASYNC_SAFE_PRINTF ("Finalizer Exception alive\n");
 		}
 	} SGEN_HASH_TABLE_FOREACH_END;
 
