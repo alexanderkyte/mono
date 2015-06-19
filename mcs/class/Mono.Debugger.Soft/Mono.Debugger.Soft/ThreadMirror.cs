@@ -25,6 +25,15 @@ namespace Mono.Debugger.Soft
 			if (WaitHandle.WaitAny (new []{ vm.conn.DisconnectedEvent, fetchingEvent }) == 0) {
 				throw new VMDisconnectedException ();
 			}
+
+			Console.WriteLine ("<Frames>");
+			foreach (var frame in frames) {
+				Console.WriteLine ("Method {0}", frame.Method.Name);
+				foreach (var local in frame.Method.GetLocals ()) {
+					Console.WriteLine ("{0} :: {3} at {1} {2}", local.Name, local.Index, frame.GetValue(local), local.Type.Name);
+				}
+			}
+			Console.WriteLine ("</Frames>");
 			return frames;
 		}
 

@@ -4508,6 +4508,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			MonoInst *bp_method_var = cfg->arch.seq_point_bp_method_var;
 			MonoInst *var;
 			int dreg = ARMREG_LR;
+			int route = -1;
 
 			if (cfg->soft_breakpoints) {
 				g_assert (!cfg->compile_aot);
@@ -4556,6 +4557,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 
 					/* Call it conditionally. */
 					ARM_BLX_REG_COND (code, ARMCOND_NE, dreg);
+					route = __LINE__;
 				} else {
 					if (cfg->compile_aot) {
 						/* Load the trigger page addr from the variable initialized in the prolog */
@@ -4564,22 +4566,27 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 						g_assert (var->opcode == OP_REGOFFSET);
 						g_assert (arm_is_imm12 (var->inst_offset));
 						ARM_LDR_IMM (code, dreg, var->inst_basereg, var->inst_offset);
+						route = __LINE__;
 					} else {
 #ifdef USE_JUMP_TABLES
 						gpointer *jte = mono_jumptable_add_entry ();
 						code = mono_arm_load_jumptable_entry (code, jte, dreg);
 						jte [0] = ss_trigger_page;
+						route = __LINE__;
 #else
 						ARM_LDR_IMM (code, dreg, ARMREG_PC, 0);
 						ARM_B (code, 0);
 						*(int*)code = (int)ss_trigger_page;
 						code += 4;
+						route = __LINE__;
 #endif
 					}
 					ARM_LDR_IMM (code, dreg, dreg, 0);
+					route = __LINE__;
 				}
 			}
 
+			size_t bp_start = code - cfg->native_code;
 			mono_add_seq_point (cfg, bb, ins, code - cfg->native_code);
 
 			if (cfg->soft_breakpoints) {
@@ -4595,6 +4602,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 				 * mono_arch_set_breakpoint ().
 				 */
 				ARM_NOP (code);
+				route = __LINE__;
 			} else if (cfg->compile_aot) {
 				guint32 offset = code - cfg->native_code;
 				guint32 val;
@@ -4619,6 +4627,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 				ARM_CMP_REG_IMM (code, dreg, 0, 0);
 				/* The breakpoint instruction */
 				ARM_LDR_IMM_COND (code, dreg, dreg, 0, ARMCOND_NE);
+				route = __LINE__;
 			} else {
 				/* 
 				 * A placeholder for a possible breakpoint inserted by
@@ -4626,7 +4635,12 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 				 */
 				for (i = 0; i < 4; ++i)
 					ARM_NOP (code);
+				route = __LINE__;
 			}
+
+			MOSTLY_ASYNC_SAFE_PRINTF ("Making seq point for %s and native offsets %d -  %d via route %d\n",
+			cfg->method->name, bp_start,
+			code - cfg->native_code, route);
 			break;
 		}
 		case OP_ADDCC:

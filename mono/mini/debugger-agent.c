@@ -292,6 +292,13 @@ typedef enum {
 	CMD_SET_EVENT = 64
 } CommandSet;
 
+static const char*
+cmd_to_string (CommandSet set, int command);
+
+
+static const char*
+command_set_to_string (CommandSet command_set);
+
 typedef enum {
 	EVENT_KIND_VM_START = 0,
 	EVENT_KIND_VM_DEATH = 1,
@@ -1798,7 +1805,7 @@ buffer_free (Buffer *buf)
 }
 
 static gboolean
-send_packet (int command_set, int command, Buffer *data)
+send_packet (int command_set, int command, const Buffer const * data)
 {
 	Buffer buf;
 	int len, id;
@@ -2791,7 +2798,7 @@ resume_vm (void)
 	g_assert (suspend_count > 0);
 	suspend_count --;
 
-	DEBUG_PRINTF (1, "[%p] Resuming vm, suspend count=%d...\n", (gpointer)GetCurrentThreadId (), suspend_count);
+	MOSTLY_ASYNC_SAFE_PRINTF ("[%p] Resuming vm, suspend count=%d...\n", (gpointer)GetCurrentThreadId (), suspend_count);
 
 	if (suspend_count == 0) {
 		// FIXME: Is it safe to call this inside the lock ?
@@ -3671,6 +3678,7 @@ process_event (EventKind event, gpointer arg, gint32 il_offset, MonoContext *ctx
 		case EVENT_KIND_BREAKPOINT:
 		case EVENT_KIND_STEP:
 			buffer_add_methodid (&buf, domain, arg);
+			MOSTLY_ASYNC_SAFE_PRINTF ("Setting breakpoint at %d\n", il_offset);
 			buffer_add_long (&buf, il_offset);
 			break;
 		case EVENT_KIND_VM_START:
@@ -3750,8 +3758,6 @@ process_event (EventKind event, gpointer arg, gint32 il_offset, MonoContext *ctx
 	if (event == EVENT_KIND_VM_START) {
 		vm_start_event_sent = TRUE;
 	}
-
-	DEBUG_PRINTF (1, "[%p] Sent %d events %s(%d), suspend=%d.\n", (gpointer)GetCurrentThreadId (), nevents, event_to_string (event), ecount, suspend_policy);
 
 	switch (suspend_policy) {
 	case SUSPEND_POLICY_NONE:
@@ -4176,9 +4182,21 @@ insert_breakpoint (MonoSeqPointInfo *seq_points, MonoDomain *domain, MonoJitInfo
 	if (error)
 		mono_error_init (error);
 
+	{
+		mono_seq_point_iterator_init (&it, seq_points);
+		while (mono_seq_point_iterator_next (&it)) {
+			MOSTLY_ASYNC_SAFE_PRINTF ("il offset %d = native offset %d\n", it.seq_point.il_offset, it.seq_point.native_offset);
+		}
+	}
+
 	mono_seq_point_iterator_init (&it, seq_points);
 	while (mono_seq_point_iterator_next (&it)) {
 		if (it.seq_point.il_offset == bp->il_offset) {
+			MOSTLY_ASYNC_SAFE_PRINTF ("Breaking for il offset %d == %d at native offset %d\n",
+																it.seq_point.il_offset,
+																bp->il_offset,
+																it.seq_point.native_offset);
+
 			it_has_sp = TRUE;
 			break;
 		}
@@ -4247,7 +4265,8 @@ insert_breakpoint (MonoSeqPointInfo *seq_points, MonoDomain *domain, MonoJitInfo
 #endif
 	}
 
-	DEBUG_PRINTF (1, "[dbg] Inserted breakpoint at %s:0x%x [%p](%d).\n", mono_method_full_name (jinfo_get_method (ji), TRUE), (int)it.seq_point.il_offset, inst->ip, count);
+	MOSTLY_ASYNC_SAFE_PRINTF ("[dbg] Inserted breakpoint at %s:0x%x [%p](%d). at native %d\n",
+	mono_method_full_name (jinfo_get_method (ji), TRUE), (int)it.seq_point.il_offset, inst->ip, count, (int)it.seq_point.native_offset);
 }
 
 static void
@@ -4326,18 +4345,24 @@ add_pending_breakpoints (MonoMethod *method, MonoJitInfo *ji)
 
 	mono_loader_lock ();
 
+	MOSTLY_ASYNC_SAFE_PRINTF ("Processing %s had %d pending breakpoints\n", method->name, breakpoints->len);
+
 	for (i = 0; i < breakpoints->len; ++i) {
 		MonoBreakpoint *bp = g_ptr_array_index (breakpoints, i);
 		gboolean found = FALSE;
 
-		if (!bp_matches_method (bp, method))
+		if (!bp_matches_method (bp, method)) {
+			MOSTLY_ASYNC_SAFE_PRINTF ("bp at offset %d of %s didn't match %s\n", bp->il_offset, bp->method->name, method->name);
 			continue;
+		}
 
 		for (j = 0; j < bp->children->len; ++j) {
 			BreakpointInstance *inst = g_ptr_array_index (bp->children, j);
 
-			if (inst->ji == ji)
+			if (inst->ji == ji) {
 				found = TRUE;
+				MOSTLY_ASYNC_SAFE_PRINTF ("bp at offset %d of %s didn't matched other request\n", bp->il_offset, bp->method->name);
+			}
 		}
 
 		if (!found) {
@@ -4669,7 +4694,7 @@ process_breakpoint_inner (DebuggerTlsData *tls, gboolean from_signal)
 
 	g_assert (found_sp);
 
-	DEBUG_PRINTF (1, "[%p] Breakpoint hit, method=%s, ip=%p, offset=0x%x, sp il offset=0x%x.\n", (gpointer)GetCurrentThreadId (), method->name, ip, native_offset, sp.il_offset);
+	MOSTLY_ASYNC_SAFE_PRINTF ("[%p] Breakpoint hit, method=%s, ip=%p, offset=0x%x, sp il offset=0x%x.\n", (gpointer)GetCurrentThreadId (), method->name, ip, native_offset, sp.il_offset);
 
 	bp = NULL;
 	for (i = 0; i < breakpoints->len; ++i) {
@@ -9618,7 +9643,7 @@ debugger_thread (void *arg)
 
 		g_assert (flags == 0);
 
-		if (log_level) {
+		{
 			const char *cmd_str;
 			char cmd_num [256];
 
@@ -9628,7 +9653,7 @@ debugger_thread (void *arg)
 				cmd_str = cmd_num;
 			}
 			
-			DEBUG_PRINTF (1, "[dbg] Command %s(%s) [%d][at=%lx].\n", command_set_to_string (command_set), cmd_str, id, (long)mono_100ns_ticks () / 10000);
+			MOSTLY_ASYNC_SAFE_PRINTF ("[dbg] Command %s(%s) [%d][at=%lx].\n", command_set_to_string (command_set), cmd_str, id, (long)mono_100ns_ticks () / 10000);
 		}
 
 		data = g_malloc (len - HEADER_LENGTH);
@@ -9653,12 +9678,13 @@ debugger_thread (void *arg)
 
 		/* Process the request */
 		switch (command_set) {
-		case CMD_SET_VM:
+		case CMD_SET_VM: {
 			err = vm_commands (command, id, p, end, &buf);
 			if (!err && command == CMD_VM_INVOKE_METHOD)
 				/* Sent after the invoke is complete */
 				no_reply = TRUE;
 			break;
+		}
 		case CMD_SET_EVENT_REQUEST:
 			err = event_commands (command, p, end, &buf);
 			break;

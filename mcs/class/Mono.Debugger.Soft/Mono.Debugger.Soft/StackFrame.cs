@@ -9,7 +9,7 @@ namespace Mono.Debugger.Soft
 		ThreadMirror thread;
 		AppDomainMirror domain;
 		MethodMirror method;
-		int il_offset;
+		public int il_offset;
 		Location location;
 		StackFrameFlags flags;
 

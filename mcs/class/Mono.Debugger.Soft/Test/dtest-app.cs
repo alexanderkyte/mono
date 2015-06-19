@@ -689,6 +689,7 @@ public class Tests : TestsBase, ITest2
 		locals2<string> (null, 5, "ABC", ref s, ref astruct);
 		locals3 ();
 		locals6 ();
+		Console.WriteLine ("Calling locals with 22");
 		locals7<int> (22);
 	}
 
