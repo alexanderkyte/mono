@@ -3069,15 +3069,15 @@ process_frame (StackFrameInfo *info, MonoContext *ctx, gpointer user_data)
 
 	if (info->il_offset == -1) {
 		/* mono_debug_il_offset_from_address () doesn't seem to be precise enough (#2092) */
-		if (ud->frames == NULL) {
-			if (mono_find_prev_seq_point_for_native_offset (info->domain, method, info->native_offset, NULL, &sp))
-				info->il_offset = sp.il_offset;
-		}
-		if (info->il_offset == -1)
+		/*if (ud->frames == NULL) {*/
+			/*if (mono_find_prev_seq_point_for_native_offset (info->domain, method, info->native_offset, NULL, &sp))*/
+				/*info->il_offset = sp.il_offset;*/
+		/*}*/
+		/*if (info->il_offset == -1)*/
 			info->il_offset = mono_debug_il_offset_from_address (method, info->domain, info->native_offset);
 	}
 
-	DEBUG_PRINTF (1, "\tFrame: %s:%x(%x) %d\n", mono_method_full_name (method, TRUE), info->il_offset, info->native_offset, info->managed);
+	DEBUG_PRINTF (1, "\tFrame: %s:%d(%d) %d\n", mono_method_full_name (method, TRUE), info->il_offset, info->native_offset, info->managed);
 
 	if (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) {
 		if (!CHECK_PROTOCOL_VERSION (2, 17))
@@ -4761,6 +4761,12 @@ process_breakpoint_inner (DebuggerTlsData *tls, gboolean from_signal)
 		process_event (kind, method, 0, ctx, bp_events, suspend_policy);
 	if (enter_leave_events)
 		process_event (kind, method, 0, ctx, enter_leave_events, suspend_policy);
+	MOSTLY_ASYNC_SAFE_PRINTF ("IN-bp-debug\n");
+	{
+		compute_frame_info (tls->thread, tls);
+	}
+	MOSTLY_ASYNC_SAFE_PRINTF ("End IN-bp-debug\n");
+
 }
 
 /* Process a breakpoint/single step event after resuming from a signal handler */
