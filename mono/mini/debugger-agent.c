@@ -4658,6 +4658,12 @@ process_breakpoint_inner (DebuggerTlsData *tls, gboolean from_signal)
 	SeqPoint sp;
 	gboolean found_sp;
 
+	MOSTLY_ASYNC_SAFE_PRINTF ("IN-bp-debug\n");
+	{
+		compute_frame_info (tls->thread, tls);
+	}
+	MOSTLY_ASYNC_SAFE_PRINTF ("End IN-bp-debug\n");
+
 	// FIXME: Speed this up
 
 	ip = MONO_CONTEXT_GET_IP (ctx);
@@ -4761,11 +4767,6 @@ process_breakpoint_inner (DebuggerTlsData *tls, gboolean from_signal)
 		process_event (kind, method, 0, ctx, bp_events, suspend_policy);
 	if (enter_leave_events)
 		process_event (kind, method, 0, ctx, enter_leave_events, suspend_policy);
-	MOSTLY_ASYNC_SAFE_PRINTF ("IN-bp-debug\n");
-	{
-		compute_frame_info (tls->thread, tls);
-	}
-	MOSTLY_ASYNC_SAFE_PRINTF ("End IN-bp-debug\n");
 
 }
 

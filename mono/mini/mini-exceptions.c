@@ -433,6 +433,8 @@ mono_find_jit_info_ext (MonoDomain *domain, MonoJitTlsData *jit_tls,
 		else
 			real_ip = (const char*)ip;
 
+		MOSTLY_ASYNC_SAFE_PRINTF ("Frame %p has %p as real_ip and %p as ip\n", frame, real_ip, ip);
+
 		if ((real_ip >= start) && (real_ip <= start + ji->code_size))
 			frame->native_offset = real_ip - start;
 		else
