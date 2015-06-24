@@ -2780,6 +2780,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 				x86_alu_reg_mem (code, X86_CMP, X86_EAX, (guint32)ss_trigger_page);
 
 			mono_add_seq_point (cfg, bb, ins, code - cfg->native_code);
+			MOSTLY_ASYNC_SAFE_PRINTF ("Making seqpoint for %s with native offset %d il %d\n", code - cfg->native_code, ins->ins_imm);
 
 			/* 
 			 * A placeholder for a possible breakpoint inserted by

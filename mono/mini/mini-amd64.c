@@ -4154,6 +4154,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			 * This is the address which is saved in seq points, 
 			 */
 			mono_add_seq_point (cfg, bb, ins, code - cfg->native_code);
+			MOSTLY_ASYNC_SAFE_PRINTF ("Making seqpoint for %s with native offset %d il %d\n", cfg->method->name, code - cfg->native_code, ins->inst_imm);
 
 			if (cfg->compile_aot) {
 				guint32 offset = code - cfg->native_code;
@@ -8378,6 +8379,7 @@ mono_arch_get_trampolines (gboolean aot)
 void
 mono_arch_set_breakpoint (MonoJitInfo *ji, guint8 *ip)
 {
+	MOSTLY_ASYNC_SAFE_PRINTF ("[TRACE_DBG] Setting breakpoint at offset %d of %s\n", ip - (guint8*)ji->code_start, ji->d.method->name);
 	guint8 *code = ip;
 	guint8 *orig_code = code;
 

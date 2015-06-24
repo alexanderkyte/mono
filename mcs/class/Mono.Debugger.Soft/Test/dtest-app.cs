@@ -316,6 +316,7 @@ public class Tests : TestsBase, ITest2
 		gc_suspend ();
 		set_ip ();
 		step_filters ();
+		step_into_constructor ();
 		if (args.Length > 0 && args [0] == "domain-test")
 			/* This takes a lot of time, so execute it conditionally */
 			domains ();
@@ -327,6 +328,11 @@ public class Tests : TestsBase, ITest2
 			new Tests ().invoke_single_threaded ();
 		new Tests ().evaluate_method ();
 		return 3;
+	}
+
+	[MethodImplAttribute (MethodImplOptions.NoInlining)]
+	public static void step_into_constructor () {
+		var foo = new object ();//Breakpoint and step into, should end line 8
 	}
 
 	public static void breakpoints () {

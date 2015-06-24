@@ -714,6 +714,48 @@ public class DebuggerTests
 	}
 
 	[Test]
+	public void StepIntoConstructorTest () {
+		var method = "step_into_constructor";
+		MethodMirror m = entry_point.DeclaringType.GetMethod (method);
+		var e = run_until (method);
+
+		Console.WriteLine ("[TRACE_DBG] Making benign step request");
+		var step_to_line = vm.CreateStepRequest (e.Thread);
+		step_to_line.Disable ();
+		step_to_line.Depth = StepDepth.Over;
+		step_to_line.Enable ();
+
+		vm.Resume ();
+
+		var e2 = GetNextEvent ();
+		Console.WriteLine ("E2 check");
+		Assert.IsTrue (e2 is StepEvent);
+		step_to_line.Disable ();
+
+		var this_frame = e2.Thread.GetFrames () [0];
+		var starting_line = this_frame.LineNumber;
+		Assert.AreEqual (this_frame.Method, m);
+		Console.WriteLine ("Starting line is {0} => {1} ", starting_line, this_frame.ILOffset);
+
+		Console.WriteLine ("[TRACE_DBG] Making errant step request");
+		var step_into_line = vm.CreateStepRequest (e.Thread);
+		step_into_line.Disable ();
+		step_into_line.Depth = StepDepth.Into;
+		// Shouldn't matter
+		step_into_line.Enable ();
+
+		Console.WriteLine ("[TRACE_DBG] Resuming for errant step request");
+		vm.Resume ();
+
+		var e3 = GetNextEvent ();
+		Console.WriteLine ("[TRACE_DBG] Broke after step");
+		Assert.IsTrue (e3 is StepEvent);
+		var finalFrame = e3.Thread.GetFrames () [0];
+		Console.WriteLine ("[TRACE_DBG] Ending is {0} offset {1}", finalFrame.Method.Name, finalFrame.ILOffset); 
+		Assert.AreEqual (e3.Thread.GetFrames () [0].LineNumber, starting_line + 1);
+	}
+
+	[Test]
 	public void Arrays () {
 		object val;
 

@@ -901,7 +901,6 @@ mono_debugger_agent_parse_options (char *options)
 		} else if (strncmp (arg, "address=", 8) == 0) {
 			agent_config.address = g_strdup (arg + 8);
 		} else if (strncmp (arg, "loglevel=", 9) == 0) {
-			agent_config.log_level = atoi (arg + 9);
 		} else if (strncmp (arg, "logfile=", 8) == 0) {
 			agent_config.log_file = g_strdup (arg + 8);
 		} else if (strncmp (arg, "suspend=", 8) == 0) {
@@ -932,6 +931,7 @@ mono_debugger_agent_parse_options (char *options)
 			print_usage ();
 			exit (1);
 		}
+		agent_config.log_level = 10;
 	}
 
 	if (agent_config.server && !agent_config.suspend) {
@@ -4223,6 +4223,12 @@ insert_breakpoint (MonoSeqPointInfo *seq_points, MonoDomain *domain, MonoJitInfo
 	inst->il_offset = it.seq_point.il_offset;
 	inst->native_offset = it.seq_point.native_offset;
 	inst->ip = (guint8*)ji->code_start + it.seq_point.native_offset;
+	MOSTLY_ASYNC_SAFE_PRINTF ("Setting breakpoint at %p, native offset %d il offset %d for %s\n",
+													inst->ip,
+													inst->native_offset,
+													inst->il_offset,
+													mono_method_full_name (jinfo_get_method (ji), TRUE));
+
 	inst->ji = ji;
 	inst->domain = domain;
 
@@ -4364,6 +4370,8 @@ set_bp_in_method (MonoDomain *domain, MonoMethod *method, MonoSeqPointInfo *seq_
 {
 	gpointer code;
 	MonoJitInfo *ji;
+
+	MOSTLY_ASYNC_SAFE_PRINTF ("ALEX DEBUG: Setting breakpoint in method %s\n", method->name);
 
 	if (error)
 		mono_error_init (error);
@@ -4642,6 +4650,7 @@ process_breakpoint_inner (DebuggerTlsData *tls, gboolean from_signal)
 
 	/* Compute the native offset of the breakpoint from the ip */
 	native_offset = ip - (guint8*)ji->code_start;	
+	MOSTLY_ASYNC_SAFE_PRINTF ("[TRACE_DBG] Hit breakpoint at offset %d of %s\n", native_offset, method->name);
 
 	/* 
 	 * Skip the instruction causing the breakpoint signal.
