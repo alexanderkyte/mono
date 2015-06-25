@@ -3695,6 +3695,32 @@ public class DebuggerTests
 		// Make sure we are still in the cctor
 		Assert.AreEqual (".cctor", e.Thread.GetFrames ()[0].Location.Method.Name);
 	}
+
+	[Test]
+	public void StaticCtorFilterInCctor () {
+		var assembly = entry_point.DeclaringType.Assembly;
+		var type = assembly.GetType ("CurlyBreakpoint");
+		var method = type.GetMethod ("CurlyMethod");
+
+		Assert.IsNotNull (m);
+		//Console.WriteLine ("X: " + name + " " + m.ILOffsets.Count + " " + m.Locations.Count);
+		var req = vm.SetBreakpoint (m, m.ILOffsets [0]);
+
+		var e = run_until ("curly_break");
+
+		var step_req = create_step (e);
+		step_req.Disable ();
+		step_req.Depth = StepDepth.Into;
+		step_req.Enable ();
+
+		vm.Resume ();
+
+		req.Disable ();
+
+		e = GetNextEvent ();
+		Assert.IsTrue (e is StepEvent);
+		Assert.AreEqual(e.Thread.GetFrames ()[0].Method.Name == "CurlyMethod");
+	}
 }
 
 }

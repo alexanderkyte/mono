@@ -61,7 +61,7 @@ public class BAttribute : AAttribute {
 	public int bfield;
 }
 
-[DebuggerDisplay ("Tests", Name="FOO", Target=typeof (int))]
+[DebuggerDisplay ("Tests", Name="WOO", Target=typeof (int))]
 [DebuggerTypeProxy (typeof (Tests))]
 [BAttribute (afield = 1, bfield = 2)]
 public class Tests2 {
@@ -317,6 +317,7 @@ public class Tests : TestsBase, ITest2
 		set_ip ();
 		step_filters ();
 		local_reflect ();
+		curly_break ();
 		if (args.Length > 0 && args [0] == "domain-test")
 			/* This takes a lot of time, so execute it conditionally */
 			domains ();
@@ -685,6 +686,12 @@ public class Tests : TestsBase, ITest2
 		IRecStruct s = new RecStruct ();
 		s.foo (s);
 		vtypes4_2 (s);
+	}
+
+	[MethodImplAttribute (MethodImplOptions.NoInlining)]
+	public static void curly_break ()
+	{
+		CurlyBreakpoint.CurlyMethod ();
 	}
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
@@ -1488,4 +1495,8 @@ class LocalReflectClass
 	}
 }
 
-
+public class CurlyBreakpoint {
+	public static CurlyMethod ()
+	{
+	}
+}
