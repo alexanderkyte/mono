@@ -3697,29 +3697,56 @@ public class DebuggerTests
 	}
 
 	[Test]
-	public void StaticCtorFilterInCctor () {
+	public void CurlyBraces () {
 		var assembly = entry_point.DeclaringType.Assembly;
 		var type = assembly.GetType ("CurlyBreakpoint");
 		var method = type.GetMethod ("CurlyMethod");
 
-		Assert.IsNotNull (m);
+		Assert.IsNotNull (method);
 		//Console.WriteLine ("X: " + name + " " + m.ILOffsets.Count + " " + m.Locations.Count);
-		var req = vm.SetBreakpoint (m, m.ILOffsets [0]);
-
-		var e = run_until ("curly_break");
-
-		var step_req = create_step (e);
-		step_req.Disable ();
-		step_req.Depth = StepDepth.Into;
-		step_req.Enable ();
-
+		var req = vm.SetBreakpoint (method, method.ILOffsets [0]);
 		vm.Resume ();
-
+		BreakpointEvent bp = GetNextEvent () as BreakpointEvent;
+		Assert.IsTrue (bp != null);
 		req.Disable ();
 
-		e = GetNextEvent ();
-		Assert.IsTrue (e is StepEvent);
-		Assert.AreEqual(e.Thread.GetFrames ()[0].Method.Name == "CurlyMethod");
+		var step_req = create_step (bp);
+		step_req.Disable ();
+		//step_req.Size = StepSize.Line;
+		step_req.Depth = StepDepth.Into;
+		step_req.Enable ();
+		vm.Resume ();
+
+		StepEvent se2 = GetNextEvent () as StepEvent;
+		step_req.Disable ();
+
+		var step_req_two = create_step (se2);
+		step_req_two.Disable ();
+		//step_req_two.Size = StepSize.Line;
+		step_req_two.Depth = StepDepth.Into;
+		step_req_two.Enable ();
+		vm.Resume ();
+
+		StepEvent se3 = GetNextEvent () as StepEvent;
+		step_req_two.Disable ();
+
+		var step_req_three = create_step (se3);
+		step_req_three.Disable ();
+		//step_req_three.Size = StepSize.Line;
+		step_req_three.Depth = StepDepth.Into;
+		step_req_three.Enable ();
+		vm.Resume ();
+
+		StepEvent se = GetNextEvent () as StepEvent;
+		step_req_three.Disable ();
+
+		Console.WriteLine ("After second step");
+
+		Assert.IsTrue (se != null);
+		//BreakpointEvent bp = se as BreakpointEvent;
+		var frame = se.Thread.GetFrames ()[0];
+		Console.WriteLine ("{0} {1} {2}", frame.Method.Name, frame.LineNumber, frame.ILOffset);
+		Assert.AreEqual(se.Thread.GetFrames ()[0].Method.Name, "CurlyMethod");
 	}
 }
 

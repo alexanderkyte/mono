@@ -88,12 +88,12 @@ public struct AStruct : ITest2 {
 	public int l;
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
-	public int foo (int val) {
+	public int woo (int val) {
 		return val;
 	}
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
-	public static int static_foo (int val) {
+	public static int static_woo (int val) {
 		return val;
 	}
 
@@ -158,32 +158,32 @@ public struct NestedInner {
 }
 
 public interface IRecStruct {
-	void foo (object o);
+	void woo (object o);
 }
 
 struct RecStruct : IRecStruct {
 	public object o;
 
-	public void foo (object o) {
+	public void woo (object o) {
 		this.o = o;
 	}
 }
 
 interface ITest
 {
-	void Foo ();
+	void woo ();
 	void Bar ();
 }
 
 interface ITest<T>
 {
-	void Foo ();
+	void woo ();
 	void Bar ();
 }
 
 class TestIfaces : ITest
 {
-	void ITest.Foo () {
+	void ITest.woo () {
 	}
 
 	void ITest.Bar () {
@@ -196,7 +196,7 @@ class TestIfaces : ITest
 
 class TestIfaces<T> : ITest<T>
 {
-	void ITest<T>.Foo () {
+	void ITest<T>.woo () {
 	}
 
 	void ITest<T>.Bar () {
@@ -583,7 +583,7 @@ public class Tests : TestsBase, ITest2
 	public static void arguments () {
 		arg1 (SByte.MaxValue - 5, Byte.MaxValue - 5, true, Int16.MaxValue - 5, UInt16.MaxValue - 5, 'F', Int32.MaxValue - 5, UInt32.MaxValue - 5, Int64.MaxValue - 5, UInt64.MaxValue - 5, 1.2345f, 6.78910, new IntPtr (Int32.MaxValue - 5), new UIntPtr (UInt32.MaxValue - 5));
 		int i = 42;
-		arg2 ("FOO", null, "BLA", ref i, new GClass <int> { field = 42 }, new object ());
+		arg2 ("woo", null, "BLA", ref i, new GClass <int> { field = 42 }, new object ());
 		Tests t = new Tests () { field_i = 42, field_s = "S" };
 		t.arg3 ("BLA");
 	}
@@ -606,7 +606,7 @@ public class Tests : TestsBase, ITest2
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void objects () {
 		Tests t = new Tests () { field_i = 42, field_bool1 = true, field_bool2 = false, field_char = 'A', field_byte = 129, field_sbyte = -33, field_short = Int16.MaxValue - 5, field_ushort = UInt16.MaxValue - 5, field_long = Int64.MaxValue - 5, field_ulong = UInt64.MaxValue - 5, field_float = 3.14f, field_double = 3.14f, field_s = "S", base_field_i = 43, base_field_s = "T", field_enum = AnEnum.B, field_class = null, field_intptr = new IntPtr (Int32.MaxValue - 5), field_nullable = null };
-		t.o1 (new Tests2 () { field_j = 43 }, new GClass <int> { field = 42 }, new GClass <string> { field = "FOO" });
+		t.o1 (new Tests2 () { field_j = 43 }, new GClass <int> { field = 42 }, new GClass <string> { field = "woo" });
 		o2 (new string [] { "BAR", "BAZ" }, new int[] { 42, 43 }, new int [,] { { 1, 2 }, { 3, 4 }}, (int[,])Array.CreateInstance (typeof (int), new int [] { 2, 2}, new int [] { 1, 3}), new int[] { 0 });
 	}
 
@@ -669,12 +669,12 @@ public class Tests : TestsBase, ITest2
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void vtypes2 (AStruct s) {
-		s.foo (5);
+		s.woo (5);
 	}
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void vtypes3 (AStruct s) {
-		AStruct.static_foo (5);
+		AStruct.static_woo (5);
 	}
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
@@ -684,7 +684,7 @@ public class Tests : TestsBase, ITest2
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void vtypes4 () {
 		IRecStruct s = new RecStruct ();
-		s.foo (s);
+		s.woo (s);
 		vtypes4_2 (s);
 	}
 
@@ -711,13 +711,13 @@ public class Tests : TestsBase, ITest2
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void locals1 (string[] args) {
-		long foo = 42;
+		long woo = 42;
 
 		double ri = 1;
 		locals11 (b: ref ri, a: ri);
 
 		for (int j = 0; j < 10; ++j) {
-			foo ++;
+			woo ++;
 		}
 	}
 
@@ -850,7 +850,7 @@ public class Tests : TestsBase, ITest2
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void type_info () {
 		Tests t = new Tests () { field_i = 42, field_s = "S", base_field_i = 43, base_field_s = "T", field_enum = AnEnum.B };
-		t.ti1 (new Tests2 () { field_j = 43 }, new GClass <int> { field = 42 }, new GClass <string> { field = "FOO" });
+		t.ti1 (new Tests2 () { field_j = 43 }, new GClass <int> { field = 42 }, new GClass <string> { field = "woo" });
 		int val = 0;
 		unsafe {
 			AStruct s = new AStruct () { i = 42, s = "S", k = 43 };
@@ -881,7 +881,7 @@ public class Tests : TestsBase, ITest2
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void assembly_load_2 () {
 		// This will load System.dll while holding the loader lock
-		new Foo ();
+		new woo ();
 	}
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
@@ -992,8 +992,8 @@ public class Tests : TestsBase, ITest2
 		return 42;
 	}
 
-	public void invoke_out (out int foo, out int[] arr) {
-		foo = 5;
+	public void invoke_out (out int woo, out int[] arr) {
+		woo = 5;
 		arr = new int [10];
 	}
 
@@ -1220,7 +1220,7 @@ public class Tests : TestsBase, ITest2
 		var m = new DynamicMethod ("dyn_method", typeof (void), new Type []  { typeof (int) }, typeof (object).Module);
 		var ig = m.GetILGenerator ();
 
-		ig.Emit (OpCodes.Ldstr, "FOO");
+		ig.Emit (OpCodes.Ldstr, "woo");
 		ig.Emit (OpCodes.Call, typeof (Tests).GetMethod ("dyn_call"));
 		ig.Emit (OpCodes.Ret);
 
@@ -1235,18 +1235,18 @@ public class Tests : TestsBase, ITest2
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void ref_emit () {
 		AssemblyName assemblyName = new AssemblyName ();
-		assemblyName.Name = "foo";
+		assemblyName.Name = "woo";
 
 		AssemblyBuilder assembly =
 			Thread.GetDomain ().DefineDynamicAssembly (
 													   assemblyName, AssemblyBuilderAccess.RunAndSave);
 
-		ModuleBuilder module = assembly.DefineDynamicModule ("foo.dll");
+		ModuleBuilder module = assembly.DefineDynamicModule ("woo.dll");
 
-		TypeBuilder tb = module.DefineType ("foo", TypeAttributes.Public, typeof (object));
+		TypeBuilder tb = module.DefineType ("woo", TypeAttributes.Public, typeof (object));
 		MethodBuilder mb = tb.DefineMethod ("ref_emit_method", MethodAttributes.Public|MethodAttributes.Static, CallingConventions.Standard, typeof (void), new Type [] { });
 		ILGenerator ig = mb.GetILGenerator ();
-		ig.Emit (OpCodes.Ldstr, "FOO");
+		ig.Emit (OpCodes.Ldstr, "woo");
 		ig.Emit (OpCodes.Call, typeof (Tests).GetMethod ("ref_emit_call"));
 		ig.Emit (OpCodes.Ret);
 
@@ -1449,7 +1449,7 @@ public class CrossDomain : MarshalByRefObject
 	}
 }	
 
-public class Foo
+public class woo
 {
 	public ProcessStartInfo info;
 }
@@ -1473,7 +1473,7 @@ public class LineNumbers
 #pragma warning disable 0219
 		int i = 5;
 #pragma warning restore 0219
-		#line 55 "FOO"
+		#line 55 "foo"
 	}
 }
 
@@ -1496,7 +1496,8 @@ class LocalReflectClass
 }
 
 public class CurlyBreakpoint {
-	public static CurlyMethod ()
+	public static void CurlyMethod ()
 	{
+		Console.WriteLine ("Hello");
 	}
 }
