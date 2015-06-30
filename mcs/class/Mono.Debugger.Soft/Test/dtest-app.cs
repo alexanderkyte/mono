@@ -317,6 +317,7 @@ public class Tests : TestsBase, ITest2
 		set_ip ();
 		step_filters ();
 		local_reflect ();
+		static_constructor ();
 		if (args.Length > 0 && args [0] == "domain-test")
 			/* This takes a lot of time, so execute it conditionally */
 			domains ();
@@ -328,6 +329,11 @@ public class Tests : TestsBase, ITest2
 			new Tests ().invoke_single_threaded ();
 		new Tests ().evaluate_method ();
 		return 3;
+	}
+
+	public const string static_constructor_msg = "Test";
+	public static void static_constructor () {
+		Console.Write (static_constructor_msg);
 	}
 
 	public static void local_reflect () {

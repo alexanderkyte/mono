@@ -244,6 +244,36 @@ public class DebuggerTests
 	}
 
 	[Test]
+	public void StaticConstructor () {
+		string methodName = "static_constructor";
+		Event e = run_until (methodName);
+		MethodMirror method = entry_point.DeclaringType.GetMethod (methodName);
+		Assert.IsNotNull (method);
+
+		Console.WriteLine ("Before create step");
+		var req = create_step (e);
+		Console.WriteLine ("After create step");
+		req.Enable ();
+		Console.WriteLine ("Before step into");
+		e = step_into ();
+		Console.WriteLine ("After step into");
+		{
+			var frame = e.Thread.GetFrames ()[0];
+			Console.WriteLine (frame.ILOffset);
+		}
+		Console.WriteLine ("Before step into");
+		e = step_into ();
+		Console.WriteLine ("After step into");
+		{
+			var frame = e.Thread.GetFrames ()[0];
+			Console.WriteLine (frame.ILOffset);
+		}
+
+		// We didn't end up in the static constructor or anything it calls.
+		Assert.AreEqual (method.Name, (e as StepEvent).Method.Name);
+	}
+
+	[Test]
 	public void BreakpointAlreadyJITted () {
 		Event e = run_until ("bp1");
 
