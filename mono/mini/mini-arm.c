@@ -28,6 +28,10 @@
 #include "mini-gc.h"
 #include "mono/arch/arm/arm-vfp-codegen.h"
 
+#if 1
+#include <mono/mini/mini-arm-cconv-stub.h>
+#endif
+
 /* Sanity check: This makes no sense */
 #if defined(ARM_FPU_NONE) && (defined(ARM_FPU_VFP) || defined(ARM_FPU_VFP_HARD))
 #error "ARM_FPU_NONE is defined while one of ARM_FPU_VFP/ARM_FPU_VFP_HARD is defined"
@@ -1333,7 +1337,11 @@ is_hfa (MonoType *t, int *out_nfields, int *out_esize)
 	return TRUE;
 }
 
+#ifdef __MINI_ARM_CCONV_TEST
 static CallInfo*
+#else __MINI_ARM_CCONV_TEST
+static CallInfo*
+#endif
 get_call_info (MonoGenericSharingContext *gsctx, MonoMemPool *mp, MonoMethodSignature *sig)
 {
 	guint i, gr, fpr, pstart;
