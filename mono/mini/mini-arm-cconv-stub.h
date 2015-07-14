@@ -18,7 +18,7 @@ typedef enum {
 	C_TYPE_DOUBLE,
 
 	C_TYPE_COUNT,
-} MonoTypeName;
+} CTypeName;
 
 static MonoTypeEnum mapNameToType[] = {
 	MONO_TYPE_I1,
@@ -49,15 +49,17 @@ extern CallInfo *
 get_call_info (MonoGenericSharingContext *gsctx, MonoMemPool *mp, MonoMethodSignature *sig);
 
 MonoType *
-nameToType (MonoTypeName typ);
+nameToType (CTypeName typ);
 
-MonoRegisterUsage cconv_in (MonoTypeName *type, int count);
+void
+cconv_in (CTypeName *type, int count, MonoRegister **regs, int *reg_cout);
 
-MonoRegisterUsage cconv_out (MonoTypeName type);
+void
+cconv_out (CTypeName type, MonoRegister **regs, int *reg_count);
 // END DECLS
 
 MonoType *
-nameToType (MonoTypeName typ)
+nameToType (CTypeName typ)
 {
 	static MonoType *types [type_count];
 
@@ -70,8 +72,8 @@ nameToType (MonoTypeName typ)
 	return types[typ];
 }
 
-MonoRegisterUsage
-cconv_in (MonoTypeName *type, int count)
+void
+cconv_in (CTypeName *type, int count, MonoRegister **regs, int *reg_count)
 {
 	MonoMethodSignature *sig = g_malloc0 (sizeof(MonoMethodSignature) + sizeof(MonoType) * count);
 	sig->ret = NULL;
@@ -87,16 +89,11 @@ cconv_in (MonoTypeName *type, int count)
 	g_free (sig);
 	g_assert (res->nargs == 0);
 
-	MonoRegisterUsage ret;
-	ret.source = ArgumentRegisters;
-
-	g_free (res);
-
-	return ret;
+	*reg_count = 0;
 }
 
-MonoRegisterUsage
-cconv_out (MonoTypeName type)
+void
+cconv_out (CTypeName type, MonoRegister **regs, int *reg_count)
 {
 	MonoMethodSignature sig;
 	sig.ret = nameToType (type);
@@ -108,52 +105,47 @@ cconv_out (MonoTypeName type)
 	CallInfo *res = get_call_info (NULL, NULL, &sig);
 	g_assert (res->nargs == 0);
 
-	MonoRegisterUsage ret;
-	ret.source = ReturnRegisters;
-
 	switch (res->ret.storage) {
 		case RegTypeNone:
-			ret.num_registers = 0;
-			ret.regs = NULL;
+			*reg_count = 0;
+			*regs = NULL;
 		case RegTypeGeneral:
-			ret.num_registers = 0;
-			ret.regs = malloc(sizeof(MonoRegister) * ret.num_registers);
-			ret.regs[0] = res->ret.reg;
+			*reg_count = 0;
+			*regs = malloc(sizeof(MonoRegister) * *reg_count);
+			*regs[0] = res->ret.reg;
 		case RegTypeIRegPair:
-			ret.num_registers = 0;
-			ret.regs = malloc(sizeof(MonoRegister) * ret.num_registers);
-			ret.regs[0] = res->ret.reg;
-			ret.regs[1] = res->ret.reg + 1;
+			*reg_count = 0;
+			*regs = malloc(sizeof(MonoRegister) * *reg_count);
+			*regs[0] = res->ret.reg;
+			*regs[1] = res->ret.reg + 1;
 		case RegTypeBase:
-			ret.num_registers = 1;
-			ret.regs = malloc(sizeof(MonoRegister) * ret.num_registers);
+			*reg_count = 1;
+			*regs = malloc(sizeof(MonoRegister) * *reg_count);
 			// Uses stack
-			ret.regs[0] = 13;
+			*regs[0] = 13;
 		case RegTypeBaseGen:
-			ret.num_registers = 1;
-			ret.regs = malloc(sizeof(MonoRegister) * ret.num_registers);
+			*reg_count = 1;
+			*regs = malloc(sizeof(MonoRegister) * *reg_count);
 			// Uses stack
-			ret.regs[0] = 13;
-			ret.regs[1] = 3;
+			*regs[0] = 13;
+			*regs[1] = 3;
 		case RegTypeFP:
-			ret.num_registers = 1;
-			ret.regs = malloc(sizeof(MonoRegister) * ret.num_registers);
-			ret.regs[0] = res->ret.reg;
+			*reg_count = 1;
+			*regs = malloc(sizeof(MonoRegister) * *reg_count);
+			*regs[0] = res->ret.reg;
 		case RegTypeStructByAddr:
-			ret.num_registers = 0;
-			ret.regs = malloc(sizeof(MonoRegister) * 1);
-			ret.regs[0] = res->ret.reg;
+			*reg_count = 0;
+			*regs = malloc(sizeof(MonoRegister) * 1);
+			*regs[0] = res->ret.reg;
 		case RegTypeStructByVal:
 		case RegTypeGSharedVtInReg:
 		case RegTypeGSharedVtOnStack:
 		case RegTypeHFA:
-			ret.num_registers = 0;
-			ret.regs = malloc(sizeof(MonoRegister) * 1);
-			ret.regs[0] = 13;
+			*reg_count = 0;
+			*regs = malloc(sizeof(MonoRegister) * 1);
+			*regs[0] = 13;
 	}
 	g_free (res);
-
-	return ret;
 }
 
 #endif
