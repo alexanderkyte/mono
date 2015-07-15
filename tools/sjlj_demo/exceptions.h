@@ -20,13 +20,16 @@ typedef struct MonoTryStack {
 	struct MonoTryStack *next;
 } MonoTryStack;
 
-MonoJumpBuffer
+MonoJumpBuffer *
+mono_try_stack_peek (MonoTryStack **stack);
+
+void
 mono_try_stack_pop (MonoTryStack **stack);
 
 void 
 mono_try_stack_push (MonoTryStack **stack, MonoJumpBuffer value);
 
-void 
+void __attribute__((noreturn))
 mono_try_stack_throw (MonoTryStack **stack, intptr_t throw_data);
 
 void 

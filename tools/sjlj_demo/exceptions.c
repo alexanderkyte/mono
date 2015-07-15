@@ -1,23 +1,30 @@
 #include "exceptions.h"
 
-MonoJumpBuffer
+void
 mono_try_stack_pop (MonoTryStack **stack)
 {
-	MonoJumpBuffer value;
 	g_assert (*stack);
-
 	if ((*stack)->bottom == 0) {
 		MonoTryStack *old = *stack;
-		value = old->buffers [0];
-
 		*stack = (*stack)->next;
 		g_free (old);
 	} else {
-		value = (*stack)->buffers [(*stack)->bottom];
 		(*stack)->bottom--;
 	}
+}
 
-	return value;
+MonoJumpBuffer *
+mono_try_stack_peek (MonoTryStack **stack)
+{
+	g_assert (*stack);
+	if ((*stack)->bottom == 0) {
+		if ((*stack)->next)
+			return &(*stack)->next->buffers [TRY_STACKLET_SIZE - 1];
+		else
+			return NULL;
+	} else {
+		return &(*stack)->buffers [(*stack)->bottom - 1];
+	}
 }
 
 void 
@@ -27,35 +34,30 @@ mono_try_stack_push (MonoTryStack **stack, MonoJumpBuffer value)
 		MonoTryStack *old = *stack;
 		MonoTryStack *top = g_malloc0 (sizeof(MonoTryStack));
 		top->buffers [0] = value;
+		top->bottom = 1;
 
 		top->next = old;
-		*stack = old;
+		*stack = top;
 	} else {
 		(*stack)->buffers [(*stack)->bottom] = value;
-		(*stack)->bottom++;
+		(*stack)->bottom = (*stack)->bottom + 1;
 	}
 }
 
-void 
+void __attribute__((noreturn))
 mono_try_stack_throw (MonoTryStack **stack, intptr_t throw_data)
 {
-	longjmp (mono_try_stack_pop (stack).buf, throw_data);
+	g_assert (*stack);
+	MonoJumpBuffer *container = mono_try_stack_peek (stack);
+	g_assert (container);
+	longjmp (container->buf, throw_data);
 }
 
 void 
 mono_try_stack_exit (MonoTryStack **stack)
 {
+	g_assert (*stack);
 	mono_try_stack_pop (stack);
-}
-
-intptr_t
-mono_try_stack_enter (MonoTryStack **stack, GSList *handlers)
-{
-	MonoJumpBuffer value;
-	intptr_t result = setjmp (value.buf);
-	if (result == 0)
-		mono_try_stack_push (stack, value);
-	return result;
 }
 
 void
