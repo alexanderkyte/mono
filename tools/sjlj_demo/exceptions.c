@@ -45,11 +45,13 @@ mono_try_stack_push (MonoTryStack **stack, MonoJumpBuffer value)
 }
 
 void __attribute__((noreturn))
-mono_try_stack_throw (MonoTryStack **stack, intptr_t throw_data)
+mono_try_stack_rethrow (MonoTryStack **stack, MonoException *exc)
 {
 	g_assert (*stack);
 	MonoJumpBuffer *container = mono_try_stack_peek (stack);
 	g_assert (container);
+
+	intptr_t throw_data = (intptr_t)exc;
 	longjmp (container->buf, throw_data);
 }
 
@@ -60,13 +62,57 @@ mono_try_stack_exit (MonoTryStack **stack)
 	mono_try_stack_pop (stack);
 }
 
+// Bury stack in jit tls info later
+static MonoTryStack *global_stack = NULL;
+
 void
-mono_try_enter_impl (MonoExceptionClause *exceptions, int count)
+mono_throw (MonoException *exc)
 {
-/*MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);*/
-// At this point, either success and we discard
-// or exception and we have our handlers to try in order
-// and we can get monojitinfo info
+	mono_try_stack_rethrow (&global_stack, exc);
+}
+
+void
+mono_jump_try_handler (MonoExceptionClause **exceptions, int count)
+{
+	MonoJumpBuffer *value = g_malloc0 (sizeof (MonoJumpBuffer));
+	value->num_clauses = count;
+	value->clauses = exceptions;
+
+	intptr_t exc = setjmp (value->buf);
+
+	if (exc == 0) {
+		mono_try_stack_push (&global_stack, *value);
+	} else {
+		// Nothing allocated on the stack above this can be accessed below
+		// That includes arguments
+		// To statically enforce this I'm making a new function call
+		mono_handle_exception_jump ((MonoException *)exc);
+	}
+}
+
+void 
+mono_handle_exception_jump (MonoException *exc)
+{
+	MonoJumpBuffer *curr = mono_try_stack_peek (&global_stack);
+
+	gboolean matched = FALSE;
+
+	for (int i=0; i < curr->num_clauses; i++) {
+		MonoExceptionClause *clause = curr->clauses [i];
+		fprintf (stderr, "For exception %zu, offset %d len %d considered\n", (intptr_t)exc, clause->handler_offset, clause->handler_len);
+		
+		// FIXME: Temp for test. Use actual classes
+		if (clause->data.catch_class == (MonoClass *)exc) {
+			fprintf (stderr, "Exception caught");
+			matched = TRUE;
+		}
+	}
+
+	// Frees curr
+	mono_try_stack_pop (&global_stack);
+
+	if (!matched)
+		mono_try_stack_rethrow (&global_stack, (MonoException *)exc);
 }
 
 gint 
@@ -100,37 +146,35 @@ mono_emit_try_enter (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header
 	// Sort by ending offset
 	g_ptr_array_sort (clauses, sort_ending_offset_desc);
 
-	GArray *curr_shared = NULL;
+	GArray *curr_shared = g_array_new (TRUE, TRUE, sizeof (MonoExceptionClause *));
+	MonoExceptionClause *prev = (MonoExceptionClause *)clauses->pdata [0];
+	g_array_append_val (curr_shared, prev);
 
-	MonoExceptionClause *prev = NULL;
-
-	for (int i=0; i < clauses->len; i++) {
+	for (int i=1; i < clauses->len; i++) {
 		// We're using i here rather than the clause because the order in the collection
 		// determines matching order
 		if (i == 0)
-			prev = (MonoExceptionClause *)clauses->pdata [i];
 			break;
 
 		MonoExceptionClause *curr = (MonoExceptionClause *)clauses->pdata [i];
 
 		if (curr->handler_offset + curr->handler_len <= prev->try_len + prev->try_offset) {
 			// Nesting level += 1
-			if(curr_shared) {
-				g_array_append_val (curr_shared, curr);
 
-				// YOU CAN"T DO THIS. BREAKS AOT.
-				// You need to send the offsets instead
-				// And they need to be a monoinst
-				MonoInst *args[2];
-				args[0] = (MonoInst *)curr_shared->data;
-				args[1] = (MonoInst *)curr_shared->len;
-				mono_emit_jit_icall (cfg, mono_try_enter_impl, args);
+			// FIXME: YOU CAN"T DO THIS. 
+			// You need to send the offsets instead
+			// And they need to be a monoinst
+			/*MonoInst *args[2];*/
+			/*args[0] = (MonoInst *)curr_shared->data;*/
+			/*args[1] = (MonoInst *)curr_shared->len;*/
+			/*mono_emit_jit_icall (cfg, mono_try_enter_impl, args);*/
+			
+			mono_jump_try_handler ((MonoExceptionClause **)curr_shared->data, curr_shared->len);
 
-				// Don't free the element data
-				// Will be freed when frame is popped
-				g_array_free (curr_shared, FALSE);
-			}
-			GArray *curr_shared = g_array_new (TRUE, TRUE, sizeof (MonoExceptionClause *));
+			// Don't free the element data
+			// Will be freed when frame is popped
+			g_array_free (curr_shared, FALSE);
+
 			g_array_append_val (curr_shared, curr);
 
 		} else if (curr->try_offset == prev->try_offset && curr->try_len == prev->try_len) {
@@ -143,6 +187,10 @@ mono_emit_try_enter (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header
 
 		prev = curr;
 	}
+	if (curr_shared->len > 0)
+		mono_jump_try_handler ((MonoExceptionClause **)curr_shared->data, curr_shared->len);
+
+	g_array_free (curr_shared, curr_shared->len == 0);
 
 	g_ptr_array_free (clauses, TRUE);
 }
