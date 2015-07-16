@@ -96,8 +96,7 @@ mono_push_try_handler (MonoTryStack **stack, MonoJumpBuffer *jbuf, MonoException
 	frame->buffer = jbuf;
 }
 
-void 
-__attribute__((noreturn))
+void __attribute__((noreturn))
 mono_handle_exception_jump (MonoException *exc)
 {
 	fprintf (stderr, "Before peek\n");
@@ -112,11 +111,8 @@ mono_handle_exception_jump (MonoException *exc)
 		// FIXME: Temp for test. Use actual classes
 		if (clause->data.catch_class == (MonoClass *)exc) {
 			fprintf (stderr, "Exception caught!\n");
-			MonoJumpBuffer *returnBuf = (MonoJumpBuffer *)exc;
 
-			returnBuf->ref_count = 999;
-
-			longjmp (returnBuf->buf, MonoJumpLand);
+			(*test_caught_exception_func) (exc, clause);
 		}
 	}
 

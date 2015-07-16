@@ -74,4 +74,10 @@ void
 __attribute__((always_inline))
 mono_enter_try (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header);
 
+typedef void __attribute__((noreturn)) (*caught_exception_func) (MonoException *, MonoExceptionClause *);
+
+extern caught_exception_func test_caught_exception_func;
+
+
+
 #endif
