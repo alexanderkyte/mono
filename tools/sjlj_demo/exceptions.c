@@ -99,19 +99,20 @@ __attribute__((noreturn))
 mono_handle_exception_jump (MonoException *exc)
 {
 	fprintf (stderr, "Before peek\n");
+	MonoException *
 	MonoTryFrame *curr = mono_try_stack_peek (&global_stack);
 	fprintf (stderr, "After peek\n");
 	fprintf (stderr, "Peeking %p from stack\n", curr->clauses[0]->data.catch_class);
 
 	for (int i=0; i < curr->num_clauses; i++) {
 		MonoExceptionClause *clause = curr->clauses [i];
-		fprintf (stderr, "For exception %zu, offset %d len %d considered, catch class %p\n", (intptr_t)exc, clause->handler_offset, clause->handler_len, clause->data.catch_class);
+		fprintf (stderr, "For exception %p, offset %d len %d considered, catch class %p\n", exc, clause->try_offset, clause->try_len, clause->data.catch_class);
 		
 		// FIXME: Temp for test. Use actual classes
 		if (clause->data.catch_class == (MonoClass *)exc) {
 			fprintf (stderr, "Exception caught!\n");
 			MonoJumpBuffer *returnBuf = (MonoJumpBuffer *)exc;
-			longjmp (returnBuf->buf, 1);
+			longjmp (returnBuf->buf, MonoJumpStatus);
 		}
 	}
 
@@ -202,8 +203,10 @@ mono_push_try_handlers (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *hea
 
 		prev = curr;
 	}
-	if (curr_shared->len > 0)
+	if (curr_shared->len > 0) {
 		mono_push_try_handler (&global_stack, jbuf, (MonoExceptionClause **)curr_shared->data, curr_shared->len);
+		jbuf->ref_count++;
+	}
 
 	// Free the array, leave behind the array if it's got any elements
 	g_array_free (curr_shared, curr_shared->len == 0);
@@ -214,6 +217,7 @@ mono_push_try_handlers (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *hea
 }
 
 void
+__attribute__((always_inline))
 mono_enter_try (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header)
 {
 	MonoJumpBuffer *curr = mono_push_try_handlers (cfg, offset, header);

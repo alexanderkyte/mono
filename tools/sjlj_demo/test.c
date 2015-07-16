@@ -44,6 +44,7 @@ test_cil_table (void)
 
 	intptr_t try_start = 0;
 
+	fprintf (stderr, "Setting up data\n");
 	for (intptr_t i=0; i < fixture.num_clauses; i++)
 	{
 		fixture.clauses[i].try_offset = try_start;
@@ -61,22 +62,27 @@ test_cil_table (void)
 
 	g_assert (fixture.clauses);
 
+	fprintf (stderr, "Executing throws\n");
 	for (int i=0; i < fixture.num_clauses; i++) {
-		mono_push_try_handlers (NULL, i, &fixture);
-		// If the exception thrown matches the one we expect it
-		// to match, it will end up below
-		if (!setjmp (((MonoJumpBuffer *)expected[i])->buf))
-			mono_throw ((MonoException *)expected [i]);
-		fprintf (stderr, "Returned from throw, matched exception to catch\n");
+		intptr_t loop_state = setjmp (((MonoJumpBuffer *)expected[i])->buf);
+		if (loop_state) {
+			// Will end up here after throw
+			g_assert (loop_state == 1);
+			continue;
+		}
+
+		mono_enter_try (NULL, fixture.clauses[i].try_offset, &fixture);
+		fprintf (stderr, "Throwing exception %p\n", (MonoException *)expected [i]);
+		mono_throw ((MonoException *)expected [i]);
 	}
 }
 
 int main(void)
 {
-	fprintf (stderr, "Throwing test:\n");
-	test_simple (TRUE);
-	fprintf (stderr, "Non-throwing test:\n");
-	test_simple (FALSE);
+	/*fprintf (stderr, "Throwing test:\n");*/
+	/*test_simple (TRUE);*/
+	/*fprintf (stderr, "Non-throwing test:\n");*/
+	/*test_simple (FALSE);*/
 
 	fprintf (stderr, "CIL-throwing test:\n");
 	test_cil_table ();

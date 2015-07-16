@@ -29,6 +29,16 @@ typedef struct MonoTryStack {
 	struct MonoTryStack *next;
 } MonoTryStack;
 
+typedef struct MonoTryState {
+	MonoTryStack *stack;
+	MonoException *current_exc;
+}
+
+typedef enum {
+	MonoJumpReturnDirect = 0,
+	MonoJumpReturnLong
+} MonoJumpStatus;
+
 
 void
 mono_try_stack_pop (MonoTryStack **stack);
@@ -61,6 +71,7 @@ MonoJumpBuffer *
 mono_push_try_handlers (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header);
 
 void
+__attribute__((always_inline))
 mono_enter_try (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header);
 
 #endif
