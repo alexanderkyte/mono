@@ -32,11 +32,11 @@ typedef struct MonoTryStack {
 typedef struct MonoTryState {
 	MonoTryStack *stack;
 	MonoException *current_exc;
-}
+} MonoTryState;
 
 typedef enum {
 	MonoJumpReturnDirect = 0,
-	MonoJumpReturnLong
+	MonoJumpLand
 } MonoJumpStatus;
 
 

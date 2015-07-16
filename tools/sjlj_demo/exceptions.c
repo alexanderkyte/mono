@@ -1,5 +1,8 @@
 #include "exceptions.h"
 
+// Bury stack in jit tls info later
+static MonoTryState global_state = { 0, 0 };
+
 void
 mono_try_stack_pop (MonoTryStack **stack)
 {
@@ -59,6 +62,8 @@ mono_try_stack_reserve (MonoTryStack **stack)
 void __attribute__((noreturn))
 mono_try_stack_rethrow (MonoTryStack **stack, MonoException *exc)
 {
+	global_state.current_exc = exc;
+
 	g_assert (*stack);
 	MonoTryFrame *container = mono_try_stack_peek (stack);
 
@@ -66,7 +71,7 @@ mono_try_stack_rethrow (MonoTryStack **stack, MonoException *exc)
 		g_error ("Unhandled exception\n");
 
 	g_assert (container->buffer);
-	longjmp (container->buffer->buf, (intptr_t)exc);
+	longjmp (container->buffer->buf, MonoJumpLand);
 }
 
 void 
@@ -76,13 +81,10 @@ mono_try_stack_exit (MonoTryStack **stack)
 	mono_try_stack_pop (stack);
 }
 
-// Bury stack in jit tls info later
-static MonoTryStack *global_stack = NULL;
-
 void
 mono_throw (MonoException *exc)
 {
-	mono_try_stack_rethrow (&global_stack, exc);
+	mono_try_stack_rethrow (&global_state.stack, exc);
 }
 
 void
@@ -99,28 +101,30 @@ __attribute__((noreturn))
 mono_handle_exception_jump (MonoException *exc)
 {
 	fprintf (stderr, "Before peek\n");
-	MonoException *
-	MonoTryFrame *curr = mono_try_stack_peek (&global_stack);
+	MonoTryFrame *curr = mono_try_stack_peek (&global_state.stack);
 	fprintf (stderr, "After peek\n");
 	fprintf (stderr, "Peeking %p from stack\n", curr->clauses[0]->data.catch_class);
 
 	for (int i=0; i < curr->num_clauses; i++) {
 		MonoExceptionClause *clause = curr->clauses [i];
 		fprintf (stderr, "For exception %p, offset %d len %d considered, catch class %p\n", exc, clause->try_offset, clause->try_len, clause->data.catch_class);
-		
+
 		// FIXME: Temp for test. Use actual classes
 		if (clause->data.catch_class == (MonoClass *)exc) {
 			fprintf (stderr, "Exception caught!\n");
 			MonoJumpBuffer *returnBuf = (MonoJumpBuffer *)exc;
-			longjmp (returnBuf->buf, MonoJumpStatus);
+
+			returnBuf->ref_count = 999;
+
+			longjmp (returnBuf->buf, MonoJumpLand);
 		}
 	}
 
 	// Frees curr
-	mono_try_stack_pop (&global_stack);
+	mono_try_stack_pop (&global_state.stack);
 	fprintf (stderr, "Popping %p from stack\n", curr->clauses[0]->data.catch_class);
 
-	mono_try_stack_rethrow (&global_stack, (MonoException *)exc);
+	mono_try_stack_rethrow (&global_state.stack, (MonoException *)exc);
 }
 
 gint 
@@ -184,7 +188,7 @@ mono_push_try_handlers (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *hea
 			/*args[1] = (MonoInst *)curr_shared->len;*/
 			/*mono_emit_jit_icall (cfg, mono_try_enter_impl, args);*/
 			
-			mono_push_try_handler (&global_stack, jbuf, (MonoExceptionClause **)curr_shared->data, curr_shared->len);
+			mono_push_try_handler (&global_state.stack, jbuf, (MonoExceptionClause **)curr_shared->data, curr_shared->len);
 			jbuf->ref_count++;
 
 			// Don't free the element data
@@ -204,7 +208,7 @@ mono_push_try_handlers (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *hea
 		prev = curr;
 	}
 	if (curr_shared->len > 0) {
-		mono_push_try_handler (&global_stack, jbuf, (MonoExceptionClause **)curr_shared->data, curr_shared->len);
+		mono_push_try_handler (&global_state.stack, jbuf, (MonoExceptionClause **)curr_shared->data, curr_shared->len);
 		jbuf->ref_count++;
 	}
 
@@ -222,11 +226,10 @@ mono_enter_try (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header)
 {
 	MonoJumpBuffer *curr = mono_push_try_handlers (cfg, offset, header);
 	intptr_t exc = (intptr_t) setjmp (curr->buf);
-	if (!exc)
+	if (exc == MonoJumpReturnDirect)
 		return;
 
 	// Can't return from here.
 	// Must jump to handler
-	mono_handle_exception_jump ((MonoException *)exc);
+	mono_handle_exception_jump (global_state.current_exc);
 }
-

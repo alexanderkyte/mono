@@ -64,13 +64,17 @@ test_cil_table (void)
 
 	fprintf (stderr, "Executing throws\n");
 	for (int i=0; i < fixture.num_clauses; i++) {
+		fprintf (stderr, "SetJmp first before\n");
 		intptr_t loop_state = setjmp (((MonoJumpBuffer *)expected[i])->buf);
-		if (loop_state) {
-			// Will end up here after throw
-			g_assert (loop_state == 1);
+		fprintf (stderr, "SetJmp first done\n");
+
+		if (loop_state != MonoJumpReturnDirect) {
+			g_assert (((MonoJumpBuffer **)expected) [i]->ref_count == 999);
+			g_free (expected [i]);
 			continue;
 		}
 
+		fprintf (stderr, "Enter try %p\n", (MonoException *)expected [i]);
 		mono_enter_try (NULL, fixture.clauses[i].try_offset, &fixture);
 		fprintf (stderr, "Throwing exception %p\n", (MonoException *)expected [i]);
 		mono_throw ((MonoException *)expected [i]);
