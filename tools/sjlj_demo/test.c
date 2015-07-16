@@ -2,18 +2,17 @@
 
 static void
 test_simple (gboolean have_exception) {
-	MonoMethodHeader fixture;
-	// fill in fixture
 	MonoTryStack *stack = NULL;
 	gboolean no_exception = TRUE;
 
 	/*volatile*/
 	MonoJumpBuffer value;
+	mono_push_try_handler (&stack, &value, NULL, 0);
 	int status = setjmp (value.buf);
+
 	fprintf (stderr, "Returned from try entry with %d as status\n", status);
 	switch (status) {
 		case 0:
-			mono_try_stack_push (&stack, value);
 			fprintf (stderr, "Nonexceptional branch\n");
 			break;
 		default:
@@ -52,7 +51,9 @@ test_cil_table (void)
 		fixture.clauses[i].handler_offset = try_start + 5;
 		fixture.clauses[i].handler_len = 5;
 
-		expected [i] = (gpointer) i;
+		// Because we can't throw NULL/0 and have it be
+		// recognized as failure
+		expected [i] = g_malloc0 (sizeof(MonoJumpBuffer));
 		fixture.clauses[i].data.catch_class = (MonoClass *)expected [i];
 
 		try_start += 10;
@@ -61,8 +62,12 @@ test_cil_table (void)
 	g_assert (fixture.clauses);
 
 	for (int i=0; i < fixture.num_clauses; i++) {
-		mono_emit_try_enter (NULL, i, &fixture);
-		mono_throw ((MonoException *)expected [i]);
+		mono_push_try_handlers (NULL, i, &fixture);
+		// If the exception thrown matches the one we expect it
+		// to match, it will end up below
+		if (!setjmp (((MonoJumpBuffer *)expected[i])->buf))
+			mono_throw ((MonoException *)expected [i]);
+		fprintf (stderr, "Returned from throw, matched exception to catch\n");
 	}
 }
 
