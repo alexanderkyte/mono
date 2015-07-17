@@ -76,8 +76,13 @@ mono_enter_try (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header);
 
 typedef void __attribute__((noreturn)) (*caught_exception_func) (MonoException *, MonoExceptionClause *);
 
+typedef void __attribute__((noreturn)) (*unhandled_exception_func) (MonoException *);
+
 extern caught_exception_func test_caught_exception_func;
 
+extern unhandled_exception_func test_unhandled_exception_func;
 
+// Bury state in jit tls info later
+extern MonoTryState global_state;
 
 #endif

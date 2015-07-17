@@ -1,7 +1,8 @@
 #include "exceptions.h"
 
-// Bury stack in jit tls info later
-static MonoTryState global_state = { 0, 0 };
+// Bury state in jit tls info later
+// Can use in tests for now
+MonoTryState global_state = { 0, 0 };
 
 void
 mono_try_stack_pop (MonoTryStack **stack)
@@ -67,8 +68,12 @@ mono_try_stack_rethrow (MonoTryStack **stack, MonoException *exc)
 	g_assert (*stack);
 	MonoTryFrame *container = mono_try_stack_peek (stack);
 
-	if (!container)
-		g_error ("Unhandled exception\n");
+	if (!container) {
+		if (test_unhandled_exception_func)
+			test_unhandled_exception_func (exc);
+		else
+			g_error ("Unhandled exception\n");
+	}
 
 	g_assert (container->buffer);
 	longjmp (container->buffer->buf, MonoJumpLand);
@@ -90,6 +95,14 @@ mono_throw (MonoException *exc)
 void
 mono_push_try_handler (MonoTryStack **stack, MonoJumpBuffer *jbuf, MonoExceptionClause **exceptions, int count)
 {
+	fprintf (stderr, "Start push group\n");
+	for (int i=0; i < count; i++) {
+		MonoExceptionClause *clause = exceptions [i];
+		fprintf (stderr, "Clause %d: try start/end(%d to %d) and handler start/end(%d to %d)\n",
+			i, clause->try_offset, clause->try_offset + clause->try_len, clause->handler_offset, clause->handler_offset + clause->handler_len
+		);
+	}
+	fprintf (stderr, "End push group\n");
 	MonoTryFrame *frame = mono_try_stack_reserve (stack);
 	frame->num_clauses = count;
 	frame->clauses = exceptions;
@@ -106,13 +119,18 @@ mono_handle_exception_jump (MonoException *exc)
 
 	for (int i=0; i < curr->num_clauses; i++) {
 		MonoExceptionClause *clause = curr->clauses [i];
-		fprintf (stderr, "For exception %p, offset %d len %d considered, catch class %p\n", exc, clause->try_offset, clause->try_len, clause->data.catch_class);
+		fprintf (stderr, "For exception %p, try %d to %d handler %d to %d considered, catch class %p\n",
+			exc,
+			clause->try_offset, clause->try_offset + clause->try_len,
+			clause->handler_offset, clause->handler_offset + clause->handler_len,
+			clause->data.catch_class);
 
 		// FIXME: Temp for test. Use actual classes
 		if (clause->data.catch_class == (MonoClass *)exc) {
 			fprintf (stderr, "Exception caught!\n");
 
-			(*test_caught_exception_func) (exc, clause);
+			if (test_caught_exception_func)
+				(*test_caught_exception_func) (exc, clause);
 		}
 	}
 
@@ -126,9 +144,12 @@ mono_handle_exception_jump (MonoException *exc)
 gint 
 sort_ending_offset_desc (gconstpointer _a, gconstpointer _b)
 {
-	MonoExceptionClause *a = (MonoExceptionClause *)_a;
-	MonoExceptionClause *b = (MonoExceptionClause *)_b;
-	return (a->handler_offset + a->handler_len) - (b->handler_offset + b->handler_len);
+	MonoExceptionClause *first = *(MonoExceptionClause **)_a;
+	MonoExceptionClause *second = *(MonoExceptionClause **)_b;
+	size_t first_end = (first->handler_offset + first->handler_len);
+	size_t second_end = (second->handler_offset + second->handler_len);
+
+	return second_end - first_end;
 }
 
 MonoJumpBuffer *
@@ -137,11 +158,12 @@ mono_push_try_handlers (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *hea
 	if (!header->num_clauses)
 		return NULL;
 
+	fprintf (stderr, "Processing offset %ld\n", offset);
+
 	// As per ECMA-335 I.12.4.2.7, all clauses must either be
 	// disjoint -- No sections in common
 	// mutually protective -- Same protected region, disjoint handler
 	// nested -- All regions of one fits cleanly inside the other
-	
 	GPtrArray *clauses = g_ptr_array_new ();
 
 	// Make collection that has same starting offset 
@@ -166,17 +188,21 @@ mono_push_try_handlers (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *hea
 	g_array_append_val (curr_shared, prev);
 
 	for (int i=1; i < clauses->len; i++) {
-		// We're using i here rather than the clause because the order in the collection
-		// determines matching order
-		if (i == 0)
-			break;
-
 		MonoExceptionClause *curr = (MonoExceptionClause *)clauses->pdata [i];
 
-		if (curr->handler_offset + curr->handler_len <= prev->try_len + prev->try_offset) {
+		g_assert (curr->try_offset == prev->try_offset);
+
+		if (curr->try_len == prev->try_len) {
+			// Mutual protection of same region by different handlers
+			// We know this to be true because if the protected regions
+			// are the same, then one entire try+handler block cannot fit
+			// inside another's try block
+			g_array_append_val (curr_shared, curr);
+
+		} else if (prev->handler_offset >= curr->handler_len + curr->handler_offset) {
 			// Nesting level += 1
 
-			// FIXME: YOU CAN"T DO THIS. 
+			// FIXME: YOU CAN"T DO THIS in mini. 
 			// You need to send the offsets instead
 			// And they need to be a monoinst
 			/*MonoInst *args[2];*/
@@ -190,19 +216,17 @@ mono_push_try_handlers (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *hea
 			// Don't free the element data
 			// Will be freed when frame is popped
 			g_array_free (curr_shared, FALSE);
+			curr_shared = g_array_new (TRUE, TRUE, sizeof (MonoExceptionClause *));
 
-			g_array_append_val (curr_shared, curr);
-
-		} else if (curr->try_offset == prev->try_offset && curr->try_len == prev->try_len) {
 			g_array_append_val (curr_shared, curr);
 
 		} else {
-			// Disjoint means shouldn't share try_offset
 			g_assert_not_reached ();
 		}
 
 		prev = curr;
 	}
+
 	if (curr_shared->len > 0) {
 		mono_push_try_handler (&global_state.stack, jbuf, (MonoExceptionClause **)curr_shared->data, curr_shared->len);
 		jbuf->ref_count++;
@@ -229,3 +253,6 @@ mono_enter_try (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header)
 	// Must jump to handler
 	mono_handle_exception_jump (global_state.current_exc);
 }
+
+
+
