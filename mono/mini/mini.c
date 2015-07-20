@@ -3485,6 +3485,8 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 	 */
 	mono_compile_create_vars (cfg);
 
+	mono_compile_create_exception_map (cfg, method_to_compile);
+
 	i = mono_method_to_ir (cfg, method_to_compile, NULL, NULL, NULL, NULL, 0, FALSE);
 
 	if (i < 0) {

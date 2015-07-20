@@ -50,7 +50,6 @@
 #include "mono/metadata/security-manager.h"
 #include "mono/metadata/exception.h"
 #include "mono/utils/mono-compiler.h"
-#include <setjmp.h>
 
 #ifdef __native_client_codegen__
 #include <nacl/nacl_dyncode.h>
@@ -1030,6 +1029,89 @@ struct MonoMethodVar {
 	gint32         vreg;
 };
 
+#define MONO_TRY_STACKLET_SIZE 10
+
+// Invariant: always has at least one item
+typedef GPtrArray MonoJitExceptionStackMap;
+
+typedef struct {
+	GPtrArray *clauses;
+	GPtrArray *mapping;
+} MonoExceptionClauseMap;
+
+typedef struct {
+	MonoJitExceptionStackMap *mapping;
+	size_t num_clauses;
+	MonoExceptionClause clauses;
+} MonoJitExceptionTree;
+
+// A way to get around being unable to pass stack
+// arrays (jmp_buf is int[]) around
+typedef struct MonoJumpBuffer {
+	jmp_buf buf;
+	size_t ref_count;
+} MonoJumpBuffer;
+
+typedef struct MonoTryFrame {
+	MonoJumpBuffer *buffer;
+	int num_clauses;
+	MonoExceptionClause **clauses;
+} MonoTryFrame;
+
+typedef struct MonoTryStack {
+	MonoTryFrame buffers [MONO_TRY_STACKLET_SIZE];
+	size_t bottom;
+	struct MonoTryStack *next;
+} MonoTryStack;
+
+typedef struct MonoTryState {
+	MonoTryStack *stack;
+	MonoException *current_exc;
+} MonoTryState;
+
+typedef enum {
+	MonoJumpReturnDirect = 0,
+	MonoJumpLand
+} MonoJumpStatus;
+
+
+void
+mono_try_stack_pop (MonoTryStack **stack);
+
+MonoTryFrame*
+mono_try_stack_peek (MonoTryStack **stack);
+
+MonoTryFrame *
+mono_try_stack_reserve (MonoTryStack **stack);
+
+void __attribute__((noreturn))
+mono_try_stack_rethrow (MonoTryStack **stack, MonoException *exc);
+
+void
+mono_throw (MonoException *exc);
+
+void 
+mono_handle_exception_jump (MonoException *exc);
+
+gint 
+sort_exc_clause_ending_offset_desc (gconstpointer _a, gconstpointer _b);
+
+gint 
+sort_exc_clause_start_offset_asc (gconstpointer _a, gconstpointer _b);
+
+void
+mono_push_try_handler (MonoTryStack **stack, MonoJumpBuffer *jbuf, MonoExceptionClause **exceptions, int count);
+
+MonoJumpBuffer *
+mono_push_try_handlers (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header);
+
+void
+__attribute__((always_inline))
+mono_enter_try (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header);
+
+
+
+
 /*
  * Stores state need to resume exception handling when using LLVM
  */
@@ -1042,20 +1124,6 @@ typedef struct {
 	MonoLMF *lmf;
 	int first_filter_idx, filter_idx;
 } ResumeState;
-
-#define TRY_STACKLET_SIZE 10
-
-// A way to get around being unable to pass stack
-// arrays (jmp_buf is int[]) around
-typedef struct MonoJumpBuffer {
-	jmp_buf buf;
-} MonoJumpBuffer;
-
-typedef struct MonoTryStack {
-	MonoJumpBuffer buffers [TRY_STACKLET_SIZE];
-	size_t bottom;
-	struct MonoTryStack *next;
-} MonoTryStack;
 
 typedef struct {
 	gpointer          end_of_stack;
@@ -1100,7 +1168,7 @@ typedef struct {
 	 */
 	gboolean mono_win_chained_exception_needs_run;
 
-	MonoTryStack try_stack;
+	MonoTryState *exc_state;
 } MonoJitTlsData;
 
 /*
@@ -1754,30 +1822,6 @@ typedef enum {
 	MONO_CFG_HAS_CHECK_THIS  = 1 << 7,
 	MONO_CFG_HAS_ARRAY_ACCESS = 1 << 8
 } MonoCompileFlags;
-
-MonoJumpBuffer
-mono_try_stack_pop (MonoTryStack **stack);
-
-void 
-mono_try_stack_push (MonoTryStack **stack, MonoJumpBuffer value);
-
-void 
-mono_try_stack_throw (MonoTryStack **stack, intptr_t throw_data);
-
-void 
-mono_try_stack_exit (MonoTryStack **stack, intptr_t key);
-
-intptr_t
-mono_try_stack_enter (MonoTryStack **stack, GSList *handlers);
-
-void
-mono_emit_try_enter (MonoCompile *cfg, intptr_t offset, MonoMethodHeader *header);
-
-void
-mono_try_enter_impl (MonoExceptionClause *exceptions, int count);
-
-gint 
-sort_ending_offset_desc (gconstpointer _a, gconstpointer _b);
 
 typedef struct {
 	gint32 methods_compiled;
