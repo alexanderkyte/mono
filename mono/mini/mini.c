@@ -2719,7 +2719,7 @@ create_jit_info (MonoCompile *cfg, MonoMethod *method_to_compile)
 	if (COMPILE_LLVM (cfg))
 		num_clauses = cfg->llvm_ex_info_len;
 	else
-		num_clauses = header->num_clauses;
+		num_clauses = cfg->exc_clause_map->num_clauses;
 
 	if (cfg->method->dynamic)
 		jinfo = g_malloc0 (mono_jit_info_size (flags, num_clauses, num_holes));
@@ -2859,8 +2859,8 @@ create_jit_info (MonoCompile *cfg, MonoMethod *method_to_compile)
 	} else if (header->num_clauses) {
 		int i;
 
-		for (i = 0; i < header->num_clauses; i++) {
-			MonoExceptionClause *ec = &header->clauses [i];
+		for (i = 0; i < cfg->exc_clause_map->num_clauses; i++) {
+			MonoExceptionClause *ec = &cfg->exc_clause_map->clauses [i];
 			MonoJitExceptionInfo *ei = &jinfo->clauses [i];
 			MonoBasicBlock *tblock;
 			MonoInst *exvar, *spvar;
