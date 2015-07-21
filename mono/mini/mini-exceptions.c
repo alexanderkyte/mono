@@ -60,6 +60,7 @@
 #include "trace.h"
 #include "debugger-agent.h"
 #include "seq-points.h"
+#include "ir-emit.h"
 
 #ifdef ENABLE_EXTENSION_MODULE
 #include "../../../mono-extensions/mono/mini/mini-exceptions.c"
@@ -2709,17 +2710,10 @@ mono_jinfo_get_epilog_size (MonoJitInfo *ji)
 
 
 
-
 void
 mono_try_stack_pop (MonoTryStack **stack)
 {
 	g_assert (*stack);
-
-	MonoJumpBuffer *old_buf = mono_try_stack_peek (stack)->buffer;
-	old_buf->ref_count--;
-
-	if (old_buf->ref_count == 0)
-		g_free (old_buf);
 
 	if ((*stack)->bottom == 0) {
 		MonoTryStack *old = *stack;
@@ -2728,7 +2722,32 @@ mono_try_stack_pop (MonoTryStack **stack)
 	} else {
 		(*stack)->bottom--;
 	}
+}
 
+static void
+mono_runtime_try_stack_pop (void)
+{
+	// Here I will prove that we will need at most one pop:
+	//
+	// So we know that handlers can only nest in three ways:
+	// 
+	// Disjoint: Trivially true. Other frames not overlapping are
+	// irrelevant here.
+	//
+	// Mutually protected: We group them into a single try stack
+	// frame, so it's only one pop.
+	//
+	// Nesting: If two exceptions nest, then both of them will have
+	// different endpoints for the try block
+	//
+
+	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
+	MonoTryFrame *frame = mono_try_stack_peek (&jit_tls->exc_state->stack);
+	MonoJitExceptionInfo *first_clause = frame->clauses;
+	gpointer ip = __builtin_return_address (0);
+
+	if (first_clause->try_end == ip)
+		mono_try_stack_pop (&jit_tls->exc_state->stack);
 }
 
 MonoTryFrame*
@@ -2775,8 +2794,7 @@ mono_try_stack_rethrow (MonoTryState *try_state)
 	if (!container)
 		mono_unhandled_exception ((MonoObject *)try_state->current_exc);
 
-	g_assert (container->buffer);
-	longjmp (container->buffer->buf, MonoJumpLand);
+	longjmp (*container->buffer.reference, MonoJumpLand);
 }
 
 void
@@ -2788,19 +2806,23 @@ mono_throw (MonoException *exc)
 }
 
 void __attribute__((noreturn))
-mono_handle_exception_jump (MonoTryState *try_state)
+mono_handle_exception_jump (jmp_buf jbuf)
 {
+	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
+	MonoTryState *try_state = jit_tls->exc_state;
+
 	fprintf (stderr, "Before peek\n");
 	MonoTryFrame *curr = mono_try_stack_peek (&try_state->stack);
 	fprintf (stderr, "After peek\n");
-	fprintf (stderr, "Peeking %p from stack\n", curr->clauses [0]->data.catch_class);
+	fprintf (stderr, "Peeking %p from stack\n", curr->clauses [0].data.catch_class);
 
 	for (int i=0; i < curr->num_clauses; i++) {
-		MonoExceptionClause *clause = curr->clauses [i];
-		fprintf (stderr, "For exception %p, try %d to %d handler %d to %d considered, catch class %p\n",
+		MonoJitExceptionInfo *clause = &curr->clauses [i];
+		fprintf (stderr, "For exception %p, try of type %d from %p to %p handler %p to %p considered, catch class %p\n",
 			try_state->current_exc,
-			clause->try_offset, clause->try_offset + clause->try_len,
-			clause->handler_offset, clause->handler_offset + clause->handler_len,
+			clause->flags,
+			clause->try_start, clause->try_end,
+			clause->handler_start, clause->data.handler_end,
 			clause->data.catch_class);
 
 		if (clause->data.catch_class == try_state->current_exc->object.vtable->klass)
@@ -2809,7 +2831,7 @@ mono_handle_exception_jump (MonoTryState *try_state)
 
 	// Frees curr
 	mono_try_stack_pop (&try_state->stack);
-	fprintf (stderr, "Popping %p from stack\n", curr->clauses [0]->data.catch_class);
+	fprintf (stderr, "Popping %p from stack\n", curr->clauses [0].data.catch_class);
 
 	mono_try_stack_rethrow (try_state);
 }
@@ -2826,41 +2848,48 @@ sort_exc_clause_ending_offset_desc (gconstpointer _a, gconstpointer _b)
 }
 
 
-void
-mono_push_try_handler (MonoTryStack **stack, MonoJumpBuffer *jbuf, MonoExceptionClause **exceptions, int count)
+jmp_buf *
+mono_push_try_handler (MonoTryStack **stack, MonoJitExceptionInfo *exceptions, int count)
 {
-#ifdef MONO_EXC_DEBUG
-	fprintf (stderr, "Start push group\n");
-	for (int i=0; i < count; i++) {
-		MonoExceptionClause *clause = exceptions [i];
-		fprintf (stderr, "Clause %d: try start/end(%d to %d) and handler start/end(%d to %d)\n",
-			i, clause->try_offset, clause->try_offset + clause->try_len, clause->handler_offset, clause->handler_offset + clause->handler_len
-		);
-	}
-#endif
+	MonoTryFrame *prev = mono_try_stack_peek (stack);
 
-	fprintf (stderr, "End push group\n");
 	MonoTryFrame *frame = mono_try_stack_reserve (stack);
 	frame->num_clauses = count;
 	frame->clauses = exceptions;
-	frame->buffer = jbuf;
-	jbuf->ref_count++;
+
+	// Share jump buffers between nested frames
+	if (frame->clauses [0].try_start == prev->clauses [0].try_start)
+		frame->buffer.reference = &frame->buffer.embedded_val;
+	else
+		frame->buffer.reference = prev->buffer.reference;
+
+	return frame->buffer.reference;
 }
 
 MonoJumpBuffer *
-mono_emit_push_try_handlers (MonoCompile *cfg, intptr_t offset)
+mono_push_try_handlers_wrapper (size_t group_offset, size_t group_size)
 {
-	if (!cfg->header->num_clauses)
-		return NULL;
-
-	size_t pos;
-
-	if (!mono_find_try_handlers (cfg, offset, &pos))
-		return NULL;
+	MonoDomain *domain = mono_domain_get ();
+	char *ip = __builtin_return_address (0);
+	MonoJitInfo *ji = mini_jit_info_table_find (domain, ip, NULL);
 
 	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
-	MonoTryState *state = jit_tls->exc_state;
-	MonoJumpBuffer *jbuf = g_malloc0 (sizeof (MonoJumpBuffer));
+
+	// Note: This only works because the jit info has the clauses
+	// in the same order as the clauses in the MonoCompile
+	MonoJitExceptionInfo *clauses = &ji->clauses [group_offset];
+	mono_push_try_handler (&jit_tls->exc_state->stack, clauses, group_size);
+}
+
+static void
+__attribute__((always_inline))
+mono_save_try_state (MonoCompile *cfg, size_t offset)
+{
+	size_t pos;
+	if (!mono_find_entered_group (cfg, offset, &pos))
+		return;
+
+	MonoInst *jbuf;
 
 	while (1) {
 		if (pos >= cfg->exc_clause_map->num_groups)
@@ -2871,32 +2900,55 @@ mono_emit_push_try_handlers (MonoCompile *cfg, intptr_t offset)
 		if (cfg->exc_clause_map->clauses [index]->try_offset != offset)
 			break;
 
-		mono_push_try_handler (&state->stack, jbuf, &cfg->exc_clause_map->clauses [index], mono_exception_clause_group_size (cfg->exc_clause_map, pos));
+		MonoInst *args [2];
+		EMIT_NEW_ICONST (cfg, args [0], index);
+		EMIT_NEW_ICONST (cfg, args [1], mono_exception_clause_group_size (cfg->exc_clause_map, pos));
+
+		jbuf = mono_emit_jit_icall (cfg, mono_push_try_handlers_wrapper, args);
+
 		pos++;
 	}
 
-	return jbuf;
+	mono_try_sjlj (cfg, jbuf);
+}
+
+void
+mono_try_sjlj (MonoCompile *cfg, MonoInst *jbuf)
+{
+	MonoInst *retInt = mono_emit_jit_icall (cfg, setjmp, &jbuf);
+
+	MonoBasicBlock *end_bb;
+	NEW_BBLOCK (cfg, end_bb);
+
+	/* is the ptr null? */
+	MONO_EMIT_NEW_BIALU_IMM (cfg, OP_COMPARE_IMM, -1, retInt->dreg, 0);
+	MONO_EMIT_NEW_BRANCH_BLOCK (cfg, OP_PBEQ, end_bb);
+
+	mono_emit_jit_icall (cfg, mono_handle_exception_jump, &jbuf);
+	MONO_EMIT_NEW_BRANCH_BLOCK (cfg, OP_PBEQ, end_bb);
+
+	MONO_START_BB (cfg, end_bb);
 }
 
 size_t
 __attribute__((always_inline))
-mono_exception_clause_group_size (const MonoExceptionClauseMap *map, size_t pos)
+mono_exception_clause_group_size (const MonoExceptionClauseMap *map, size_t group_index)
 {
-	if (pos == map->num_groups - 1)
+	if (group_index == map->num_groups - 1)
 		return 0;
 	else
-		return map->groups [pos + 1] - map->groups [pos];
+		return map->groups [group_index + 1] - map->groups [group_index];
 }
 
 gboolean
-mono_find_try_handlers (MonoCompile *cfg, intptr_t offset, size_t *found)
+mono_find_entered_group (MonoCompile *cfg, size_t offset, size_t *found)
 {
 	size_t left = 0;
 	size_t right = cfg->header->num_clauses;
 
 	size_t pos;
 	size_t index;
-	intptr_t value_at; 
+	uint32_t value_at; 
 
 	while (TRUE) {
 		pos = ((left + right) / 2);
@@ -2939,17 +2991,19 @@ mono_compile_create_exception_map (MonoCompile *cfg, MonoMethod *method)
 		return;
 
 	GPtrArray *header_clauses = g_ptr_array_sized_new (header->num_clauses);
-	for (int i=0; i < header->num_clauses; i++)
+	for (int i=0; i < header->num_clauses; i++) {
 		header_clauses->pdata [i] = &header->clauses [i];
+		header_clauses->len = header->num_clauses;
+	}
 
 	g_ptr_array_sort (header_clauses, sort_exc_clause_start_offset_asc);
 
 	GArray *mapping = g_array_new (FALSE, TRUE, sizeof (size_t));
 
-	intptr_t prev_offset = 0;
+	size_t prev_offset = 0;
 
 	for (int clause_index = 0; clause_index < header->num_clauses; clause_index++) {
-		intptr_t offset = header->clauses [clause_index].try_offset;
+		size_t offset = header->clauses [clause_index].try_offset;
 
 		if (clause_index != 0) {
 			if((offset == prev_offset) || 
@@ -3022,6 +3076,7 @@ mono_compile_create_exception_map (MonoCompile *cfg, MonoMethod *method)
 		g_ptr_array_free (clauses, TRUE);
 	}
 
+	cfg->exc_clause_map = g_malloc0 (sizeof (MonoExceptionClauseMap));
 	cfg->exc_clause_map->clauses = (MonoExceptionClause **)header_clauses->pdata;
 	cfg->exc_clause_map->num_clauses = header_clauses->len;
 	cfg->exc_clause_map->groups = (size_t *)mapping->data;
@@ -3032,16 +3087,10 @@ mono_compile_create_exception_map (MonoCompile *cfg, MonoMethod *method)
 
 void
 __attribute__((always_inline))
-mono_enter_try (MonoCompile *cfg, intptr_t offset)
+mono_emit_update_try_stack (MonoCompile *cfg, size_t offset)
 {
-	MonoJumpBuffer *curr = mono_emit_push_try_handlers (cfg, offset);
-	intptr_t exc = (intptr_t) setjmp (curr->buf);
-	if (exc == MonoJumpReturnDirect)
-		return;
-
-	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
-	mono_handle_exception_jump (jit_tls->exc_state);
+	mono_emit_jit_icall (cfg, mono_runtime_try_stack_pop, NULL);
+	mono_save_try_state (cfg, offset);
 }
-
 
 

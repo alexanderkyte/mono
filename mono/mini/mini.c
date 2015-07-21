@@ -2860,7 +2860,7 @@ create_jit_info (MonoCompile *cfg, MonoMethod *method_to_compile)
 		int i;
 
 		for (i = 0; i < cfg->exc_clause_map->num_clauses; i++) {
-			MonoExceptionClause *ec = &cfg->exc_clause_map->clauses [i];
+			MonoExceptionClause *ec = cfg->exc_clause_map->clauses [i];
 			MonoJitExceptionInfo *ei = &jinfo->clauses [i];
 			MonoBasicBlock *tblock;
 			MonoInst *exvar, *spvar;
@@ -3485,7 +3485,8 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 	 */
 	mono_compile_create_vars (cfg);
 
-	mono_compile_create_exception_map (cfg, method_to_compile);
+	if (cfg->header->num_clauses)
+		mono_compile_create_exception_map (cfg, method_to_compile);
 
 	i = mono_method_to_ir (cfg, method_to_compile, NULL, NULL, NULL, NULL, 0, FALSE);
 

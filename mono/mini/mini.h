@@ -1895,17 +1895,15 @@ struct _MonoExceptionClauseMap {
 	size_t num_groups;
 };
 
-// A way to get around being unable to pass stack
-// arrays (jmp_buf is int[]) around
 typedef struct MonoJumpBuffer {
-	jmp_buf buf;
-	size_t ref_count;
+	jmp_buf *reference;
+	jmp_buf embedded_val;
 } MonoJumpBuffer;
 
 typedef struct MonoTryFrame {
-	MonoJumpBuffer *buffer;
+	MonoJumpBuffer buffer;
 	int num_clauses;
-	MonoExceptionClause **clauses;
+	MonoJitExceptionInfo *clauses;
 } MonoTryFrame;
 
 typedef struct MonoTryStack {
@@ -1924,9 +1922,12 @@ typedef enum {
 	MonoJumpLand
 } MonoJumpStatus;
 
-
 void
 mono_try_stack_pop (MonoTryStack **stack);
+
+void
+__attribute__((always_inline))
+mono_emit_possible_try_stack_pop (MonoCompile *cfg, size_t offset);
 
 MonoTryFrame*
 mono_try_stack_peek (MonoTryStack **stack);
@@ -1941,32 +1942,34 @@ void
 mono_throw (MonoException *exc);
 
 void __attribute__((noreturn))
-mono_handle_exception_jump (MonoTryState *try_state);
+mono_handle_exception_jump (jmp_buf jbuf);
 
 gint 
 sort_exc_clause_ending_offset_desc (gconstpointer _a, gconstpointer _b);
+
+jmp_buf *
+mono_push_try_handler (MonoTryStack **stack, MonoJitExceptionInfo *exceptions, int count);
+
+void
+mono_try_sjlj (MonoCompile *cfg, MonoInst *jbuf);
+
+MonoJumpBuffer *
+mono_push_try_handlers_wrapper (size_t group_offset, size_t group_size);
+
+size_t __attribute__((always_inline))
+mono_exception_clause_group_size (const MonoExceptionClauseMap *map, size_t mapping_index);
+
+gboolean
+mono_find_entered_group (MonoCompile *cfg, size_t offset, size_t *found);
 
 gint 
 sort_exc_clause_start_offset_asc (gconstpointer _a, gconstpointer _b);
 
 void
-mono_push_try_handler (MonoTryStack **stack, MonoJumpBuffer *jbuf, MonoExceptionClause **exceptions, int count);
-
-MonoJumpBuffer *
-mono_emit_push_try_handlers (MonoCompile *cfg, intptr_t offset);
-
-void
-__attribute__((always_inline))
-mono_enter_try (MonoCompile *cfg, intptr_t offset);
-
-void
 mono_compile_create_exception_map (MonoCompile *cfg, MonoMethod *method);
 
-gboolean
-mono_find_try_handlers (MonoCompile *cfg, intptr_t offset, size_t *found);
-
-size_t __attribute__((always_inline))
-mono_exception_clause_group_size (const MonoExceptionClauseMap *map, size_t pos);
+void __attribute__((always_inline))
+mono_emit_update_try_stack (MonoCompile *cfg, size_t offset);
 
 #if HAVE_ARRAY_ELEM_INIT
 extern const guint8 mono_burg_arity [];

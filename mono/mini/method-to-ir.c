@@ -8236,6 +8236,11 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			}
 		}
 
+		if (header->num_clauses) {
+			size_t offset = ip - header->code;
+			mono_emit_update_try_stack (cfg, offset);
+		}
+
 		/*
 		 * Sequence points are points where the debugger can place a breakpoint.
 		 * Currently, we generate these automatically at points where the IL
