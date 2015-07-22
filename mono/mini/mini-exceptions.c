@@ -1848,7 +1848,10 @@ mono_handle_exception (MonoContext *ctx, gpointer obj)
 	mono_perfcounters->exceptions_thrown++;
 #endif
 
-	return mono_handle_exception_internal (ctx, obj, FALSE, NULL);
+	/*return mono_handle_exception_internal (ctx, obj, FALSE, NULL);*/
+	mono_throw (obj);
+
+	return 0;
 }
 
 #ifdef MONO_ARCH_SIGSEGV_ON_ALTSTACK
@@ -2836,8 +2839,11 @@ mono_handle_exception_jump (jmp_buf jbuf)
 			clause->handler_start, clause->data.handler_end,
 			clause->data.catch_class);
 
-		if (clause->data.catch_class == try_state->current_exc->object.vtable->klass)
-			g_error ("Exception caught!\n");
+		if (clause->data.catch_class == try_state->current_exc->object.vtable->klass) {
+			fprintf (stderr, "Caught exception, jumping to handler start %p\n", clause->handler_start);
+			MONO_CONTEXT_SET_IP (&jit_tls->ex_ctx, clause->handler_start);
+			mono_restore_context (&jit_tls->ex_ctx);
+		}
 	}
 
 	// Frees curr
@@ -2876,6 +2882,7 @@ mono_push_try_handler (MonoTryStack **stack, MonoJitExceptionInfo *exceptions, i
 	else
 		frame->buffer.reference = &frame->buffer.embedded_val;
 
+	MOSTLY_ASYNC_SAFE_PRINTF ("Pushed try handler for %p\n", exceptions [0].try_start);
 	return frame->buffer.reference;
 }
 
