@@ -2718,8 +2718,10 @@ create_jit_info (MonoCompile *cfg, MonoMethod *method_to_compile)
 
 	if (COMPILE_LLVM (cfg))
 		num_clauses = cfg->llvm_ex_info_len;
-	else
+	else if (cfg->exc_clause_map)
 		num_clauses = cfg->exc_clause_map->num_clauses;
+	else
+		num_clauses = 0;
 
 	if (cfg->method->dynamic)
 		jinfo = g_malloc0 (mono_jit_info_size (flags, num_clauses, num_holes));

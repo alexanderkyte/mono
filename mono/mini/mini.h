@@ -1953,7 +1953,10 @@ mono_push_try_handler (MonoTryStack **stack, MonoJitExceptionInfo *exceptions, i
 void
 mono_try_sjlj (MonoCompile *cfg, MonoInst *jbuf);
 
-MonoJumpBuffer *
+void
+mono_runtime_try_stack_pop (void);
+
+jmp_buf *
 mono_push_try_handlers_wrapper (size_t group_offset, size_t group_size);
 
 size_t __attribute__((always_inline))

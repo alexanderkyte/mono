@@ -11961,6 +11961,8 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			ins->inst_target_bb = tblock;
 			start_new_bblock = 1;
 
+			mono_emit_jit_icall (cfg, mono_runtime_try_stack_pop, NULL)
+
 			if (*ip == CEE_LEAVE)
 				ip += 5;
 			else
@@ -12710,6 +12712,8 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				g_assert (nearest);
 				if ((ip - header->code) != nearest->handler_offset)
 					UNVERIFIED;
+
+				mono_emit_jit_icall (cfg, mono_runtime_try_stack_pop, NULL)
 
 				break;
 			}

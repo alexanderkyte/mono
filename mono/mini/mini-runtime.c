@@ -921,6 +921,7 @@ setup_jit_tls_data (gpointer stack_start, gpointer abort_func)
 	MONO_ARCH_INIT_TOP_LMF_ENTRY (lmf);
 
 	jit_tls->first_lmf = lmf;
+	jit_tls->exc_state = g_malloc0 (sizeof (MonoTryState));
 
 #if defined(MONO_HAVE_FAST_TLS) && defined(MONO_ARCH_ENABLE_MONO_LMF_VAR)
 	/* jit_tls->lmf is unused */
@@ -947,6 +948,7 @@ free_jit_tls_data (MonoJitTlsData *jit_tls)
 	mono_arch_free_jit_tls_data (jit_tls);
 	mono_free_altstack (jit_tls);
 
+	g_free (jit_tls->exc_state);
 	g_free (jit_tls->first_lmf);
 	g_free (jit_tls);
 }
