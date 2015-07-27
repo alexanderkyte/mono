@@ -1126,32 +1126,6 @@ emit_volatile_load (EmitContext *ctx, int vreg)
 	return v;
 }
 
-void
-mono_llvm_throw_exception (MonoException *e) {
-	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
-	MOSTLY_ASYNC_SAFE_PRINTF ("First throw icall. Exception has type: %s\n", e->object.vtable->klass->name);
-	// Note: Not pinned
-	guint32 handle = mono_gchandle_new (&e->object, FALSE);
-	jit_tls->thrown_exc = handle;
-
-	MonoExceptionSentinel *exc_mem = __cxa_allocate_exception (sizeof (MonoExceptionSentinel));
-	memcpy (exc_mem, sentinel_singleton, sizeof(sentinel_singleton));
-
-	__cxa__throw (NULL, mono_get_sentinel_exception_tinfo (), NULL);
-}
-
-void
-mono_llvm_exception_cleanup (void) {
-	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
-
-	guint32 old_handle = jit_tls->thrown_exc;
-	jit_tls->thrown_exc = 0;
-
-	g_assert (old_handle != 0);
-
-	mono_gchandle_free (old_handle);
-}
-
 /*static LLVMValueRef*/
 /*emit_alloc_sentinel_exc (EmitContext *ctx)*/
 /*{*/
@@ -1173,6 +1147,29 @@ mono_llvm_exception_cleanup (void) {
 	/*LLVMValueRef exc_free_func = LLVMGetNamedFunction (ctx->module, exc_free_func_name);*/
 	/*LLVMBuildCall (ctx->builder, exc_free_func, &exception, 1, exc_free_func_name);*/
 /*}*/
+
+void
+mono_llvm_rethrow_exception (MonoException *e) {
+	return mono_llvm_cpp_rethrow_exception ();
+}
+
+void
+mono_llvm_throw_exception (MonoException *e) {
+	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
+	MOSTLY_ASYNC_SAFE_PRINTF ("First throw icall. Exception has type: %s\n", e->object.vtable->klass->name);
+	// Note: Not pinned
+	guint32 handle = mono_gchandle_new (&e->object, FALSE);
+	jit_tls->thrown_exc = handle;
+
+	mono_llvm_cpp_throw_exception ();
+}
+
+void
+mono_llvm_reset_exception (void) {
+	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
+	guint32 handle = jit_tls->thrown_exc;
+	mono_gchandle_free (handle);
+}
 
 static void
 emit_start_handler (EmitContext *ctx)
@@ -4809,26 +4806,17 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 			const char *icall_name;
 				
 			callee = rethrow ? ctx->lmodule->rethrow : ctx->lmodule->throw;
-			icall_name = rethrow ? "mono_arch_rethrow_exception" : "mono_arch_throw_exception";
+			icall_name = rethrow ? "mono_llvm_rethrow_exception" : "mono_llvm_throw_exception";
 
 			if (!callee) {
 				throw_sig = mono_metadata_signature_alloc (mono_get_corlib (), 1);
 				throw_sig->ret = &mono_get_void_class ()->byval_arg;
-				throw_sig->params [0] = &mono_get_object_class ()->byval_arg;
+				throw_sig->params [0] = &mono_get_exception_class ()->byval_arg;
 				if (cfg->compile_aot) {
 					callee = get_plt_entry (ctx, sig_to_llvm_sig (ctx, throw_sig), MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 				} else {
 					callee = LLVMAddFunction (module, icall_name, sig_to_llvm_sig (ctx, throw_sig));
-
-#ifdef TARGET_X86
-					/* 
-					 * LLVM doesn't push the exception argument, so we need a different
-					 * trampoline.
-					 */
-					LLVMAddGlobalMapping (ctx->lmodule->ee, callee, resolve_patch (cfg, MONO_PATCH_INFO_INTERNAL_METHOD, rethrow ? "llvm_rethrow_exception_trampoline" : "llvm_throw_exception_trampoline"));
-#else
 					LLVMAddGlobalMapping (ctx->lmodule->ee, callee, resolve_patch (cfg, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name));
-#endif
 				}
 
 				mono_memory_barrier ();
