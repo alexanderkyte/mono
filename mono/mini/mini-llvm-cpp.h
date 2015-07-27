@@ -15,6 +15,8 @@
 #include "llvm-c/Core.h"
 #include "llvm-c/ExecutionEngine.h"
 
+#include "../metadata/object.h"
+
 G_BEGIN_DECLS
 
 /*
@@ -92,6 +94,21 @@ mono_llvm_create_constant_data_array (const uint8_t *data, int len);
 
 void
 mono_llvm_set_is_constant (LLVMValueRef global_var);
+
+void
+mono_llvm_cpp_throw_exception (void);
+
+void
+mono_llvm_cpp_rethrow_exception (void);
+
+void
+mono_llvm_throw_exception (MonoException *e);
+
+void
+mono_llvm_rethrow_exception (MonoException *e);
+
+void
+mono_llvm_reset_exception (void);
 
 G_END_DECLS
 

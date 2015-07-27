@@ -1085,6 +1085,8 @@ typedef struct {
 	 * Stores if we need to run a chained exception in Windows.
 	 */
 	gboolean mono_win_chained_exception_needs_run;
+
+	guint32 thrown_exc;
 } MonoJitTlsData;
 
 /*
