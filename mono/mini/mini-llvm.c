@@ -1126,6 +1126,72 @@ emit_volatile_load (EmitContext *ctx, int vreg)
 	return v;
 }
 
+void
+mono_llvm_throw_exception (MonoException *e) {
+	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
+	MOSTLY_ASYNC_SAFE_PRINTF ("First throw icall. Exception has type: %s\n", e->object.vtable->klass->name);
+	// Note: Not pinned
+	guint32 handle = mono_gchandle_new (&e->object, FALSE);
+	jit_tls->thrown_exc = handle;
+
+	MonoExceptionSentinel *exc_mem = __cxa_allocate_exception (sizeof (MonoExceptionSentinel));
+	memcpy (exc_mem, sentinel_singleton, sizeof(sentinel_singleton));
+
+	__cxa__throw (NULL, mono_get_sentinel_exception_tinfo (), NULL);
+}
+
+void
+mono_llvm_exception_cleanup (void) {
+	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
+
+	guint32 old_handle = jit_tls->thrown_exc;
+	jit_tls->thrown_exc = 0;
+
+	g_assert (old_handle != 0);
+
+	mono_gchandle_free (old_handle);
+}
+
+/*static LLVMValueRef*/
+/*emit_alloc_sentinel_exc (EmitContext *ctx)*/
+/*{*/
+	/*MOSTLY_ASYNC_SAFE_PRINTF ("Emitting from %s :: %d\n", __FILE__, __LINE__);*/
+	/*static const char *exc_allocate_func_name = "__cxa_allocate_exception";*/
+	/*LLVMValueRef exc_alloc_func = LLVMGetNamedFunction (ctx->module, exc_allocate_func_name);*/
+	/*LLVMValueRef v = LLVMBuildCall (ctx->builder, exc_alloc_func, NULL, 0, exc_allocate_func_name);*/
+
+	/*// TODO: Fill with exception data*/
+	
+	/*return v;*/
+/*}*/
+
+/*static void*/
+/*emit_free_sentinel_exc (EmitContext *ctx, LLVMValueRef exception)*/
+/*{*/
+	/*MOSTLY_ASYNC_SAFE_PRINTF ("Emitting from %s :: %d\n", __FILE__, __LINE__);*/
+	/*static const char *exc_free_func_name = "__cxa_free_exception";*/
+	/*LLVMValueRef exc_free_func = LLVMGetNamedFunction (ctx->module, exc_free_func_name);*/
+	/*LLVMBuildCall (ctx->builder, exc_free_func, &exception, 1, exc_free_func_name);*/
+/*}*/
+
+static void
+emit_start_handler (EmitContext *ctx)
+{
+	MOSTLY_ASYNC_SAFE_PRINTF ("Emitting from %s :: %d\n", __FILE__, __LINE__);
+	static const char *catch_start_func_name = "__cxa_begin_catch";
+	LLVMValueRef throw_func = LLVMGetNamedFunction (ctx->module, catch_start_func_name);
+	LLVMBuildCall (ctx->builder, throw_func, NULL, 0, catch_start_func_name);
+}
+
+static void
+emit_end_handler (EmitContext *ctx)
+{
+	MOSTLY_ASYNC_SAFE_PRINTF ("Emitting from %s :: %d\n", __FILE__, __LINE__);
+	static const char *catch_end_func_name = "__cxa_end_catch";
+	LLVMValueRef throw_func = LLVMGetNamedFunction (ctx->module, catch_end_func_name);
+	LLVMBuildCall (ctx->builder, throw_func, NULL, 0, catch_end_func_name);
+}
+
 /*
  * emit_volatile_store:
  *

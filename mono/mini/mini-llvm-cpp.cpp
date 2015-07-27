@@ -319,6 +319,21 @@ mono_llvm_build_load (LLVMBuilderRef builder, LLVMValueRef PointerVal,
 	return wrap(ins);
 }
 
+class MonoExceptionSentinel: public exception { };
+
+std::type_info
+mono_get_sentinel_exception_tinfo (void)
+{
+	static std::type_info *mono_exception_sentinel_tinfo = NULL;
+	if (!mono_exception_sentinel_tinfo) {
+		MonoExceptionSentinel tmp = new MonoExceptionSentinel ();
+		mono_exception_sentinel_tinfo = typeid (tmp);
+		delete (tmp);
+	}
+
+	return mono_exception_sentinel_tinfo;
+}
+
 LLVMValueRef 
 mono_llvm_build_aligned_load (LLVMBuilderRef builder, LLVMValueRef PointerVal,
 							  const char *Name, gboolean is_volatile, int alignment)
