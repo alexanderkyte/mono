@@ -1126,28 +1126,6 @@ emit_volatile_load (EmitContext *ctx, int vreg)
 	return v;
 }
 
-/*static LLVMValueRef*/
-/*emit_alloc_sentinel_exc (EmitContext *ctx)*/
-/*{*/
-	/*MOSTLY_ASYNC_SAFE_PRINTF ("Emitting from %s :: %d\n", __FILE__, __LINE__);*/
-	/*static const char *exc_allocate_func_name = "__cxa_allocate_exception";*/
-	/*LLVMValueRef exc_alloc_func = LLVMGetNamedFunction (ctx->module, exc_allocate_func_name);*/
-	/*LLVMValueRef v = LLVMBuildCall (ctx->builder, exc_alloc_func, NULL, 0, exc_allocate_func_name);*/
-
-	/*// TODO: Fill with exception data*/
-	
-	/*return v;*/
-/*}*/
-
-/*static void*/
-/*emit_free_sentinel_exc (EmitContext *ctx, LLVMValueRef exception)*/
-/*{*/
-	/*MOSTLY_ASYNC_SAFE_PRINTF ("Emitting from %s :: %d\n", __FILE__, __LINE__);*/
-	/*static const char *exc_free_func_name = "__cxa_free_exception";*/
-	/*LLVMValueRef exc_free_func = LLVMGetNamedFunction (ctx->module, exc_free_func_name);*/
-	/*LLVMBuildCall (ctx->builder, exc_free_func, &exception, 1, exc_free_func_name);*/
-/*}*/
-
 void
 mono_llvm_rethrow_exception (MonoException *e) {
 	return mono_llvm_cpp_rethrow_exception ();
@@ -1164,28 +1142,10 @@ mono_llvm_throw_exception (MonoException *e) {
 }
 
 void
-mono_llvm_reset_exception (void) {
-	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
-	guint32 handle = jit_tls->thrown_exc;
-	mono_gchandle_free (handle);
-}
-
-static void
-emit_start_handler (EmitContext *ctx)
-{
-	MOSTLY_ASYNC_SAFE_PRINTF ("Emitting from %s :: %d\n", __FILE__, __LINE__);
-	static const char *catch_start_func_name = "__cxa_begin_catch";
-	LLVMValueRef throw_func = LLVMGetNamedFunction (ctx->module, catch_start_func_name);
-	LLVMBuildCall (ctx->builder, throw_func, NULL, 0, catch_start_func_name);
-}
-
-static void
-emit_end_handler (EmitContext *ctx)
-{
-	MOSTLY_ASYNC_SAFE_PRINTF ("Emitting from %s :: %d\n", __FILE__, __LINE__);
-	static const char *catch_end_func_name = "__cxa_end_catch";
-	LLVMValueRef throw_func = LLVMGetNamedFunction (ctx->module, catch_end_func_name);
-	LLVMBuildCall (ctx->builder, throw_func, NULL, 0, catch_end_func_name);
+mono_llvm_match_exception (MonoException *e) {
+	gpointer addr = __builtin_return_address (0);
+	MonoJitInfo *jinfo = mini_jit_info_table_find (mono_domain_get (), addr, NULL);
+	exit (-1);
 }
 
 /*
@@ -1600,6 +1560,7 @@ emit_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref, LL
 	clause_index = get_handler_clause (cfg, bb);
 
 	if (clause_index != -1) {
+		MOSTLY_ASYNC_SAFE_PRINTF ("Installing invoke\n");
 		MonoMethodHeader *header = cfg->header;
 		MonoExceptionClause *ec = &header->clauses [clause_index];
 		MonoBasicBlock *tblock;
@@ -6203,7 +6164,7 @@ emit_aot_file_info (MonoLLVMModule *lmodule)
 	eltype = eltypes [tindex];
 	fields [tindex ++] = AddJitGlobal (lmodule, eltype, "jit_got");
 	fields [tindex ++] = lmodule->got_var;
-	/* llc defines this directly */
+	/*[> llc defines this directly <]*/
 	fields [tindex ++] = LLVMAddGlobal (lmodule->module, eltype, lmodule->eh_frame_symbol);
 	if (TRUE || lmodule->has_jitted_code) {
 		fields [tindex ++] = AddJitGlobal (lmodule, eltype, "jit_code_start");
@@ -6223,7 +6184,7 @@ emit_aot_file_info (MonoLLVMModule *lmodule)
 	fields [tindex ++] = LLVMGetNamedGlobal (lmodule->module, "extra_method_table");
 	fields [tindex ++] = LLVMGetNamedGlobal (lmodule->module, "got_info_offsets");
 	fields [tindex ++] = LLVMGetNamedGlobal (lmodule->module, "llvm_got_info_offsets");
-	/* Not needed (mem_end) */
+	/*[> Not needed (mem_end) <]*/
 	fields [tindex ++] = LLVMConstNull (eltype);
 	fields [tindex ++] = LLVMGetNamedGlobal (lmodule->module, "image_table");
 	fields [tindex ++] = LLVMGetNamedGlobal (lmodule->module, "assembly_guid");
@@ -6269,16 +6230,19 @@ emit_aot_file_info (MonoLLVMModule *lmodule)
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->plt_size, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->nmethods, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->flags, FALSE);
+
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->opts, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->simd_opts, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->gc_name_index, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->num_rgctx_fetch_trampolines, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->double_align, FALSE);
+
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->long_align, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->generic_tramp_num, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->tramp_page_size, FALSE);
 	/* Arrays */
 	fields [tindex ++] = llvm_array_from_uints (LLVMInt32Type (), info->num_trampolines, MONO_AOT_TRAMP_NUM);
+
 	fields [tindex ++] = llvm_array_from_uints (LLVMInt32Type (), info->trampoline_got_offset_base, MONO_AOT_TRAMP_NUM);
 	fields [tindex ++] = llvm_array_from_uints (LLVMInt32Type (), info->trampoline_size, MONO_AOT_TRAMP_NUM);
 	fields [tindex ++] = llvm_array_from_uints (LLVMInt32Type (), info->tramp_page_code_offsets, MONO_AOT_TRAMP_NUM);
