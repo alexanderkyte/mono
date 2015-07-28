@@ -60,6 +60,20 @@ using namespace llvm;
 
 #ifndef MONO_CROSS_COMPILE
 
+class MonoExceptionSentinel: public std::exception { };
+
+void
+mono_llvm_cpp_throw_exception (void) 
+{
+	throw new MonoExceptionSentinel ();
+}
+
+void
+mono_llvm_cpp_rethrow_exception (void) 
+{
+	mono_llvm_cpp_throw_exception ();
+}
+
 class MonoJITMemoryManager : public JITMemoryManager
 {
 private:
@@ -753,5 +767,6 @@ LLVMGetPointerToGlobal(LLVMExecutionEngineRef EE, LLVMValueRef Global)
 	g_assert_not_reached ();
 	return NULL;
 }
+
 
 #endif /* !MONO_CROSS_COMPILE */
