@@ -108,6 +108,9 @@ void
 mono_llvm_rethrow_exception (MonoException *e);
 
 void
+mono_llvm_match_exception (MonoException *e);
+
+void
 mono_llvm_reset_exception (void);
 
 G_END_DECLS
