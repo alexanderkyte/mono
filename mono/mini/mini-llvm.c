@@ -1156,7 +1156,6 @@ mono_llvm_rethrow_exception (MonoException *e) {
 void
 mono_llvm_throw_exception (MonoException *e) {
 	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
-	MOSTLY_ASYNC_SAFE_PRINTF ("First throw icall. Exception has type: %s\n", e->object.vtable->klass->name);
 	// Note: Not pinned
 	guint32 handle = mono_gchandle_new (&e->object, FALSE);
 	jit_tls->thrown_exc = handle;
@@ -4807,6 +4806,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 				
 			callee = rethrow ? ctx->lmodule->rethrow : ctx->lmodule->throw;
 			icall_name = rethrow ? "mono_llvm_rethrow_exception" : "mono_llvm_throw_exception";
+			MOSTLY_ASYNC_SAFE_PRINTF ("%s :: %d\n", __FILE__, __LINE__);
 
 			if (!callee) {
 				throw_sig = mono_metadata_signature_alloc (mono_get_corlib (), 1);
@@ -4826,6 +4826,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 					ctx->lmodule->throw = callee;
 			}
 			arg = convert (ctx, lhs, type_to_llvm_type (ctx, &mono_get_object_class ()->byval_arg));
+			MOSTLY_ASYNC_SAFE_PRINTF ("Emitting call %s :: %d\n", __FILE__, __LINE__);
 			emit_call (ctx, bb, &builder, callee, &arg, 1);
 			break;
 		}
