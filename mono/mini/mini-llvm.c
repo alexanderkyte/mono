@@ -2621,6 +2621,8 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 	return;
 }
 
+static const char *default_personality_name = "__gxx_personality_v0";
+
 static void
 emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder)
 {
@@ -2629,7 +2631,7 @@ emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder
 	LLVMModuleRef module = ctx->module;
 	BBInfo *bblocks = ctx->bblocks;
 	LLVMTypeRef i8ptr;
-	LLVMValueRef personality;
+	static LLVMValueRef personality = NULL;
 	LLVMValueRef landing_pad;
 	LLVMBasicBlockRef target_bb;
 	MonoInst *exvar;
@@ -2642,15 +2644,15 @@ emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder
 	GSList *l;
 
 	// <resultval> = landingpad <somety> personality <type> <pers_fn> <clause>+
-
-	if (cfg->compile_aot) {
-		/* Use a dummy personality function */
-		personality = LLVMGetNamedFunction (module, "mono_aot_personality");
+	{
+		if (cfg->compile_aot) {
+				personality = LLVMGetNamedFunction (module, default_personality_name);
+		} else if (InterlockedCompareExchange (&mapping_inited, 1, 0) == 0) {
+				personality = LLVMAddFunction (module, default_personality_name, LLVMFunctionType (LLVMInt32Type (), NULL, 0, TRUE));
+				LLVMAddGlobalMapping (ctx->lmodule->ee, personality, personality);
+		}
+		mono_memory_barrier ();
 		g_assert (personality);
-	} else {
-		personality = LLVMGetNamedFunction (module, "mono_personality");
-		if (InterlockedCompareExchange (&mapping_inited, 1, 0) == 0)
-			LLVMAddGlobalMapping (ctx->lmodule->ee, personality, mono_personality);
 	}
 
 	i8ptr = LLVMPointerType (LLVMInt8Type (), 0);
@@ -2687,18 +2689,9 @@ emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder
 	}
 
 	{
-		LLVMTypeRef members [2], ret_type;
-
-		members [0] = i8ptr;
-		members [1] = LLVMInt32Type ();
-		ret_type = LLVMStructType (members, 2, FALSE);
-
-		landing_pad = LLVMBuildLandingPad (builder, ret_type, personality, 1, "");
+		landing_pad = LLVMBuildLandingPad (builder, LLVMInt32Type (), personality, 0, "");
+		g_assert (landing_pad);
 		LLVMAddClause (landing_pad, type_info);
-
-		/* Store the exception into the exvar */
-		if (ctx->ex_var)
-			LLVMBuildStore (builder, convert (ctx, LLVMBuildExtractValue (builder, landing_pad, 0, "ex_obj"), ObjRefType ()), ctx->ex_var);
 	}
 
 	/*
@@ -2715,8 +2708,7 @@ emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder
 	/*
 	 * Branch to the correct landing pad
 	 */
-	LLVMValueRef ex_selector = LLVMBuildExtractValue (builder, landing_pad, 1, "ex_selector");
-	LLVMValueRef switch_ins = LLVMBuildSwitch (builder, ex_selector, target_bb, 0);
+	LLVMValueRef switch_ins = LLVMBuildSwitch (builder, landing_pad, target_bb, 0);
 
 	for (l = ctx->nested_in [clause_index]; l; l = l->next) {
 		int nesting_clause_index = GPOINTER_TO_INT (l->data);
@@ -6033,16 +6025,12 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 
 	/* Add a dummy personality function */
 	{
-		LLVMBasicBlockRef lbb;
-		LLVMBuilderRef lbuilder;
-		LLVMValueRef personality;
-
-		personality = LLVMAddFunction (lmodule->module, "mono_aot_personality", LLVMFunctionType (LLVMVoidType (), NULL, 0, FALSE));
-		LLVMSetLinkage (personality, LLVMInternalLinkage);
-		lbb = LLVMAppendBasicBlock (personality, "BB0");
-		lbuilder = LLVMCreateBuilder ();
-		LLVMPositionBuilderAtEnd (lbuilder, lbb);
-		LLVMBuildRetVoid (lbuilder);
+		LLVMValueRef personality = LLVMAddFunction (lmodule->module, default_personality_name, LLVMFunctionType (LLVMInt32Type (), NULL, 0, TRUE));
+		LLVMSetLinkage (personality, LLVMExternalLinkage);
+		/*lbb = LLVMAppendBasicBlock (personality, "BB0");*/
+		/*lbuilder = LLVMCreateBuilder ();*/
+		/*LLVMPositionBuilderAtEnd (lbuilder, lbb);*/
+		/*LLVMBuildRetVoid (lbuilder);*/
 		mark_as_used (lmodule, personality);
 	}
 
