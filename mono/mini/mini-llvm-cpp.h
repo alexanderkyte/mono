@@ -107,7 +107,7 @@ mono_llvm_throw_exception (MonoException *e);
 void
 mono_llvm_rethrow_exception (MonoException *e);
 
-void
+guint32
 mono_llvm_match_exception (MonoException *e);
 
 void
