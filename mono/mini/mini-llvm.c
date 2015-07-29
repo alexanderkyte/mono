@@ -45,7 +45,7 @@ void bzero (void *to, size_t count) { memset (to, 0, count); }
   */
 typedef struct {
 	LLVMModuleRef module;
-	LLVMValueRef throw, rethrow, throw_corlib_exception;
+	LLVMValueRef throw, rethrow, match_exc, throw_corlib_exception;
 	GHashTable *llvm_types;
 	LLVMValueRef got_var;
 	const char *got_symbol;
@@ -1141,7 +1141,7 @@ mono_llvm_throw_exception (MonoException *e) {
 	mono_llvm_cpp_throw_exception ();
 }
 
-void
+guint32
 mono_llvm_match_exception (MonoException *e) {
 	gpointer addr = __builtin_return_address (0);
 	MonoJitInfo *jinfo = mini_jit_info_table_find (mono_domain_get (), addr, NULL);
@@ -1580,7 +1580,7 @@ emit_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref, LL
 
 		ex_bb = get_bb (ctx, tblock);
 
-		noex_bb = gen_bb (ctx, "NOEX_BB");
+		noex_bb = gen_bb (ctx, "CALL_NOEX_BB");
 
 		/* Use an invoke */
 		lcall = LLVMBuildInvoke (builder, callee, args, pindex, noex_bb, ex_bb, "");
@@ -1766,8 +1766,8 @@ emit_cond_system_exception (EmitContext *ctx, MonoBasicBlock *bb, const char *ex
 	MonoClass *exc_class;
 	LLVMValueRef args [2];
 	
-	ex_bb = gen_bb (ctx, "EX_BB");
-	noex_bb = gen_bb (ctx, "NOEX_BB");
+	ex_bb = gen_bb (ctx, "EX_cond_BB");
+	noex_bb = gen_bb (ctx, "NOEX_cond_BB");
 
 	LLVMBuildCondBr (ctx->builder, cmp, ex_bb, noex_bb);
 
@@ -2275,14 +2275,6 @@ emit_entry_bb (EmitContext *ctx, LLVMBuilderRef builder)
 	;
 }
 
-/* Have to export this for AOT */
-void
-mono_personality (void)
-{
-	/* Not used */
-	g_assert_not_reached ();
-}
-
 static void
 process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref, MonoInst *ins)
 {
@@ -2621,6 +2613,56 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 	return;
 }
 
+static LLVMValueRef
+mono_llvm_emit_throw (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder, gboolean rethrow, LLVMValueRef exc)
+{
+	const char *icall_name = rethrow ? "mono_llvm_rethrow_exception" : "mono_llvm_throw_exception";
+	LLVMValueRef callee = rethrow ? ctx->lmodule->rethrow : ctx->lmodule->throw;
+	MOSTLY_ASYNC_SAFE_PRINTF ("%s :: %d\n", __FILE__, __LINE__);
+
+	if (!callee) {
+		MonoMethodSignature *throw_sig = mono_metadata_signature_alloc (mono_get_corlib (), 1);
+		throw_sig->ret = &mono_get_void_class ()->byval_arg;
+		throw_sig->params [0] = &mono_get_exception_class ()->byval_arg;
+		if (ctx->cfg->compile_aot) {
+			callee = get_plt_entry (ctx, sig_to_llvm_sig (ctx, throw_sig), MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
+		} else {
+			callee = LLVMAddFunction (ctx->module, icall_name, sig_to_llvm_sig (ctx, throw_sig));
+			LLVMAddGlobalMapping (ctx->lmodule->ee, callee, resolve_patch (ctx->cfg, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name));
+			mono_memory_barrier ();
+		}
+
+		if (rethrow)
+			ctx->lmodule->rethrow = callee;
+		else
+			ctx->lmodule->throw = callee;
+	}
+	LLVMValueRef arg = convert (ctx, exc, type_to_llvm_type (ctx, &mono_get_object_class ()->byval_arg));
+	MOSTLY_ASYNC_SAFE_PRINTF ("Emitting call %s :: %d\n", __FILE__, __LINE__);
+	return emit_call (ctx, bb, &builder, callee, &arg, 1);
+}
+
+static LLVMValueRef
+mono_llvm_emit_match_exception_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder)
+{
+	const char *icall_name = "mono_llvm_match_exception";
+	MOSTLY_ASYNC_SAFE_PRINTF ("Emitting match %s :: %d\n", __FILE__, __LINE__);
+
+	if (!ctx->lmodule->match_exc) {
+		MonoMethodSignature *throw_sig = mono_metadata_signature_alloc (mono_get_corlib (), 0);
+		throw_sig->ret = &mono_get_int32_class ()->byval_arg;
+
+		if (ctx->cfg->compile_aot) {
+			ctx->lmodule->match_exc = get_plt_entry (ctx, sig_to_llvm_sig (ctx, throw_sig), MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
+		} else {
+			ctx->lmodule->match_exc = LLVMAddFunction (ctx->module, icall_name, sig_to_llvm_sig (ctx, throw_sig));
+			LLVMAddGlobalMapping (ctx->lmodule->ee, ctx->lmodule->match_exc, resolve_patch (ctx->cfg, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name));
+			mono_memory_barrier ();
+		}
+	}
+	return emit_call (ctx, bb, &builder, ctx->lmodule->match_exc, NULL, 0);
+}
+
 static const char *default_personality_name = "__gxx_personality_v0";
 
 static void
@@ -2631,8 +2673,8 @@ emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder
 	LLVMModuleRef module = ctx->module;
 	BBInfo *bblocks = ctx->bblocks;
 	LLVMTypeRef i8ptr;
-	static LLVMValueRef personality = NULL;
-	LLVMValueRef landing_pad;
+	LLVMValueRef personality = NULL;
+	LLVMValueRef landing_pad, match;
 	LLVMBasicBlockRef target_bb;
 	MonoInst *exvar;
 	static gint32 mapping_inited;
@@ -2691,7 +2733,9 @@ emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder
 	{
 		landing_pad = LLVMBuildLandingPad (builder, LLVMInt32Type (), personality, 0, "");
 		g_assert (landing_pad);
+		// type_info must be the sentinel
 		LLVMAddClause (landing_pad, type_info);
+		match = mono_llvm_emit_match_exception_call (ctx, bb, builder);
 	}
 
 	/*
@@ -2705,10 +2749,8 @@ emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder
 	target_bb = bblocks [bb->block_num].call_handler_target_bb;
 	g_assert (target_bb);
 
-	/*
-	 * Branch to the correct landing pad
-	 */
-	LLVMValueRef switch_ins = LLVMBuildSwitch (builder, landing_pad, target_bb, 0);
+	LLVMBasicBlockRef resume_bb = gen_bb (ctx, "RESUME_BB");
+	LLVMValueRef switch_ins = LLVMBuildSwitch (builder, match, target_bb, 0);
 
 	for (l = ctx->nested_in [clause_index]; l; l = l->next) {
 		int nesting_clause_index = GPOINTER_TO_INT (l->data);
@@ -2725,8 +2767,12 @@ emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder
 	target_bb = bblocks [bb->block_num].call_handler_target_bb;
 	if (target_bb) {
 		ctx->builder = builder = create_builder (ctx);
-		LLVMPositionBuilderAtEnd (ctx->builder, target_bb);
+		LLVMPositionBuilderAtEnd (ctx->builder, resume_bb);
+		LLVMBuildResume (builder, landing_pad);
+		LLVMBuildUnreachable (builder);
 
+		ctx->builder = builder = create_builder (ctx);
+		LLVMPositionBuilderAtEnd (ctx->builder, target_bb);
 		ctx->bblocks [bb->block_num].end_bblock = target_bb;
 
 		/* Store the exception into the IL level exvar */
@@ -4752,35 +4798,8 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 			break;
 		case OP_THROW:
 		case OP_RETHROW: {
-			MonoMethodSignature *throw_sig;
-			LLVMValueRef callee, arg;
 			gboolean rethrow = (ins->opcode == OP_RETHROW);
-			const char *icall_name;
-				
-			callee = rethrow ? ctx->lmodule->rethrow : ctx->lmodule->throw;
-			icall_name = rethrow ? "mono_llvm_rethrow_exception" : "mono_llvm_throw_exception";
-			MOSTLY_ASYNC_SAFE_PRINTF ("%s :: %d\n", __FILE__, __LINE__);
-
-			if (!callee) {
-				throw_sig = mono_metadata_signature_alloc (mono_get_corlib (), 1);
-				throw_sig->ret = &mono_get_void_class ()->byval_arg;
-				throw_sig->params [0] = &mono_get_exception_class ()->byval_arg;
-				if (cfg->compile_aot) {
-					callee = get_plt_entry (ctx, sig_to_llvm_sig (ctx, throw_sig), MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
-				} else {
-					callee = LLVMAddFunction (module, icall_name, sig_to_llvm_sig (ctx, throw_sig));
-					LLVMAddGlobalMapping (ctx->lmodule->ee, callee, resolve_patch (cfg, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name));
-				}
-
-				mono_memory_barrier ();
-				if (rethrow)
-					ctx->lmodule->rethrow = callee;
-				else
-					ctx->lmodule->throw = callee;
-			}
-			arg = convert (ctx, lhs, type_to_llvm_type (ctx, &mono_get_object_class ()->byval_arg));
-			MOSTLY_ASYNC_SAFE_PRINTF ("Emitting call %s :: %d\n", __FILE__, __LINE__);
-			emit_call (ctx, bb, &builder, callee, &arg, 1);
+			mono_llvm_emit_throw (ctx, bb, builder, rethrow, lhs);
 			break;
 		}
 		case OP_CALL_HANDLER: {
@@ -5712,13 +5731,6 @@ add_intrinsics (LLVMModuleRef module)
 		AddFunc (module, "llvm.umul.with.overflow.i64", ret_type, params, 2);
 	}
 
-	/* EH intrinsics */
-	{
-		AddFunc (module, "mono_personality", LLVMVoidType (), NULL, 0);
-
-		AddFunc (module, "llvm_resume_unwind_trampoline", LLVMVoidType (), NULL, 0);
-	}
-
 	/* SSE intrinsics */
 #if defined(TARGET_X86) || defined(TARGET_AMD64)
 	{
@@ -6023,14 +6035,9 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 		LLVMSetInitializer (lmodule->got_var, LLVMConstNull (got_type));
 	}
 
-	/* Add a dummy personality function */
 	{
 		LLVMValueRef personality = LLVMAddFunction (lmodule->module, default_personality_name, LLVMFunctionType (LLVMInt32Type (), NULL, 0, TRUE));
 		LLVMSetLinkage (personality, LLVMExternalLinkage);
-		/*lbb = LLVMAppendBasicBlock (personality, "BB0");*/
-		/*lbuilder = LLVMCreateBuilder ();*/
-		/*LLVMPositionBuilderAtEnd (lbuilder, lbb);*/
-		/*LLVMBuildRetVoid (lbuilder);*/
 		mark_as_used (lmodule, personality);
 	}
 

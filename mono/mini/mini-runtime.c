@@ -3165,6 +3165,7 @@ register_icalls (void)
 #ifdef MONO_ARCH_LLVM_SUPPORTED
 	register_icall (mono_llvm_throw_exception, "mono_llvm_throw_exception", "void object", TRUE);
 	register_icall (mono_llvm_rethrow_exception, "mono_llvm_rethrow_exception", "void object", TRUE);
+	register_icall (mono_llvm_match_exception, "mono_llvm_match_exception", "int", TRUE);
 #endif
 
 	register_dyn_icall (mono_get_throw_exception (), "mono_arch_throw_exception", "void object", TRUE);
