@@ -11913,6 +11913,8 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				}
 			}
 
+			cfg->cbb->try_end = TRUE;
+
 			if ((handlers = mono_find_final_block (cfg, ip, target, MONO_EXCEPTION_CLAUSE_FINALLY))) {
 				GList *tmp;
 				MonoExceptionClause *clause;
@@ -11947,6 +11949,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			GET_BBLOCK (cfg, tblock, target);
 			link_bblock (cfg, cfg->cbb, tblock);
 			ins->inst_target_bb = tblock;
+
 			start_new_bblock = 1;
 
 			if (*ip == CEE_LEAVE)
