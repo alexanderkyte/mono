@@ -1626,7 +1626,8 @@ emit_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref, LL
 		ctx->builder = builder;
 	}
 
-	*builder_ref = ctx->builder;
+	if (builder_ref)
+		*builder_ref = ctx->builder;
 
 	return lcall;
 }
@@ -1852,6 +1853,8 @@ emit_cond_system_exception (EmitContext *ctx, MonoBasicBlock *bb, const char *ex
 	args [1] = LLVMBlockAddress (ctx->lmethod, ex_bb);
 	emit_call (ctx, bb, &builder, ctx->lmodule->throw_corlib_exception, args, 2);
 
+	// FIXME: Why did this need to be disabled? This fast path should
+	// be changed to match the rest of EH.
 	LLVMBuildUnreachable (builder);
 
 	ctx->builder = create_builder (ctx);
@@ -2646,7 +2649,7 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 }
 
 static LLVMValueRef
-mono_llvm_emit_throw (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder, gboolean rethrow, LLVMValueRef exc)
+mono_llvm_emit_throw (EmitContext *ctx, MonoBasicBlock *bb, gboolean rethrow, LLVMValueRef exc)
 {
 	const char *icall_name = rethrow ? "mono_llvm_rethrow_exception" : "mono_llvm_throw_exception";
 	LLVMValueRef callee = rethrow ? ctx->lmodule->rethrow : ctx->lmodule->throw;
@@ -2671,7 +2674,12 @@ mono_llvm_emit_throw (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef build
 	}
 	LLVMValueRef arg = convert (ctx, exc, type_to_llvm_type (ctx, &mono_get_object_class ()->byval_arg));
 	MOSTLY_ASYNC_SAFE_PRINTF ("Emitting call %s :: %d\n", __FILE__, __LINE__);
-	return emit_call (ctx, bb, &builder, callee, &arg, 1);
+
+	LLVMValueRef call = emit_call (ctx, bb, &ctx->builder, callee, &arg, 1);
+	LLVMBuildUnreachable (ctx->builder);
+	ctx->builder = create_builder (ctx);
+
+	return call;
 }
 
 static LLVMValueRef
@@ -2727,16 +2735,20 @@ emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDests *dests)
 	/*LLVMAddClause (landing_pad, );*/
 	LLVMSetCleanup (landing_pad, TRUE);
 
-	LLVMValueRef match = mono_llvm_emit_match_exception_call (ctx, lpadBuilder);
+
 	LLVMBasicBlockRef resume_bb = gen_bb (ctx, "RESUME_BB");
+	LLVMBuilderRef resume_builder = create_builder (ctx);
+	LLVMPositionBuilderAtEnd (resume_builder, resume_bb);
+	LLVMBuildResume (resume_builder, landing_pad);
+
+	LLVMPositionBuilderAtEnd (lpadBuilder, dests->lpad_bb);
+	LLVMValueRef match = mono_llvm_emit_match_exception_call (ctx, lpadBuilder);
 	LLVMValueRef switch_ins = LLVMBuildSwitch (lpadBuilder, match, resume_bb, 0);
-
-	LLVMAddCase (switch_ins, LLVMConstInt (LLVMInt32Type (), 999, FALSE), resume_bb);
-
+	LLVMAddCase (switch_ins, LLVMConstInt (LLVMInt32Type (), 9999999, FALSE), resume_bb);
 
 	/*int clause_index = (mono_get_block_region_notry (cfg, bb->region) >> 8) - 1;*/
 
-	// TODO: Switch on applicable clauses
+	 /*[>TODO: Switch on applicable clauses<]*/
 	/*for (GSList *l = ctx->nested_in [clause_index]; l; l = l->next) {*/
 		/*int nesting_clause_index = GPOINTER_TO_INT (l->data);*/
 		/*MonoBasicBlock *handler_bb;*/
@@ -2748,20 +2760,18 @@ emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDests *dests)
 		/*LLVMAddCase (switch_ins, LLVMConstInt (LLVMInt32Type (), nesting_clause_index, FALSE), ctx->bblocks [handler_bb->block_num].call_handler_target_bb);*/
 	/*}*/
 
-	LLVMBuilderRef resumeBuilder = create_builder (ctx);
-	LLVMPositionBuilderAtEnd (resumeBuilder, resume_bb);
-	LLVMBuildResume (resumeBuilder, landing_pad);
-	LLVMBuildUnreachable (resumeBuilder);
 }
 
 
 static void
 emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder)
 {
-	/*target_bb = bblocks [bb->block_num].call_handler_target_bb;*/
-	/*LLVMPositionBuilderAtEnd (ctx->builder, protected_bb);*/
+	LLVMBuilderRef handler_builder = create_builder (ctx);
+	LLVMBasicBlockRef target_bb = ctx->bblocks [bb->block_num].call_handler_target_bb;
+	LLVMPositionBuilderAtEnd (handler_builder, target_bb);
+	LLVMBuildRetVoid (handler_builder);
 
-	// Must I do anything here?
+	// FIXME: Do stuff
 }
 
 static volatile gboolean br_made = FALSE;
@@ -2791,8 +2801,6 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 	ctx->builder = builder;
 	LLVMPositionBuilderAtEnd (builder, cbb);
 
-	if (bb == cfg->bb_entry)
-		emit_entry_bb (ctx, builder);
 	CHECK_FAILURE (ctx);
 
 	// FIXME: This is currently kind of a NOP
@@ -4801,7 +4809,8 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 		case OP_THROW:
 		case OP_RETHROW: {
 			gboolean rethrow = (ins->opcode == OP_RETHROW);
-			mono_llvm_emit_throw (ctx, bb, builder, rethrow, lhs);
+			mono_llvm_emit_throw (ctx, bb, rethrow, lhs);
+			has_terminator = TRUE;
 			break;
 		}
 		case OP_CALL_HANDLER: {
@@ -5283,6 +5292,9 @@ mono_llvm_emit_method (MonoCompile *cfg)
 	/*
 	 * Second pass: generate code.
 	 */
+	// Emit entry point
+	LLVMBuilderRef entry_builder = create_builder (ctx);
+	emit_entry_bb (ctx, entry_builder);
 
 	// Make landing pads first
 	ctx->exc_meta = g_hash_table_new_full (NULL, NULL, NULL, g_free);
@@ -5384,9 +5396,9 @@ mono_llvm_emit_method (MonoCompile *cfg)
 		if (cfg->compile_aot && cfg->verbose_level)
 			printf ("%s emitted as %s\n", mono_method_full_name (cfg->method, TRUE), method_name);
 
-		//LLVMVerifyFunction(method, 0);
+		LLVMVerifyFunction(method, 0);
 	} else {
-		//LLVMVerifyFunction(method, 0);
+		LLVMVerifyFunction(method, 0);
 		mono_llvm_optimize_method (ctx->lmodule->mono_ee, method);
 
 		if (cfg->verbose_level > 1)
@@ -6316,6 +6328,9 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 	aot_module.got_var = real_got;
 
 	emit_llvm_used (&aot_module);
+	fprintf (stderr, "HERE! %s\n", filename);
+
+
 	emit_dbg_info (&aot_module, filename, cu_name);
 	emit_aot_file_info (&aot_module);
 
