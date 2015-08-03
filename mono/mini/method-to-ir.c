@@ -7895,6 +7895,10 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			MonoBasicBlock *try_bb;
 			MonoExceptionClause *clause = &header->clauses [i];
 			GET_BBLOCK (cfg, try_bb, ip + clause->try_offset);
+
+			MOSTLY_ASYNC_SAFE_PRINTF ("Marking bb at %p(cil_offset_to_bb) [%p - %p] as try_start\n",
+			cfg->cil_offset_to_bb, ip + clause->try_offset, cfg->cil_start);
+
 			try_bb->real_offset = clause->try_offset;
 			try_bb->try_start = TRUE;
 			try_bb->region = ((i + 1) << 8) | clause->flags;
@@ -11913,7 +11917,8 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				}
 			}
 
-			cfg->cbb->try_end = (intptr_t)ip;
+			cfg->cbb->try_end = (intptr_t)(ip - header->code);
+			MOSTLY_ASYNC_SAFE_PRINTF ("Setting try_end at %p\n", cfg->cbb->try_end);
 
 			if ((handlers = mono_find_final_block (cfg, ip, target, MONO_EXCEPTION_CLAUSE_FINALLY))) {
 				GList *tmp;

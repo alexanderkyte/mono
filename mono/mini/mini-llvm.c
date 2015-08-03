@@ -1599,15 +1599,18 @@ emit_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref, LL
 		MonoMethodHeader *header = cfg->header;
 		MonoExceptionClause *ec = &header->clauses [clause_index];
 		LLVMBasicBlockRef noex_bb;
+		g_assert (ec->flags == MONO_EXCEPTION_CLAUSE_NONE || ec->flags == MONO_EXCEPTION_CLAUSE_FINALLY);
 
-		MonoLLVMLPadDests *dests = g_hash_table_lookup (ctx->exc_meta, (gconstpointer)clause_index);
 
 		/*
 		 * Have to use an invoke instead of a call, branching to the
 		 * handler bblock of the clause containing this bblock.
 		 */
 
-		g_assert (ec->flags == MONO_EXCEPTION_CLAUSE_NONE || ec->flags == MONO_EXCEPTION_CLAUSE_FINALLY);
+		intptr_t key = ec->try_offset + ec->try_len;
+		MOSTLY_ASYNC_SAFE_PRINTF ("Looking %p up in dests.\n", key);
+		MonoLLVMLPadDests *dests = g_hash_table_lookup (ctx->exc_meta, (gconstpointer)key);
+		g_assert (dests);
 
 		noex_bb = gen_bb (ctx, "CALL_NOEX_BB");
 
@@ -2791,6 +2794,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 		emit_entry_bb (ctx, builder);
 	CHECK_FAILURE (ctx);
 
+	// FIXME: This is currently kind of a NOP
 	if (bb->flags & BB_EXCEPTION_HANDLER) {
 		if (!bblocks [bb->block_num].invoke_target) {
 			//LLVM_FAILURE (ctx, "handler without invokes");
@@ -2799,18 +2803,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 		emit_handler_start (ctx, bb, builder);
 		CHECK_FAILURE (ctx);
 		builder = ctx->builder;
-	} else if (bb->try_start) {
-		int index = get_handler_clause (cfg, bb);
-		g_assert (index != -1);
-		MonoExceptionClause *clause = &cfg->header->clauses [index];
-
-		MonoLLVMLPadDests *dests = g_malloc0 (sizeof (MonoLLVMLPadDests));
-		emit_protected_region_start (cfg, ctx, dests);
-		intptr_t key = clause->try_offset + clause->try_len;
-
-		g_hash_table_insert (ctx->exc_meta, (gpointer)key, dests);
 	}
-
 
 	has_terminator = FALSE;
 	starting_builder = builder;
@@ -2910,6 +2903,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 
 				// Make invoke handler jump to where this wants to go
 				LLVMBasicBlockRef indirection = g_hash_table_lookup (ctx->exc_meta, (gpointer)bb->try_end);
+				g_assert (indirection);
 				LLVMBuilderRef one_off_writer = create_builder (ctx);
 				LLVMPositionBuilderAtEnd (one_off_writer, indirection);
 				LLVMBuildBr (one_off_writer, target_bb);
@@ -5284,10 +5278,20 @@ mono_llvm_emit_method (MonoCompile *cfg)
 	/*
 	 * Second pass: generate code.
 	 */
-	// We can use a stack since we know that we won't 
-	// have to deal with 
+	ctx->exc_meta = g_hash_table_new_full (NULL, NULL, NULL, g_free);
+	MOSTLY_ASYNC_SAFE_PRINTF ("CFG has %d clauses\n", header->num_clauses);
+	for (int index = 0; index < header->num_clauses; index++) {
+		MOSTLY_ASYNC_SAFE_PRINTF ("iteration\n");
+		MonoExceptionClause *clause = &cfg->header->clauses [index];
 
-	ctx->exc_meta = g_hash_table_new_full (NULL, NULL, g_free, g_free);
+		MonoLLVMLPadDests *dests = g_malloc0 (sizeof (MonoLLVMLPadDests));
+		emit_protected_region_start (cfg, ctx, dests);
+		intptr_t key = clause->try_offset + clause->try_len;
+
+		MOSTLY_ASYNC_SAFE_PRINTF ("Inserting %p in dests.\n", key);
+		g_hash_table_insert (ctx->exc_meta, (gpointer)key, dests);
+	}
+
 	for (bb_index = 0; bb_index < bblock_list->len; ++bb_index) {
 		bb = g_ptr_array_index (bblock_list, bb_index);
 
