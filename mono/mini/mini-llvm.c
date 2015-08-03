@@ -2699,7 +2699,7 @@ mono_llvm_emit_match_exception_call (EmitContext *ctx, LLVMBuilderRef builder)
 static const char *default_personality_name = "__gxx_personality_v0";
 
 static void
-emit_protected_region_start (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDests *dests)
+emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDests *dests)
 {
 	static gint32 mapping_inited = FALSE;
 
@@ -2725,6 +2725,7 @@ emit_protected_region_start (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDes
 	g_assert (landing_pad);
 	// catch all exceptions
 	/*LLVMAddClause (landing_pad, type_info);*/
+	LLVMSetCleanup (landing_pad, TRUE);
 
 	LLVMValueRef match = mono_llvm_emit_match_exception_call (ctx, lpadBuilder);
 	LLVMBasicBlockRef resume_bb = gen_bb (ctx, "RESUME_BB");
@@ -5285,7 +5286,7 @@ mono_llvm_emit_method (MonoCompile *cfg)
 		MonoExceptionClause *clause = &cfg->header->clauses [index];
 
 		MonoLLVMLPadDests *dests = g_malloc0 (sizeof (MonoLLVMLPadDests));
-		emit_protected_region_start (cfg, ctx, dests);
+		emit_landing_pad (cfg, ctx, dests);
 		intptr_t key = clause->try_offset + clause->try_len;
 
 		MOSTLY_ASYNC_SAFE_PRINTF ("Inserting %p in dests.\n", key);
