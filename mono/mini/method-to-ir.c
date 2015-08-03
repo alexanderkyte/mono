@@ -11874,6 +11874,8 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				sp--;
 			}
 
+			gboolean is_try_leave = TRUE;
+
 			/* 
 			 * If this leave statement is in a catch block, check for a
 			 * pending exception, and rethrow it if necessary.
@@ -11890,6 +11892,9 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				 * innermost clause.
 				 */
 				if (MONO_OFFSET_IN_HANDLER (clause, ip - header->code) && (clause->flags == MONO_EXCEPTION_CLAUSE_NONE) && (ip - header->code + ((*ip == CEE_LEAVE) ? 5 : 2)) <= (clause->handler_offset + clause->handler_len) && method->wrapper_type != MONO_WRAPPER_RUNTIME_INVOKE) {
+
+					is_try_leave = FALSE;
+
 					MonoInst *exc_ins;
 					MonoBasicBlock *dont_throw;
 
@@ -11916,9 +11921,6 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 					MONO_START_BB (cfg, dont_throw);
 				}
 			}
-
-			cfg->cbb->try_end = (intptr_t)(ip - header->code);
-			MOSTLY_ASYNC_SAFE_PRINTF ("Setting try_end at %p\n", cfg->cbb->try_end);
 
 			if ((handlers = mono_find_final_block (cfg, ip, target, MONO_EXCEPTION_CLAUSE_FINALLY))) {
 				GList *tmp;
@@ -11949,19 +11951,29 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				g_list_free (handlers);
 			} 
 
-			MONO_INST_NEW (cfg, ins, OP_BR);
-			MONO_ADD_INS (cfg->cbb, ins);
-			GET_BBLOCK (cfg, tblock, target);
-			link_bblock (cfg, cfg->cbb, tblock);
-			ins->inst_target_bb = tblock;
-
-			start_new_bblock = 1;
-
 			if (*ip == CEE_LEAVE)
 				ip += 5;
 			else
 				ip += 2;
 
+			if (COMPILE_LLVM (cfg) && is_try_leave) {
+				MONO_INST_NEW (cfg, ins, OP_LEAVE);
+				MOSTLY_ASYNC_SAFE_PRINTF ("OP_LEAVE emitted");
+			} else {
+				MONO_INST_NEW (cfg, ins, OP_BR);
+			}
+
+			MONO_ADD_INS (cfg->cbb, ins);
+			GET_BBLOCK (cfg, tblock, target);
+			link_bblock (cfg, cfg->cbb, tblock);
+			ins->inst_target_bb = tblock;
+
+			if (COMPILE_LLVM (cfg) && is_try_leave) {
+				ins->inst_imm = ip - header->code;
+				MOSTLY_ASYNC_SAFE_PRINTF ("Setting try_end at %p\n", ins->sreg1);
+			}
+
+			start_new_bblock = 1;
 			break;
 		}
 

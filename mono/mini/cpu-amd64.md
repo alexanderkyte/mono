@@ -65,6 +65,7 @@
 break: len:2
 tailcall: len:120 clob:c
 br: len:6
+leave_protected: len:6
 label: len:0
 seq_point: len:46 clob:c
 il_seq_point: len:0

@@ -2699,7 +2699,7 @@ mono_llvm_emit_match_exception_call (EmitContext *ctx, LLVMBuilderRef builder)
 static const char *default_personality_name = "__gxx_personality_v0";
 
 static void
-emit_protected_region_start (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDests *dests)
+emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDests *dests)
 {
 	static gint32 mapping_inited = FALSE;
 
@@ -2724,7 +2724,8 @@ emit_protected_region_start (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDes
 	LLVMValueRef landing_pad = LLVMBuildLandingPad (lpadBuilder, LLVMInt32Type (), personality, 0, "");
 	g_assert (landing_pad);
 	// catch all exceptions
-	/*LLVMAddClause (landing_pad, type_info);*/
+	/*LLVMAddClause (landing_pad, );*/
+	LLVMSetCleanup (landing_pad, TRUE);
 
 	LLVMValueRef match = mono_llvm_emit_match_exception_call (ctx, lpadBuilder);
 	LLVMBasicBlockRef resume_bb = gen_bb (ctx, "RESUME_BB");
@@ -2894,22 +2895,26 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 			break;
 		case OP_BR: {
 			LLVMBasicBlockRef target_bb = get_bb (ctx, ins->inst_target_bb);
+			LLVMBuildBr (builder, target_bb);
+			has_terminator = TRUE;
+			break;
+		}
+		case OP_LEAVE: {
+			LLVMBasicBlockRef target_bb = get_bb (ctx, ins->inst_target_bb);
 
 			// Protected regions have unique endpoints.
 			// We only need to handle the most nested one
-			if (bb->try_end) {
-				// Return into invoke handler
-				LLVMBuildRetVoid (builder);
+			intptr_t offset = ins->inst_imm;
+			MOSTLY_ASYNC_SAFE_PRINTF ("Getting %p as offset\n", offset);
+			// Return into invoke handler
+			LLVMBuildRetVoid (builder);
 
-				// Make invoke handler jump to where this wants to go
-				LLVMBasicBlockRef indirection = g_hash_table_lookup (ctx->exc_meta, (gpointer)bb->try_end);
-				g_assert (indirection);
-				LLVMBuilderRef one_off_writer = create_builder (ctx);
-				LLVMPositionBuilderAtEnd (one_off_writer, indirection);
-				LLVMBuildBr (one_off_writer, target_bb);
-			} else {
-				LLVMBuildBr (builder, target_bb);
-			}
+			// Make invoke handler jump to where this wants to go
+			MonoLLVMLPadDests *indirection = g_hash_table_lookup (ctx->exc_meta, (gpointer)offset);
+			g_assert (indirection);
+			LLVMBuilderRef one_off_writer = create_builder (ctx);
+			LLVMPositionBuilderAtEnd (one_off_writer, indirection->fall_through_bb_tramp);
+			LLVMBuildBr (one_off_writer, target_bb);
 
 			br_made = TRUE;
 			has_terminator = TRUE;
@@ -5278,6 +5283,8 @@ mono_llvm_emit_method (MonoCompile *cfg)
 	/*
 	 * Second pass: generate code.
 	 */
+
+	// Make landing pads first
 	ctx->exc_meta = g_hash_table_new_full (NULL, NULL, NULL, g_free);
 	MOSTLY_ASYNC_SAFE_PRINTF ("CFG has %d clauses\n", header->num_clauses);
 	for (int index = 0; index < header->num_clauses; index++) {
@@ -5285,7 +5292,7 @@ mono_llvm_emit_method (MonoCompile *cfg)
 		MonoExceptionClause *clause = &cfg->header->clauses [index];
 
 		MonoLLVMLPadDests *dests = g_malloc0 (sizeof (MonoLLVMLPadDests));
-		emit_protected_region_start (cfg, ctx, dests);
+		emit_landing_pad (cfg, ctx, dests);
 		intptr_t key = clause->try_offset + clause->try_len;
 
 		MOSTLY_ASYNC_SAFE_PRINTF ("Inserting %p in dests.\n", key);
