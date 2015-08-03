@@ -45,7 +45,6 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
-//#include <llvm/LinkAllPasses.h>
 
 #include "llvm-c/Core.h"
 #include "llvm-c/ExecutionEngine.h"

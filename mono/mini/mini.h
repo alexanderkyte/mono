@@ -644,8 +644,12 @@ struct MonoBasicBlock {
 	guint has_call_handler : 1;
 	/* Whenever this bblock starts a try block */
 	guint try_start : 1;
-	/* Whenever this block ends a try block */
-	guint try_end : 1;
+
+#ifdef COMPILE_LLVM
+	/* The offset of the CIL instruction in this bblock which ends a try block */
+	intptr_t try_end;
+#endif
+
 	/*
 	 * If this is set, extend the try range started by this bblock by an arch specific
 	 * number of bytes to encompass the end of the previous bblock (e.g. a Monitor.Enter
