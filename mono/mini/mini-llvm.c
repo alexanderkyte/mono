@@ -74,12 +74,6 @@ typedef struct {
 	gboolean static_link;
 } MonoLLVMModule;
 
-typedef struct {
-	LLVMBasicBlockRef lpad_bb;
-	LLVMBasicBlockRef fall_through_bb_tramp;
-} MonoLLVMLPadDests;
-
-
 /*
  * Information associated by the backend with mono basic blocks.
  */
@@ -138,7 +132,7 @@ typedef struct {
 	MonoDebugMethodInfo *minfo;
 	char temp_name [32];
 	/* For every clause, the clauses it is nested in */
-	GSList **nested_in;
+	GSList **clause_groupings;
 	LLVMValueRef ex_var;
 	GHashTable *exc_meta;
 } EmitContext;
@@ -638,6 +632,82 @@ op_to_llvm_type (int opcode)
 		return NULL;
 	}
 }		
+
+#define CLAUSE_END(clause) ((clause)->try_offset + (clause)->try_len)
+
+static inline MonoExceptionClause*
+first_clause (MonoMethodHeader *header, GSList *group) {
+	int index = GPOINTER_TO_INT((group)->data);
+	return &(header->clauses [index]);
+}
+
+static gint
+clause_group_compare_func (gconstpointer a, gconstpointer b, gpointer user_data)
+{
+	GSList **group1 = (GSList **) a;
+	GSList **group2 = (GSList **) b;
+
+	// Move all of the nulls to the end of the array
+	if (!(*group1) && !(*group2))
+		return 0;
+	else if (*group1 == NULL)
+		return 1;
+	else if (*group2 == NULL)
+		return -1;
+
+	MonoMethodHeader *header = (MonoMethodHeader *) user_data;
+
+	MonoExceptionClause *clause1 = first_clause (header, *group1);
+	MonoExceptionClause *clause2 = first_clause (header, *group2);
+
+	// Negative if first is subset of second == sorting will make
+	// the deepest levels of nesting come before others
+	int start_subset = clause1->try_offset - clause2->try_offset;
+	if (start_subset < 0)
+		return -1;
+
+	int end_subset = CLAUSE_END (clause1) - CLAUSE_END (clause2);
+	// Should be in same group
+	g_assert (end_subset != 0);
+	return end_subset; 
+}
+
+static void
+construct_clause_groupings (MonoCompile *cfg, EmitContext *ctx)
+{
+	/* Compute nesting between clauses */
+	ctx->clause_groupings = mono_mempool_alloc0 (cfg->mempool, sizeof (GSList *) * cfg->header->num_clauses);
+
+	MOSTLY_ASYNC_SAFE_PRINTF ("Header has %d clauses\n", cfg->header->num_clauses);
+	for (int i = 0; i < cfg->header->num_clauses; ++i) {
+		MonoExceptionClause *clause1 = &cfg->header->clauses [i];
+
+		// If this is already part of a grouping then we already have collected
+		// everything that overlaps with it
+		if (ctx->clause_groupings [i])
+			continue;
+
+		ctx->clause_groupings [i] = g_slist_prepend_mempool (cfg->mempool, ctx->clause_groupings [i], GINT_TO_POINTER (i));
+
+		for (int j = i+1; j < cfg->header->num_clauses; ++j) {
+			MonoExceptionClause *clause2 = &cfg->header->clauses [j];
+
+			if (i != j && clause1->try_offset == clause2->try_offset && clause1->handler_offset == clause2->handler_offset) {
+				ctx->clause_groupings [i] = g_slist_prepend_mempool (cfg->mempool, ctx->clause_groupings [i], GINT_TO_POINTER (j));
+				ctx->clause_groupings [j] = ctx->clause_groupings [i];
+			}
+		}
+
+	}
+
+	GPtrArray faux_arry;
+	faux_arry.len = cfg->header->num_clauses;
+	faux_arry.pdata = (gpointer *) ctx->clause_groupings;
+
+	g_ptr_array_sort_with_data (&faux_arry, (GCompareDataFunc)clause_group_compare_func, (gpointer)cfg->header);
+}
+
+
 
 /*
  * load_store_to_llvm_type:
@@ -1503,7 +1573,7 @@ get_plt_entry (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gc
 	return callee;
 }
 
-static int
+static inline int
 get_first_clause (MonoCompile *cfg, MonoBasicBlock *bb, gboolean catch_only)
 {
 	MonoMethodHeader *header = cfg->header;
@@ -1534,25 +1604,12 @@ get_handler_clause (MonoCompile *cfg, MonoBasicBlock *bb)
 static int
 get_most_deep_clause (MonoCompile *cfg, EmitContext *ctx, MonoBasicBlock *bb)
 {
+	// Since they're sorted by nesting we just need
+	// the first one that the bb is a member of
 	int clause = get_first_clause (cfg, bb, FALSE);
-
-	if (clause == -1)
-		return clause;
-	
-	for (GSList *l = ctx->nested_in [clause]; l; l = l->next) {
-		int nesting_clause_index = GPOINTER_TO_INT (l->data);
-		MonoExceptionClause *candidate = &cfg->header->clauses[nesting_clause_index];
-
-		if (MONO_OFFSET_IN_CLAUSE (candidate, bb->real_offset))
-			clause = nesting_clause_index;
-		else
-			break;
-	}
-
 	return clause;
 }
-
-
+	
 static void
 set_metadata_flag (LLVMValueRef v, const char *flag_name)
 {
@@ -1609,13 +1666,13 @@ emit_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref, LL
 
 		intptr_t key = ec->try_offset + ec->try_len;
 		MOSTLY_ASYNC_SAFE_PRINTF ("Looking %p up in dests.\n", key);
-		MonoLLVMLPadDests *dests = g_hash_table_lookup (ctx->exc_meta, (gconstpointer)key);
-		g_assert (dests);
+		LLVMBasicBlockRef lpad_bb = g_hash_table_lookup (ctx->exc_meta, (gconstpointer)key);
+		g_assert (lpad_bb);
 
 		noex_bb = gen_bb (ctx, "CALL_NOEX_BB");
 
 		/* Use an invoke */
-		lcall = LLVMBuildInvoke (builder, callee, args, pindex, noex_bb, dests->lpad_bb, "");
+		lcall = LLVMBuildInvoke (builder, callee, args, pindex, noex_bb, lpad_bb, "");
 
 		builder = ctx->builder = create_builder (ctx);
 		LLVMPositionBuilderAtEnd (ctx->builder, noex_bb);
@@ -2128,7 +2185,7 @@ emit_div_check (EmitContext *ctx, LLVMBuilderRef builder, MonoBasicBlock *bb, Mo
 static void
 emit_entry_bb (EmitContext *ctx, LLVMBuilderRef builder)
 {
-	int i, j, pindex;
+	int i, pindex;
 	MonoCompile *cfg = ctx->cfg;
 	MonoMethodSignature *sig = ctx->sig;
 	LLVMCallInfo *linfo = ctx->linfo;
@@ -2256,17 +2313,7 @@ emit_entry_bb (EmitContext *ctx, LLVMBuilderRef builder)
 		set_metadata_flag (rgctx_alloc, "mono.this");
 	}
 
-	/* Compute nesting between clauses */
-	ctx->nested_in = mono_mempool_alloc0 (cfg->mempool, sizeof (GSList*) * cfg->header->num_clauses);
-	for (i = 0; i < cfg->header->num_clauses; ++i) {
-		for (j = 0; j < cfg->header->num_clauses; ++j) {
-			MonoExceptionClause *clause1 = &cfg->header->clauses [i];
-			MonoExceptionClause *clause2 = &cfg->header->clauses [j];
-
-			if (i != j && clause1->try_offset >= clause2->try_offset && clause1->handler_offset <= clause2->handler_offset)
-				ctx->nested_in [i] = g_slist_prepend_mempool (cfg->mempool, ctx->nested_in [i], GINT_TO_POINTER (j));
-		}
-	}
+	construct_clause_groupings (cfg, ctx);
 
 	/*
 	 * For finally clauses, create an indicator variable telling OP_ENDFINALLY whenever
@@ -2648,6 +2695,24 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 	return;
 }
 
+static void
+emit_unreachable_ret (EmitContext *ctx, LLVMBuilderRef builder)
+{
+	LLVMTypeRef typ = type_to_llvm_type (ctx, ctx->sig->ret);
+	if (typ == LLVMVoidType ()) {
+		LLVMBuildRetVoid (builder);
+		return;
+	}
+
+	LLVMValueRef value;
+	if (LLVMGetTypeKind (typ) == LLVMPointerTypeKind) {
+		value = LLVMConstNull (typ);
+	} else {
+		value = LLVMGetUndef (typ);
+	}
+	LLVMBuildRet (builder, value);
+}
+
 static LLVMValueRef
 mono_llvm_emit_throw (EmitContext *ctx, MonoBasicBlock *bb, gboolean rethrow, LLVMValueRef exc)
 {
@@ -2676,7 +2741,8 @@ mono_llvm_emit_throw (EmitContext *ctx, MonoBasicBlock *bb, gboolean rethrow, LL
 	MOSTLY_ASYNC_SAFE_PRINTF ("Emitting call %s :: %d\n", __FILE__, __LINE__);
 
 	LLVMValueRef call = emit_call (ctx, bb, &ctx->builder, callee, &arg, 1);
-	LLVMBuildUnreachable (ctx->builder);
+	emit_unreachable_ret (ctx, ctx->builder);
+
 	ctx->builder = create_builder (ctx);
 
 	return call;
@@ -2706,13 +2772,30 @@ mono_llvm_emit_match_exception_call (EmitContext *ctx, LLVMBuilderRef builder)
 
 static const char *default_personality_name = "__gxx_personality_v0";
 
-static void
-emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDests *dests)
+static LLVMTypeRef
+default_cpp_lpad_exc_signature (void)
+{
+	static gboolean inited = FALSE;
+	static LLVMTypeRef sig;
+
+	if (!sig) {
+		LLVMTypeRef signature [2];
+		signature [0] = LLVMPointerType (LLVMInt8Type (), 0);
+		signature [1] = LLVMInt32Type ();
+		sig = LLVMStructType (signature, 1, FALSE);
+		inited = TRUE;
+	}
+
+	return sig;
+}
+
+
+static LLVMBasicBlockRef
+emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, size_t group_index)
 {
 	static gint32 mapping_inited = FALSE;
 
-	dests->lpad_bb = gen_bb (ctx, "LPAD_BB");
-	dests->fall_through_bb_tramp = gen_bb (ctx, "FALL_THROUGH_BB_TRAMP");
+	LLVMBasicBlockRef lpad_bb = gen_bb (ctx, "LPAD_BB");
 
 	// <resultval> = landingpad <somety> personality <type> <pers_fn> <clause>+
 	LLVMValueRef personality = NULL;
@@ -2728,50 +2811,45 @@ emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, MonoLLVMLPadDests *dests)
 	g_assert (personality);
 
 	LLVMBuilderRef lpadBuilder = create_builder (ctx);
-	LLVMPositionBuilderAtEnd (lpadBuilder, dests->lpad_bb);
-	LLVMValueRef landing_pad = LLVMBuildLandingPad (lpadBuilder, LLVMInt32Type (), personality, 0, "");
+	LLVMPositionBuilderAtEnd (lpadBuilder, lpad_bb);
+	LLVMValueRef landing_pad = LLVMBuildLandingPad (lpadBuilder, default_cpp_lpad_exc_signature (), personality, 0, "");
 	g_assert (landing_pad);
 	// catch all exceptions
 	/*LLVMAddClause (landing_pad, type_info);*/
 	LLVMSetCleanup (landing_pad, TRUE);
 
-
 	LLVMBasicBlockRef resume_bb = gen_bb (ctx, "RESUME_BB");
 	LLVMBuilderRef resume_builder = create_builder (ctx);
 	LLVMPositionBuilderAtEnd (resume_builder, resume_bb);
+
 	LLVMBuildResume (resume_builder, landing_pad);
 
-	LLVMPositionBuilderAtEnd (lpadBuilder, dests->lpad_bb);
+	LLVMPositionBuilderAtEnd (lpadBuilder, lpad_bb);
 	LLVMValueRef match = mono_llvm_emit_match_exception_call (ctx, lpadBuilder);
 	LLVMValueRef switch_ins = LLVMBuildSwitch (lpadBuilder, match, resume_bb, 0);
-	LLVMAddCase (switch_ins, LLVMConstInt (LLVMInt32Type (), 9999999, FALSE), resume_bb);
 
-	/*int clause_index = (mono_get_block_region_notry (cfg, bb->region) >> 8) - 1;*/
+	for (GSList *l = ctx->clause_groupings [group_index]; l; l = l->next) {
+		int clause_index = GPOINTER_TO_INT (l->data);
+		MonoBasicBlock *handler_bb = g_hash_table_lookup (ctx->clause_to_handler, GINT_TO_POINTER (clause_index));
+		g_assert (handler_bb);
+		g_assert (ctx->bblocks [handler_bb->block_num].call_handler_target_bb);
+		LLVMAddCase (switch_ins, LLVMConstInt (LLVMInt32Type (), clause_index, FALSE), ctx->bblocks [handler_bb->block_num].call_handler_target_bb);
+	}
 
-	 /*[>TODO: Switch on applicable clauses<]*/
-	/*for (GSList *l = ctx->nested_in [clause_index]; l; l = l->next) {*/
-		/*int nesting_clause_index = GPOINTER_TO_INT (l->data);*/
-		/*MonoBasicBlock *handler_bb;*/
-
-		/*handler_bb = g_hash_table_lookup (ctx->clause_to_handler, GINT_TO_POINTER (nesting_clause_index));*/
-		/*g_assert (handler_bb);*/
-
-		/*g_assert (ctx->bblocks [handler_bb->block_num].call_handler_target_bb);*/
-		/*LLVMAddCase (switch_ins, LLVMConstInt (LLVMInt32Type (), nesting_clause_index, FALSE), ctx->bblocks [handler_bb->block_num].call_handler_target_bb);*/
-	/*}*/
-
+	return lpad_bb;
 }
 
 
 static void
-emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef builder)
+emit_handler_start (EmitContext *ctx, MonoBasicBlock *bb, LLVMBasicBlockRef cbb, LLVMBuilderRef builder)
 {
+	// Make the handler code end with a jump to the CALL_HANDLER_TARGET bb
 	LLVMBuilderRef handler_builder = create_builder (ctx);
 	LLVMBasicBlockRef target_bb = ctx->bblocks [bb->block_num].call_handler_target_bb;
 	LLVMPositionBuilderAtEnd (handler_builder, target_bb);
-	LLVMBuildRetVoid (handler_builder);
+	LLVMBuildBr (handler_builder, cbb);
 
-	// FIXME: Do stuff
+	// FIXME: Do other stuff?
 }
 
 static volatile gboolean br_made = FALSE;
@@ -2809,7 +2887,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 			//LLVM_FAILURE (ctx, "handler without invokes");
 		}
 
-		emit_handler_start (ctx, bb, builder);
+		emit_handler_start (ctx, bb, cbb, builder);
 		CHECK_FAILURE (ctx);
 		builder = ctx->builder;
 	}
@@ -2903,24 +2981,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 			break;
 		case OP_BR: {
 			LLVMBasicBlockRef target_bb = get_bb (ctx, ins->inst_target_bb);
-
-			// Protected regions have unique endpoints.
-			// We only need to handle the most nested one
-			if (bb->try_end) {
-				// Return into invoke handler
-				LLVMBuildRetVoid (builder);
-
-				// Make invoke handler jump to where this wants to go
-				LLVMBasicBlockRef indirection = g_hash_table_lookup (ctx->exc_meta, (gpointer)bb->try_end);
-				g_assert (indirection);
-				LLVMBuilderRef one_off_writer = create_builder (ctx);
-				LLVMPositionBuilderAtEnd (one_off_writer, indirection);
-				LLVMBuildBr (one_off_writer, target_bb);
-			} else {
-				LLVMBuildBr (builder, target_bb);
-			}
-
-			br_made = TRUE;
+			LLVMBuildBr (builder, target_bb);
 			has_terminator = TRUE;
 			break;
 		}
@@ -5293,18 +5354,22 @@ mono_llvm_emit_method (MonoCompile *cfg)
 	emit_entry_bb (ctx, entry_builder);
 
 	// Make landing pads first
-	ctx->exc_meta = g_hash_table_new_full (NULL, NULL, NULL, g_free);
+	ctx->exc_meta = g_hash_table_new_full (NULL, NULL, NULL, NULL);
 	MOSTLY_ASYNC_SAFE_PRINTF ("CFG has %d clauses\n", header->num_clauses);
-	for (int index = 0; index < header->num_clauses; index++) {
-		MOSTLY_ASYNC_SAFE_PRINTF ("iteration\n");
-		MonoExceptionClause *clause = &cfg->header->clauses [index];
+	for (size_t index = 0; index < cfg->header->num_clauses; index++) {
+		// End of array is nulls
+		if (!ctx->clause_groupings [index])
+			break;
 
-		MonoLLVMLPadDests *dests = g_malloc0 (sizeof (MonoLLVMLPadDests));
-		emit_landing_pad (cfg, ctx, dests);
+		MOSTLY_ASYNC_SAFE_PRINTF ("iteration\n");
+
+		LLVMBasicBlockRef lpad_bb = emit_landing_pad (cfg, ctx, index);
+
+		MonoExceptionClause *clause = first_clause (cfg->header, ctx->clause_groupings [index]);
 		intptr_t key = clause->try_offset + clause->try_len;
 
 		MOSTLY_ASYNC_SAFE_PRINTF ("Inserting %p in dests.\n", key);
-		g_hash_table_insert (ctx->exc_meta, (gpointer)key, dests);
+		g_hash_table_insert (ctx->exc_meta, (gpointer)key, lpad_bb);
 	}
 
 	for (bb_index = 0; bb_index < bblock_list->len; ++bb_index) {
