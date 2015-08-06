@@ -2783,7 +2783,7 @@ default_cpp_lpad_exc_signature (void)
 		LLVMTypeRef signature [2];
 		signature [0] = LLVMPointerType (LLVMInt8Type (), 0);
 		signature [1] = LLVMInt32Type ();
-		sig = LLVMStructType (signature, 2, FALSE);
+		sig = LLVMStructType (signature, 1, FALSE);
 		inited = TRUE;
 	}
 
@@ -6283,7 +6283,7 @@ emit_aot_file_info (MonoLLVMModule *lmodule)
 	fields [tindex ++] = AddJitGlobal (lmodule, eltype, "jit_got");
 	fields [tindex ++] = lmodule->got_var;
 	/*[> llc defines this directly <]*/
-	fields [tindex ++] = LLVMConstNull (eltype); // LLVMAddGlobal (lmodule->module, eltype, lmodule->eh_frame_symbol);
+	fields [tindex ++] = LLVMAddGlobal (lmodule->module, eltype, lmodule->eh_frame_symbol);
 	if (TRUE || lmodule->has_jitted_code) {
 		fields [tindex ++] = AddJitGlobal (lmodule, eltype, "jit_code_start");
 		fields [tindex ++] = AddJitGlobal (lmodule, eltype, "jit_code_end");
