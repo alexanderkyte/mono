@@ -9145,11 +9145,16 @@ compile_asm (MonoAotCompile *acfg)
 	/* replace the ; flags separators with spaces */
 	g_strdelimit (ld_flags, ";", ' ');
 
+	char *linker_flags = "";
+#ifdef ENABLE_LLVM
+	linker_flags = "-lstdc++";
+#endif
+
 #ifdef LD_NAME
-	command = g_strdup_printf ("%s -o %s %s %s.o %s", LD_NAME, tmp_outfile_name, llvm_ofile, acfg->tmpfname, ld_flags);
+	command = g_strdup_printf ("%s -o %s %s %s.o %s %s", LD_NAME, tmp_outfile_name, llvm_ofile, acfg->tmpfname, ld_flags, linker_flags);
 #else
-	command = g_strdup_printf ("\"%sld\" %s -shared -o %s %s %s.o %s", tool_prefix, LD_OPTIONS, tmp_outfile_name, llvm_ofile,
-		acfg->tmpfname, ld_flags);
+	command = g_strdup_printf ("\"%sld\" %s -shared -o %s %s %s.o %s %s", tool_prefix, LD_OPTIONS, tmp_outfile_name, llvm_ofile,
+		acfg->tmpfname, ld_flags, linker_flags);
 #endif
 	aot_printf (acfg, "Executing the native linker: %s\n", command);
 	if (execute_system (command) != 0) {
