@@ -7504,8 +7504,6 @@ emit_llvm_file (MonoAotCompile *acfg)
 	/* Verbose asm slows down llc greatly */
 	g_string_append (acfg->llc_args, " -asm-verbose=false");
 
-	g_string_append (acfg->llc_args, " -disable-gnu-eh-frame -enable-mono-eh-frame");
-
 	if (acfg->aot_opts.mtriple)
 		g_string_append_printf (acfg->llc_args, " -mtriple=%s", acfg->aot_opts.mtriple);
 
