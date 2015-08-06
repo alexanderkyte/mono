@@ -72,6 +72,7 @@ typedef struct {
 	LLVMValueRef code_start, code_end;
 	gboolean has_jitted_code;
 	gboolean static_link;
+	LLVMContextRef context;
 } MonoLLVMModule;
 
 /*
@@ -376,7 +377,7 @@ create_llvm_type_for_type (MonoClass *klass)
 	}
 
 	name = mono_type_full_name (&klass->byval_arg);
-	ltype = LLVMStructCreateNamed (LLVMGetGlobalContext (), name);
+	ltype = LLVMStructCreateNamed (aot_module.context, name);
 	LLVMStructSetBody (ltype, eltypes, size, FALSE);
 	g_free (eltypes);
 	g_free (name);
@@ -6083,7 +6084,8 @@ mono_llvm_cleanup (void)
 	if (aot_module.module)
 		LLVMDisposeModule (aot_module.module);
 
-	LLVMContextDispose (LLVMGetGlobalContext ());
+	g_assert (aot_module.context);
+	LLVMContextDispose (aot_module.context);
 }
 
 void
@@ -6136,6 +6138,8 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 	lmodule->static_link = static_link;
 	/* The first few entries are reserved */
 	lmodule->max_got_offset = 16;
+	lmodule->context = LLVMContextCreate ();
+
 
 	add_intrinsics (lmodule->module);
 	add_types (lmodule);
@@ -6257,7 +6261,7 @@ emit_aot_file_info (MonoLLVMModule *lmodule)
 	for (i = 0; i < 4; ++i)
 		eltypes [tindex ++] = LLVMArrayType (LLVMInt32Type (), MONO_AOT_TRAMP_NUM);
 	g_assert (tindex == nfields);
-	file_info_type = LLVMStructCreateNamed (LLVMGetGlobalContext (), "MonoAotFileInfo");
+	file_info_type = LLVMStructCreateNamed (aot_module.context, "MonoAotFileInfo");
 	LLVMStructSetBody (file_info_type, eltypes, nfields, FALSE);
 
 	info_var = LLVMAddGlobal (lmodule->module, file_info_type, "mono_aot_file_info");
@@ -6414,8 +6418,6 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 	aot_module.got_var = real_got;
 
 	emit_llvm_used (&aot_module);
-	fprintf (stderr, "HERE! %s\n", filename);
-
 
 	emit_dbg_info (&aot_module, filename, cu_name);
 	emit_aot_file_info (&aot_module);
