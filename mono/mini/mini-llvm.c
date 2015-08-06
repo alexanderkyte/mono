@@ -2783,7 +2783,7 @@ default_cpp_lpad_exc_signature (void)
 		LLVMTypeRef signature [2];
 		signature [0] = LLVMPointerType (LLVMInt8Type (), 0);
 		signature [1] = LLVMInt32Type ();
-		sig = LLVMStructType (signature, 1, FALSE);
+		sig = LLVMStructType (signature, 2, FALSE);
 		inited = TRUE;
 	}
 
