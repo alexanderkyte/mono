@@ -6070,11 +6070,11 @@ init_jit_module (MonoDomain *domain)
 void
 mono_llvm_cleanup (void)
 {
-	if (aot_module.module)
+	if (aot_module.module) {
 		LLVMDisposeModule (aot_module.module);
-
-	g_assert (aot_module.context);
-	LLVMContextDispose (aot_module.context);
+		g_assert (aot_module.context);
+		LLVMContextDispose (aot_module.context);
+	}
 }
 
 void
