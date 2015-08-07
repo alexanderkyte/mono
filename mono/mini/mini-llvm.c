@@ -136,6 +136,7 @@ typedef struct {
 	GSList **clause_groupings;
 	LLVMValueRef ex_var;
 	GHashTable *exc_meta;
+	LLVMValueRef sentinel_exception;
 } EmitContext;
 
 typedef struct {
@@ -2790,6 +2791,20 @@ default_cpp_lpad_exc_signature (void)
 	return sig;
 }
 
+static LLVMValueRef
+get_mono_sentinel_exception (EmitContext *ctx)
+{
+	if (!ctx->sentinel_exception) {
+		// Do something with this field?
+		LLVMTypeRef exc = LLVMInt8Type ();
+		ctx->sentinel_exception = LLVMAddGlobal (ctx->module, exc, "mono_exc_sentinel");
+		LLVMSetVisibility (ctx->sentinel_exception, LLVMHiddenVisibility);
+		LLVMSetLinkage (ctx->sentinel_exception, LLVMInternalLinkage);
+		LLVMSetInitializer (ctx->sentinel_exception, LLVMConstNull (exc));
+		mono_llvm_set_is_constant (ctx->sentinel_exception);
+	}
+	return ctx->sentinel_exception;
+}
 
 static LLVMBasicBlockRef
 emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, size_t group_index)
@@ -2815,9 +2830,8 @@ emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, size_t group_index)
 	LLVMPositionBuilderAtEnd (lpadBuilder, lpad_bb);
 	LLVMValueRef landing_pad = LLVMBuildLandingPad (lpadBuilder, default_cpp_lpad_exc_signature (), personality, 0, "");
 	g_assert (landing_pad);
-	// catch all exceptions
-	/*LLVMAddClause (landing_pad, );*/
-	LLVMSetCleanup (landing_pad, TRUE);
+
+	LLVMAddClause (landing_pad, get_mono_sentinel_exception (ctx));
 
 	LLVMBasicBlockRef resume_bb = gen_bb (ctx, "RESUME_BB");
 	LLVMBuilderRef resume_builder = create_builder (ctx);
