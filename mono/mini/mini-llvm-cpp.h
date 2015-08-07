@@ -96,16 +96,16 @@ void
 mono_llvm_set_is_constant (LLVMValueRef global_var);
 
 void
-mono_llvm_cpp_throw_exception (void);
+mono_llvm_cpp_throw_exception (guint32 *exc);
 
 void
-mono_llvm_cpp_rethrow_exception (void);
+mono_llvm_cpp_rethrow_exception (guint32 *exc);
 
 void
-mono_llvm_throw_exception (MonoException *e);
+mono_llvm_rethrow_exception (MonoException *e, guint32 *exc_tag);
 
 void
-mono_llvm_rethrow_exception (MonoException *e);
+mono_llvm_throw_exception (MonoException *e, guint32 *exc_tag);
 
 guint32
 mono_llvm_match_exception (MonoException *e);
