@@ -248,6 +248,7 @@ static void init_jit_module (MonoDomain *domain);
 static void emit_dbg_loc (EmitContext *ctx, LLVMBuilderRef builder, const unsigned char *cil_code);
 static LLVMValueRef emit_dbg_subprogram (EmitContext *ctx, MonoCompile *cfg, LLVMValueRef method, const char *name);
 static void emit_dbg_info (MonoLLVMModule *lmodule, const char *filename, const char *cu_name);
+static LLVMValueRef get_mono_sentinel_exception (EmitContext *ctx);
 
 /*
  * IntPtrType:
@@ -1206,18 +1207,18 @@ emit_volatile_load (EmitContext *ctx, int vreg)
 }
 
 void
-mono_llvm_rethrow_exception (MonoException *e) {
-	return mono_llvm_cpp_rethrow_exception ();
+mono_llvm_rethrow_exception (MonoException *e, guint32 *exc_tag) {
+	return mono_llvm_cpp_rethrow_exception (exc_tag);
 }
 
 void
-mono_llvm_throw_exception (MonoException *e) {
+mono_llvm_throw_exception (MonoException *e, guint32 *exc_tag) {
 	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
 	// Note: Not pinned
 	guint32 handle = mono_gchandle_new (&e->object, FALSE);
 	jit_tls->thrown_exc = handle;
 
-	mono_llvm_cpp_throw_exception ();
+	mono_llvm_cpp_throw_exception (exc_tag);
 }
 
 guint32
@@ -2722,14 +2723,17 @@ mono_llvm_emit_throw (EmitContext *ctx, MonoBasicBlock *bb, gboolean rethrow, LL
 	LLVMValueRef callee = rethrow ? ctx->lmodule->rethrow : ctx->lmodule->throw;
 	MOSTLY_ASYNC_SAFE_PRINTF ("%s :: %d\n", __FILE__, __LINE__);
 
+	LLVMTypeRef exc_type = type_to_llvm_type (ctx, &mono_get_exception_class ()->byval_arg);
+
 	if (!callee) {
-		MonoMethodSignature *throw_sig = mono_metadata_signature_alloc (mono_get_corlib (), 1);
-		throw_sig->ret = &mono_get_void_class ()->byval_arg;
-		throw_sig->params [0] = &mono_get_exception_class ()->byval_arg;
+		LLVMTypeRef exc_tag_type = LLVMPointerType (LLVMInt8Type (), 0);
+		LLVMTypeRef param_types [2] = {exc_type, exc_tag_type};
+		LLVMTypeRef fun_sig = LLVMFunctionType (LLVMVoidType (), param_types, 2, FALSE);
+
 		if (ctx->cfg->compile_aot) {
-			callee = get_plt_entry (ctx, sig_to_llvm_sig (ctx, throw_sig), MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
+			callee = get_plt_entry (ctx, fun_sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 		} else {
-			callee = LLVMAddFunction (ctx->module, icall_name, sig_to_llvm_sig (ctx, throw_sig));
+			callee = LLVMAddFunction (ctx->module, icall_name, fun_sig);
 			LLVMAddGlobalMapping (ctx->lmodule->ee, callee, resolve_patch (ctx->cfg, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name));
 			mono_memory_barrier ();
 		}
@@ -2739,10 +2743,12 @@ mono_llvm_emit_throw (EmitContext *ctx, MonoBasicBlock *bb, gboolean rethrow, LL
 		else
 			ctx->lmodule->throw = callee;
 	}
-	LLVMValueRef arg = convert (ctx, exc, type_to_llvm_type (ctx, &mono_get_object_class ()->byval_arg));
+	LLVMValueRef args [2];
+	args [0] = convert (ctx, exc, exc_type);
+	args [1] = get_mono_sentinel_exception (ctx);
 	MOSTLY_ASYNC_SAFE_PRINTF ("Emitting call %s :: %d\n", __FILE__, __LINE__);
 
-	LLVMValueRef call = emit_call (ctx, bb, &ctx->builder, callee, &arg, 1);
+	LLVMValueRef call = emit_call (ctx, bb, &ctx->builder, callee, args, 2);
 	emit_unreachable_ret (ctx, ctx->builder);
 
 	ctx->builder = create_builder (ctx);

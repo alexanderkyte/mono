@@ -59,18 +59,16 @@ using namespace llvm;
 
 #ifndef MONO_CROSS_COMPILE
 
-class MonoExceptionSentinel: public std::exception { };
-
 void
-mono_llvm_cpp_throw_exception (void) 
+mono_llvm_cpp_throw_exception (guint32 *exc) 
 {
-	throw new MonoExceptionSentinel ();
+	throw exc;
 }
 
 void
-mono_llvm_cpp_rethrow_exception (void) 
+mono_llvm_cpp_rethrow_exception (guint32 *exc) 
 {
-	mono_llvm_cpp_throw_exception ();
+	throw exc;
 }
 
 class MonoJITMemoryManager : public JITMemoryManager
