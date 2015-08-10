@@ -6059,7 +6059,6 @@ mono_llvm_init (void)
 static void
 init_jit_module (MonoDomain *domain)
 {
-	MonoJitICallInfo *info;
 	MonoJitDomainInfo *dinfo;
 	MonoLLVMModule *module;
 	char *name;
@@ -6086,10 +6085,6 @@ init_jit_module (MonoDomain *domain)
 	add_types (module);
 
 	module->llvm_types = g_hash_table_new (NULL, NULL);
-
-	info = mono_find_jit_icall_by_name ("llvm_resume_unwind_trampoline");
-	g_assert (info);
-	LLVMAddGlobalMapping (module->ee, LLVMGetNamedFunction (module->module, "llvm_resume_unwind_trampoline"), (void*)info->func);
 
 	mono_memory_barrier ();
 
