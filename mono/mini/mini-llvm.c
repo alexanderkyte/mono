@@ -1234,13 +1234,13 @@ mono_llvm_match_exception (MonoException *e) {
  *   If VREG is volatile, emit a store from its value to its address.
  */
 static void
-emit_volatile_store (EmitContext *ctx, int vreg)
+emit_volatile_store (EmitContext *ctx, LLVMBuilderRef *builder, int vreg)
 {
 	MonoInst *var = get_vreg_to_inst (ctx->cfg, vreg);
 
 	if (var && var->flags & (MONO_INST_VOLATILE|MONO_INST_INDIRECT)) {
 		g_assert (ctx->addresses [vreg]);
-		LLVMBuildStore (ctx->builder, convert (ctx, ctx->values [vreg], type_to_llvm_type (ctx, var->inst_vtype)), ctx->addresses [vreg]);
+		LLVMBuildStore (builder, convert (ctx, ctx->values [vreg], type_to_llvm_type (ctx, var->inst_vtype)), ctx->addresses [vreg]);
 	}
 }
 
@@ -2279,12 +2279,12 @@ emit_entry_bb (EmitContext *ctx, LLVMBuilderRef builder)
 	}
 
 	if (cfg->vret_addr)
-		emit_volatile_store (ctx, cfg->vret_addr->dreg);
+		emit_volatile_store (ctx, builder, cfg->vret_addr->dreg);
 	if (sig->hasthis)
-		emit_volatile_store (ctx, cfg->args [0]->dreg);
+		emit_volatile_store (ctx, builder, cfg->args [0]->dreg);
 	for (i = 0; i < sig->param_count; ++i)
 		if (!mini_type_is_vtype (sig->params [i]))
-			emit_volatile_store (ctx, cfg->args [i + sig->hasthis]->dreg);
+			emit_volatile_store (ctx, builder, cfg->args [i + sig->hasthis]->dreg);
 
 	if (sig->hasthis && !cfg->rgctx_var && cfg->gshared) {
 		LLVMValueRef this_alloc;
@@ -3230,7 +3230,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 				values [ins->next->dreg] = LLVMBuildZExt (builder, cmp, LLVMInt32Type (), dname);
 
 				/* Add stores for volatile variables */
-				emit_volatile_store (ctx, ins->next->dreg);
+				emit_volatile_store (ctx, builder, ins->next->dreg);
 			} else if (MONO_IS_COND_EXC (ins->next)) {
 				emit_cond_system_exception (ctx, bb, ins->next->inst_p1, cmp);
 				CHECK_FAILURE (ctx);
@@ -5014,7 +5014,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 
 		/* Add stores for volatile variables */
 		if (spec [MONO_INST_DEST] != ' ' && spec [MONO_INST_DEST] != 'v' && !MONO_IS_STORE_MEMBASE (ins))
-			emit_volatile_store (ctx, ins->dreg);
+			emit_volatile_store (ctx, builder, ins->dreg);
 	}
 
 	if (!has_terminator && bb->next_bb && (bb == cfg->bb_entry || bb->in_count > 0)) {
