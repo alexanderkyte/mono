@@ -2421,9 +2421,9 @@ compute_llvm_code_range (MonoAotModule *amodule, guint8 **code_start, guint8 **c
 	p += 4;
 	table = (gint32*)p;
 
-	if (fde_count > 1) {
+	if (fde_count > 0) {
 		/* mono_aot_personality () */
-		*code_start = amodule->methods [table [2]];
+		*code_start = amodule->methods [table [0]];
 		*code_end = (guint8*)amodule->methods [table [(fde_count - 1) * 2]] + table [fde_count * 2];
 	} else {
 		*code_start = NULL;
