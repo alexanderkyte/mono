@@ -17,6 +17,8 @@
 
 #include "../metadata/object.h"
 
+#include "unwind.h"
+
 G_BEGIN_DECLS
 
 /*
@@ -96,22 +98,28 @@ void
 mono_llvm_set_is_constant (LLVMValueRef global_var);
 
 void
-mono_llvm_cpp_throw_exception (guint32 *exc);
+mono_llvm_cpp_throw_exception (gint8 *exc);
 
 void
-mono_llvm_cpp_rethrow_exception (guint32 *exc);
+mono_llvm_cpp_rethrow_exception (gint8 *exc);
 
 void
-mono_llvm_rethrow_exception (MonoException *e, guint32 *exc_tag);
+mono_llvm_rethrow_exception (MonoException *e, gint8 *exc_tag);
 
 void
-mono_llvm_throw_exception (MonoException *e, guint32 *exc_tag);
+mono_llvm_throw_exception (MonoException *e, gint8 *exc_tag);
 
 guint32
 mono_llvm_match_exception (MonoException *e);
 
 void
 mono_llvm_reset_exception (void);
+
+_Unwind_Reason_Code mono_debug_personaltiy (int a,
+_Unwind_Action b,
+uint64_t c,
+ struct _Unwind_Exception *d,
+ struct _Unwind_Context *e);
 
 G_END_DECLS
 

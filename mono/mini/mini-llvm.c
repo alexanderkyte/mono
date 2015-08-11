@@ -1207,12 +1207,12 @@ emit_volatile_load (EmitContext *ctx, int vreg)
 }
 
 void
-mono_llvm_rethrow_exception (MonoException *e, guint32 *exc_tag) {
+mono_llvm_rethrow_exception (MonoException *e, gint8 *exc_tag) {
 	return mono_llvm_cpp_rethrow_exception (exc_tag);
 }
 
 void
-mono_llvm_throw_exception (MonoException *e, guint32 *exc_tag) {
+mono_llvm_throw_exception (MonoException *e, gint8 *exc_tag) {
 	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
 	// Note: Not pinned
 	guint32 handle = mono_gchandle_new (&e->object, FALSE);
@@ -2778,7 +2778,20 @@ mono_llvm_emit_match_exception_call (EmitContext *ctx, LLVMBuilderRef builder)
 	return LLVMBuildCall (builder, ctx->lmodule->match_exc, NULL, 0, "");
 }
 
-static const char *default_personality_name = "__gxx_personality_v0";
+_Unwind_Reason_Code mono_debug_personaltiy (int a,
+_Unwind_Action b,
+uint64_t c,
+ struct _Unwind_Exception *d,
+ struct _Unwind_Context *e) 
+{
+	g_assert_not_reached ();
+}
+
+#if 1
+static const char *default_personality_name = "mono_debug_personaltiy";
+#else
+/*static const char *default_personality_name = "__gxx_personality_v0";*/
+#endif
 
 static LLVMTypeRef
 default_cpp_lpad_exc_signature (void)

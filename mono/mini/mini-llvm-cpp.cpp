@@ -60,13 +60,13 @@ using namespace llvm;
 #ifndef MONO_CROSS_COMPILE
 
 void
-mono_llvm_cpp_throw_exception (guint32 *exc) 
+mono_llvm_cpp_throw_exception (gint8 *exc) 
 {
 	throw exc;
 }
 
 void
-mono_llvm_cpp_rethrow_exception (guint32 *exc) 
+mono_llvm_cpp_rethrow_exception (gint8 *exc) 
 {
 	throw exc;
 }
