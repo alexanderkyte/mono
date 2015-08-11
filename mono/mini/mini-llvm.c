@@ -2826,22 +2826,34 @@ get_mono_sentinel_exception (EmitContext *ctx)
 	return ctx->sentinel_exception;
 }
 
+static LLVMValueRef
+get_mono_personality (EmitContext *ctx)
+{
+	LLVMValueRef personality = NULL;
+	static gint32 mapping_inited = FALSE;
+
+	if (!use_debug_personality) {
+		if (ctx->cfg->compile_aot) {
+				personality = LLVMGetNamedFunction (ctx->module, default_personality_name);
+		} else if (InterlockedCompareExchange (&mapping_inited, 1, 0) == 0) {
+				personality = LLVMAddFunction (ctx->module, default_personality_name, LLVMFunctionType (LLVMInt32Type (), NULL, 0, TRUE));
+				LLVMAddGlobalMapping (ctx->lmodule->ee, personality, personality);
+		}
+	} else {
+		g_assert_not_reached ();
+	}
+
+	g_assert (personality);
+	return personality;
+}
+
 static LLVMBasicBlockRef
 emit_landing_pad (MonoCompile *cfg, EmitContext *ctx, size_t group_index)
 {
-	static gint32 mapping_inited = FALSE;
-
 	LLVMBasicBlockRef lpad_bb = gen_bb (ctx, "LPAD_BB");
 
 	// <resultval> = landingpad <somety> personality <type> <pers_fn> <clause>+
-	LLVMValueRef personality = NULL;
-
-	if (cfg->compile_aot) {
-			personality = LLVMGetNamedFunction (ctx->module, default_personality_name);
-	} else if (InterlockedCompareExchange (&mapping_inited, 1, 0) == 0) {
-			personality = LLVMAddFunction (ctx->module, default_personality_name, LLVMFunctionType (LLVMInt32Type (), NULL, 0, TRUE));
-			LLVMAddGlobalMapping (ctx->lmodule->ee, personality, personality);
-	}
+	LLVMValueRef personality = get_mono_personality (ctx);
 
 	mono_memory_barrier ();
 	g_assert (personality);
@@ -6162,7 +6174,7 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 		LLVMSetInitializer (lmodule->got_var, LLVMConstNull (got_type));
 	}
 
-	{
+	if (!use_debug_personality) {
 		LLVMValueRef personality = LLVMAddFunction (lmodule->module, default_personality_name, LLVMFunctionType (LLVMInt32Type (), NULL, 0, TRUE));
 		LLVMSetLinkage (personality, LLVMExternalLinkage);
 		mark_as_used (lmodule, personality);
