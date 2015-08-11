@@ -2833,16 +2833,23 @@ get_mono_personality (EmitContext *ctx)
 {
 	LLVMValueRef personality = NULL;
 	static gint32 mapping_inited = FALSE;
+	LLVMTypeRef personality_type = LLVMFunctionType (LLVMInt32Type (), NULL, 0, TRUE);
 
 	if (!use_debug_personality) {
 		if (ctx->cfg->compile_aot) {
 				personality = LLVMGetNamedFunction (ctx->module, default_personality_name);
 		} else if (InterlockedCompareExchange (&mapping_inited, 1, 0) == 0) {
-				personality = LLVMAddFunction (ctx->module, default_personality_name, LLVMFunctionType (LLVMInt32Type (), NULL, 0, TRUE));
+				personality = LLVMAddFunction (ctx->module, default_personality_name, personality_type);
 				LLVMAddGlobalMapping (ctx->lmodule->ee, personality, personality);
 		}
 	} else {
-		g_assert_not_reached ();
+		if (ctx->cfg->compile_aot) {
+			personality = get_plt_entry (ctx, personality_type, MONO_PATCH_INFO_INTERNAL_METHOD, default_personality_name);
+		} else {
+			personality = LLVMAddFunction (ctx->module, default_personality_name, personality_type);
+			LLVMAddGlobalMapping (ctx->lmodule->ee, personality, resolve_patch (ctx->cfg, MONO_PATCH_INFO_INTERNAL_METHOD, default_personality_name));
+			mono_memory_barrier ();
+		}
 	}
 
 	g_assert (personality);
