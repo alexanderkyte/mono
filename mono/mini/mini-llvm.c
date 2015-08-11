@@ -1208,7 +1208,7 @@ emit_volatile_load (EmitContext *ctx, int vreg)
 
 void
 mono_llvm_rethrow_exception (MonoException *e, gint8 *exc_tag) {
-	return mono_llvm_cpp_rethrow_exception (exc_tag);
+	mono_llvm_cpp_rethrow_exception (exc_tag);
 }
 
 void
