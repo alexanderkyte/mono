@@ -1234,7 +1234,7 @@ mono_llvm_match_exception (MonoException *e) {
  *   If VREG is volatile, emit a store from its value to its address.
  */
 static void
-emit_volatile_store (EmitContext *ctx, LLVMBuilderRef *builder, int vreg)
+emit_volatile_store (EmitContext *ctx, LLVMBuilderRef builder, int vreg)
 {
 	MonoInst *var = get_vreg_to_inst (ctx->cfg, vreg);
 
