@@ -115,11 +115,9 @@ mono_llvm_match_exception (MonoException *e);
 void
 mono_llvm_reset_exception (void);
 
-_Unwind_Reason_Code mono_debug_personaltiy (int a,
-_Unwind_Action b,
-uint64_t c,
- struct _Unwind_Exception *d,
- struct _Unwind_Context *e);
+_Unwind_Reason_Code 
+mono_debug_personality (int a, _Unwind_Action b,
+	uint64_t c, struct _Unwind_Exception *d, struct _Unwind_Context *e);
 
 G_END_DECLS
 

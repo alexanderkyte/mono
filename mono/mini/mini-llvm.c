@@ -2778,19 +2778,20 @@ mono_llvm_emit_match_exception_call (EmitContext *ctx, LLVMBuilderRef builder)
 	return LLVMBuildCall (builder, ctx->lmodule->match_exc, NULL, 0, "");
 }
 
-_Unwind_Reason_Code mono_debug_personaltiy (int a,
-_Unwind_Action b,
-uint64_t c,
- struct _Unwind_Exception *d,
- struct _Unwind_Context *e) 
+/*#define MONO_PERSONALITY_DEBUG*/
+_Unwind_Reason_Code 
+mono_debug_personality (int a, _Unwind_Action b,
+uint64_t c, struct _Unwind_Exception *d, struct _Unwind_Context *e)
 {
 	g_assert_not_reached ();
 }
 
-#if 1
-static const char *default_personality_name = "mono_debug_personaltiy";
+#ifdef MONO_PERSONALITY_DEBUG
+static const gboolean use_debug_personality = TRUE;
+static const char *default_personality_name = "mono_debug_personality";
 #else
-/*static const char *default_personality_name = "__gxx_personality_v0";*/
+static const gboolean use_debug_personality = FALSE;
+static const char *default_personality_name = "__gxx_personality_v0";
 #endif
 
 static LLVMTypeRef
