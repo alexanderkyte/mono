@@ -3166,7 +3166,7 @@ register_icalls (void)
 	register_icall (mono_llvm_throw_exception, "mono_llvm_throw_exception", "void object ptr", TRUE);
 	register_icall (mono_llvm_rethrow_exception, "mono_llvm_rethrow_exception", "void object ptr", TRUE);
 	register_icall (mono_llvm_match_exception, "mono_llvm_match_exception", "int", TRUE);
-	register_icall (mono_debug_personaltiy, "mono_debug_personaltiy", "int", TRUE);
+	register_icall (mono_debug_personality, "mono_debug_personality", "int int int ptr ptr ptr", TRUE);
 #endif
 
 	register_dyn_icall (mono_get_throw_exception (), "mono_arch_throw_exception", "void object", TRUE);

@@ -2779,7 +2779,7 @@ mono_llvm_emit_match_exception_call (EmitContext *ctx, LLVMBuilderRef builder)
 }
 
 /*#define MONO_PERSONALITY_DEBUG*/
-_Unwind_Reason_Code mono_debug_personaltiy (int a,
+_Unwind_Reason_Code mono_debug_personality (int a,
 _Unwind_Action b,
 uint64_t c,
  struct _Unwind_Exception *d,
