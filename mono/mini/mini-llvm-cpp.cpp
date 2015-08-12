@@ -651,18 +651,15 @@ mono_llvm_create_ee (LLVMModuleProviderRef MP, AllocCodeMemoryCb *alloc_cb, Func
    * memset using a normal pcrel code which is in 32bit memory, while memset isn't.
    */
 
-  TargetOptions opts;
-  opts.JITExceptionHandling = 1;
-
   StringRef cpu_name = sys::getHostCPUName ();
 
   // EngineBuilder no longer has a copy assignment operator (?)
   std::unique_ptr<Module> Owner(unwrap(MP));
   EngineBuilder b (std::move(Owner));
 #ifdef TARGET_AMD64
-  ExecutionEngine *EE = b.setJITMemoryManager (mono_mm).setTargetOptions (opts).setAllocateGVsWithCode (true).setMCPU (cpu_name).setCodeModel (CodeModel::Large).create ();
+  ExecutionEngine *EE = b.setJITMemoryManager (mono_mm).setAllocateGVsWithCode (true).setMCPU (cpu_name).setCodeModel (CodeModel::Large).create ();
 #else
-  ExecutionEngine *EE = b.setJITMemoryManager (mono_mm).setTargetOptions (opts).setAllocateGVsWithCode (true).setMCPU (cpu_name).create ();
+  ExecutionEngine *EE = b.setJITMemoryManager (mono_mm).setAllocateGVsWithCode (true).setMCPU (cpu_name).create ();
 #endif
 
   g_assert (EE);
