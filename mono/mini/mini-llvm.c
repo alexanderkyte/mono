@@ -2619,8 +2619,6 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 #endif
 	/* The two can't be used together, so use only one LLVM calling conv to pass them */
 	g_assert (!(call->rgctx_arg_reg && call->imt_arg_reg));
-	if (!sig->pinvoke)
-		LLVMSetInstructionCallConv (lcall, LLVMMono1CallConv);
 
 	if (cinfo && cinfo->ret.storage == LLVMArgVtypeByRef)
 		LLVMAddInstrAttribute (lcall, 1 + sinfo.vret_arg_pindex, LLVMStructRetAttribute);
@@ -5237,7 +5235,6 @@ mono_llvm_emit_method (MonoCompile *cfg)
 	method = LLVMAddFunction (module, method_name, method_type);
 	ctx->lmethod = method;
 
-	LLVMSetFunctionCallConv (method, LLVMMono1CallConv);
 	LLVMSetLinkage (method, LLVMPrivateLinkage);
 
 	LLVMAddFunctionAttr (method, LLVMUWTable);
