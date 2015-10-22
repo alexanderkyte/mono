@@ -1375,9 +1375,9 @@ mono_resolve_iface_call (MonoObject *this, int imt_slot, MonoMethod *imt_method,
 													target, addr);
 	}
 
-	*vtable_slot = addr;
+	gpointer rgctx = NULL;
 
-	if (need_rgctx_tramp && out_rgctx_arg) {
+	if (need_rgctx_tramp && (mono_llvm_only || out_rgctx_arg)) {
 		MonoMethod *m = impl_method;
 		MonoJitInfo *ji;
 
@@ -1388,9 +1388,25 @@ mono_resolve_iface_call (MonoObject *this, int imt_slot, MonoMethod *imt_method,
 		if (!ji || (ji && ji->has_generic_jit_info)) {
 			if (m->wrapper_type == MONO_WRAPPER_MANAGED_TO_MANAGED && m->klass->rank && strstr (m->name, "System.Collections.Generic"))
 				m = mono_aot_get_array_helper_from_wrapper (m);
-			*out_rgctx_arg = mini_method_get_rgctx (m);
+
+			rgctx = mini_method_get_rgctx (m);
+
+			if (mono_llvm_only)
+				desc->rgctx = rgctx;
+
+			if (out_rgctx_arg)
+				*out_rgctx_arg = rgctx;
 		}
 	}
+
+	if (mono_llvm_only) {
+		MonoCallDesc *desc = (MonoCallDesc *) mono_domain_alloc0 (vt->domain, sizeof (MonoCallDesc));
+		desc->addr = addr;
+		desc->rgctx = rgctx;
+
+		*vtable_slot = desc;
+	} else
+		*vtable_slot =  addr;
 
 	return addr;
 }
@@ -1441,6 +1457,9 @@ mono_resolve_vcall (MonoObject *this, int slot, MonoMethod *imt_method)
 	/* Avoid loading metadata or creating a generic vtable if possible */
 	addr = mono_aot_get_method_from_vt_slot (mono_domain_get (), vt, slot);
 	if (addr && !vt->klass->valuetype) {
+		// Note: if mono_llvm_only is true, we only have one appdomain
+		// so we don't have to worry about this case not hitting
+		// the MonoDesc code below.
 		if (mono_domain_owns_vtable_slot (mono_domain_get (), vtable_slot))
 			*vtable_slot = addr;
 
@@ -1491,7 +1510,14 @@ mono_resolve_vcall (MonoObject *this, int slot, MonoMethod *imt_method)
 
 	addr = mini_add_method_trampoline (m, addr, need_rgctx_tramp, need_unbox_tramp);
 
-	*vtable_slot = addr;
+	if (mono_llvm_only) {
+		MonoCallDesc *desc = (MonoCallDesc *) mono_domain_alloc0 (vt->domain, sizeof (MonoCallDesc));
+		desc->addr = addr;
+		desc->rgctx = rgctx;
+
+		*vtable_slot = desc;
+	} else
+		*vtable_slot = addr;
 
 	return addr;
 }

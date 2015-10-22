@@ -475,6 +475,13 @@ struct MonoVTable {
 
 #define MONO_VTABLE_IMPLEMENTS_INTERFACE(vt,uiid) (((uiid) <= (vt)->max_interface_id) && mono_class_interface_match ((vt)->interface_bitmap, (uiid)))
 
+/* A MonoVTable's vtable can either have naked function pointers
+ or a reference to a MonoCallDesc */
+typedef struct MonoCallDesc {
+	gpointer addr; /* The address of the function being called */
+	gpointer rgctx; /* The RGCTX for the function */
+} MonoCallDesc;
+
 /*
  * Generic instantiation data type encoding.
  */

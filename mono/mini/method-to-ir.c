@@ -2732,6 +2732,49 @@ emit_get_rgctx_method (MonoCompile *cfg, int context_used, MonoMethod *cmethod, 
 static MonoInst*
 emit_get_rgctx_klass (MonoCompile *cfg, int context_used, MonoClass *klass, MonoRgctxInfoType rgctx_type);
 
+static void
+mono_emit_vtable_lazy_load (MonoCompile *cfg, int this_reg, int vtable_slot, 
+							int *call_target_reg, MonoInst *icall_args, gpointer icall_func)
+{
+	int vtable_slot_reg = alloc_preg (cfg);
+	int vtable_reg = alloc_preg (cfg);
+
+	// Get address of MonoVTable
+	MONO_EMIT_NEW_LOAD_MEMBASE_FAULT (cfg, vtable_reg, this_reg, MONO_STRUCT_OFFSET (MonoObject, vtable));
+
+	// Get value in MonoVTable->vtable [slot]
+	int slot_offset_from_vtable = MONO_STRUCT_OFFSET (MonoVTable, vtable) + vtable_slot * SIZEOF_VOID_P;
+	MONO_EMIT_NEW_LOAD_MEMBASE_FAULT (cfg, vtable_slot_reg, vtable_reg, slot_offset_from_vtable);
+
+	// Null check
+	MONO_EMIT_NEW_BIALU_IMM (cfg, OP_COMPARE_IMM, -1, vtable_reg, 0);
+
+	// Make targets
+	MonoBasicBlock *null_slot_bb, *fall_through_bb;
+	NEW_BBLOCK (cfg, null_slot_bb);
+	NEW_BBLOCK (cfg, fall_through_bb);
+
+	// if not null read from slot
+	MONO_EMIT_NEW_BRANCH_BLOCK (cfg, OP_IBNE_UN, fall_through_bb);
+
+	// Intialize slot with icall
+	MONO_START_BB (cfg, null_slot_bb);
+	MonoInst *call_target = mono_emit_jit_icall (cfg, icall_func, icall_args);
+	// if null, then vtable wasn't set
+	*call_target_reg = call_target->dreg;
+
+	MONO_EMIT_NEW_BRANCH_BLOCK (cfg, OP_BR, fall_through_bb);
+
+	// Fall through
+	MONO_START_BB (cfg, fall_through_bb);
+	// Read the pointer in the vtable slot back out of the updated vtable
+	MONO_EMIT_NEW_LOAD_MEMBASE_FAULT (cfg, vtable_slot_reg, vtable_reg, slot_offset_from_vtable);
+
+	// Read slot's first field to call_target_reg
+	*call_target_reg = alloc_preg (cfg);
+	MONO_EMIT_NEW_LOAD_MEMBASE_FAULT (cfg, *call_target_reg, vtable_slot_reg, MONO_STRUCT_OFFSET (MonoCallDesc, addr));
+}
+
 static MonoInst*
 mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSignature *sig, gboolean tail,
 							MonoInst **args, MonoInst *this_ins, MonoInst *imt_arg, MonoInst *rgctx_arg)
@@ -2743,8 +2786,8 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 	gboolean enable_for_aot = TRUE;
 	int context_used;
 	MonoCallInst *call;
-	MonoInst *call_target = NULL;
-	int rgctx_reg = 0;
+	int call_target_reg = -1;
+	int rgctx_reg = -1;
 	gboolean need_unbox_trampoline;
 
 	if (!sig)
@@ -2771,7 +2814,7 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 		call_target = mono_emit_jit_icall (cfg, mono_resolve_iface_call, icall_args);
 	}
 
-	if (rgctx_arg) {
+	if (rgctx_reg == -1 && rgctx_arg) {
 		rgctx_reg = mono_alloc_preg (cfg);
 		MONO_EMIT_NEW_UNALU (cfg, OP_MOVE, rgctx_reg, rgctx_arg->dreg);
 	}
@@ -2803,7 +2846,7 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 	}
 #endif
 
-	if (cfg->llvm_only && !call_target && virtual && (method->flags & METHOD_ATTRIBUTE_VIRTUAL)) {
+	if (cfg->llvm_only && !call_target_reg && virtual && (method->flags & METHOD_ATTRIBUTE_VIRTUAL)) {
 		// FIXME: Vcall optimizations below
 		MonoInst *icall_args [16];
 		MonoInst *ins;
@@ -2816,9 +2859,8 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 											 method, MONO_RGCTX_INFO_METHOD);
 		}
 
-		// FIXME: Optimize this
-
-		int slot = mono_method_get_vtable_index (method);
+		int vtable_slot = mono_method_get_vtable_index (method);
+		int vtable_slot_reg = alloc_preg (cfg);
 
 		icall_args [0] = this_ins;
 		EMIT_NEW_ICONST (cfg, icall_args [1], slot);
@@ -2828,12 +2870,14 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 			EMIT_NEW_PCONST (cfg, ins, NULL);
 			icall_args [2] = ins;
 		}
-		call_target = mono_emit_jit_icall (cfg, mono_resolve_vcall, icall_args);
+
+		mono_emit_vtable_lazy_load (cfg, this_reg, vtable_slot, 
+				&call_target_reg, rgctx_reg, icall_args, mono_resolve_vcall)
 	}
 
 	need_unbox_trampoline = method->klass == mono_defaults.object_class || (method->klass->flags & TYPE_ATTRIBUTE_INTERFACE);
 
-	call = mono_emit_call_args (cfg, sig, args, FALSE, virtual, tail, rgctx_arg ? TRUE : FALSE, need_unbox_trampoline);
+	call = mono_emit_call_args (cfg, sig, args, FALSE, virtual, tail, rgctx_reg ? TRUE : FALSE, need_unbox_trampoline);
 
 #ifndef DISABLE_REMOTING
 	if (might_be_remote)
@@ -2910,12 +2954,12 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 			MONO_EMIT_NEW_CHECK_THIS (cfg, this_reg);
 
 			call->inst.opcode = callvirt_to_call (call->inst.opcode);
-		} else if (call_target) {
+		} else if (call_target_reg > -1) {
 			vtable_reg = alloc_preg (cfg);
 			MONO_EMIT_NEW_LOAD_MEMBASE_FAULT (cfg, vtable_reg, this_reg, MONO_STRUCT_OFFSET (MonoObject, vtable));
 
 			call->inst.opcode = callvirt_to_call_reg (call->inst.opcode);
-			call->inst.sreg1 = call_target->dreg;
+			call->inst.sreg1 = call_target_reg;
 			call->inst.flags &= !MONO_INST_HAS_METHOD;
 		} else {
 			vtable_reg = alloc_preg (cfg);
