@@ -2734,7 +2734,7 @@ emit_get_rgctx_klass (MonoCompile *cfg, int context_used, MonoClass *klass, Mono
 
 static void
 mono_emit_vtable_lazy_load (MonoCompile *cfg, int this_reg, int vtable_slot, 
-							int *call_target_reg, MonoInst *icall_args, gpointer icall_func)
+							int *call_target_reg, int *rgctx_reg, MonoInst *icall_args, gpointer icall_func)
 {
 	int vtable_slot_reg = alloc_preg (cfg);
 	int vtable_reg = alloc_preg (cfg);
@@ -2773,6 +2773,9 @@ mono_emit_vtable_lazy_load (MonoCompile *cfg, int this_reg, int vtable_slot,
 	// Read slot's first field to call_target_reg
 	*call_target_reg = alloc_preg (cfg);
 	MONO_EMIT_NEW_LOAD_MEMBASE_FAULT (cfg, *call_target_reg, vtable_slot_reg, MONO_STRUCT_OFFSET (MonoCallDesc, addr));
+
+	*rgctx_reg = alloc_preg (cfg);
+	MONO_EMIT_NEW_LOAD_MEMBASE_FAULT (cfg, *rgctx_reg, vtable_slot_reg, MONO_STRUCT_OFFSET (MonoCallDesc, rgctx));
 }
 
 static MonoInst*
@@ -2811,7 +2814,8 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 		}
 		EMIT_NEW_PCONST (cfg, icall_args [3], NULL);
 
-		call_target = mono_emit_jit_icall (cfg, mono_resolve_iface_call, icall_args);
+		MonoInst *call_target_ins = mono_emit_jit_icall (cfg, mono_resolve_iface_call, icall_args);
+		call_target_reg = call_target_ins->dreg;
 	}
 
 	if (rgctx_reg == -1 && rgctx_arg) {
@@ -2863,7 +2867,7 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 		int vtable_slot_reg = alloc_preg (cfg);
 
 		icall_args [0] = this_ins;
-		EMIT_NEW_ICONST (cfg, icall_args [1], slot);
+		EMIT_NEW_ICONST (cfg, icall_args [1], vtable_slot);
 		if (imt_arg) {
 			icall_args [2] = imt_arg;
 		} else {
@@ -2871,8 +2875,8 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 			icall_args [2] = ins;
 		}
 
-		mono_emit_vtable_lazy_load (cfg, this_reg, vtable_slot, 
-				&call_target_reg, rgctx_reg, icall_args, mono_resolve_vcall)
+		mono_emit_vtable_lazy_load (cfg, this_ins->dreg, vtable_slot, 
+				&call_target_reg, &rgctx_reg, icall_args, mono_resolve_vcall);
 	}
 
 	need_unbox_trampoline = method->klass == mono_defaults.object_class || (method->klass->flags & TYPE_ATTRIBUTE_INTERFACE);
