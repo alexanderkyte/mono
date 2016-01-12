@@ -40,3 +40,14 @@ MOBILE_STATIC = yes
 MOBILE_PROFILE = yes
 
 NUNIT_LITE = yes
+
+ifeq ($(MONO_LLVMONLY),"TRUE")
+AOT_BUILD_PREFIX = --aot=llvmonly,
+AOT_RUN =  --llvmonly
+else
+AOT_BUILD_PREFIX = --aot=full,
+AOT_RUN = --full-aot
+endif
+
+ENABLE_AOT = yes
+

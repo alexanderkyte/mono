@@ -1,4 +1,5 @@
 thisdir = nunit-lite/NUnitLite
+ENABLE_AOT = yes
 include ../../build/rules.make
 
 LIBRARY = nunitlite.dll

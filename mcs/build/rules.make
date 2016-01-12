@@ -120,14 +120,30 @@ TEST_HARNESS=$(topdir)/class/lib/$(PROFILE)/nunit-lite-console.exe
 endif
 export TEST_HARNESS
 
+INVARIANT_AOT_OPTIONS=bind-to-runtime-version,nimt-trampolines=900,ntrampolines=1500
+
+ifndef AOT_BUILD_PREFIX
+AOT_BUILD_PREFIX = --aot=
+endif
+
+ifdef ENABLE_AOT
+AOT_BUILD = $(AOT_BUILD_PREFIX)$(INVARIANT_AOT_OPTIONS)
+endif
+
 ifdef BCL_OPTIMIZE
 PROFILE_MCS_FLAGS += -optimize
+endif
+
+ifdef ENABLE_AOT
+TOP_LEVEL_DO = do-all-aot
+else
+TOP_LEVEL_DO = do-all
 endif
 
 ifdef OVERRIDE_TARGET_ALL
 all: all.override
 else
-all: do-all
+all: $(TOP_LEVEL_DO)
 endif
 
 ifdef NO_INSTALL
@@ -140,6 +156,9 @@ endif
 STD_TARGETS = test run-test run-test-ondotnet clean install uninstall doc-update
 
 $(STD_TARGETS): %: do-%
+
+do-all-aot: do-all
+	$(MAKE) all-local-aot
 
 do-run-test:
 	ok=:; $(MAKE) run-test-recursive || ok=false; $(MAKE) run-test-local || ok=false; $$ok
