@@ -120,7 +120,7 @@ TEST_HARNESS=$(topdir)/class/lib/$(PROFILE)/nunit-lite-console.exe
 endif
 export TEST_HARNESS
 
-INVARIANT_AOT_OPTIONS=bind-to-runtime-version,nimt-trampolines=900,ntrampolines=1500
+INVARIANT_AOT_OPTIONS=bind-to-runtime-version,nimt-trampolines=900,ntrampolines=1700
 
 ifndef AOT_BUILD_PREFIX
 AOT_BUILD_PREFIX = --aot=
