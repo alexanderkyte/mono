@@ -43,3 +43,13 @@ MOBILE_PROFILE = yes
 # Note need for trailing comma. If you add, keep it
 PROFILE_TEST_HARNESS_EXCLUDES = MobileNotWorking,
 
+ifeq ($(MONO_LLVMONLY),"TRUE")
+AOT_BUILD_PREFIX = --aot=llvmonly,
+AOT_RUN =  --llvmonly
+else
+AOT_BUILD_PREFIX = --aot=full,
+AOT_RUN = --full-aot
+endif
+
+ALWAYS_AOT = yes
+
