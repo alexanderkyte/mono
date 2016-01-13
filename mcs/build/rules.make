@@ -122,14 +122,66 @@ endif
 # Make sure propagates
 export TEST_HARNESS
 
+# start aot config
+
+# We set the prefix of the aot build flags
+# in the profile. This determines the aot type,
+# whether it be llvmonly or full. To this we append the
+# options which do not change between them, the INVARIANT_AOT_OPTIONS
+ifndef AOT_BUILD_FLAGS_PREFIX
+AOT_BUILD_FLAGS_PREFIX = --aot=
+endif
+
+# Set the options for building and running AOT
+# The trampoline numbers are provisional, they are what is required
+# to run the corlib test suite. They should be considered a lower bound.
+INVARIANT_AOT_OPTIONS=bind-to-runtime-version,nimt-trampolines=900,ntrampolines=8000
+
+ifndef MONO_DISABLE_GSHAREDVT
+INVARIANT_AOT_OPTIONS:=$(INVARIANT_AOT_OPTIONS),ngsharedvt-trampolines=900
+endif
+
+AOT_BUILD_FLAGS = $(AOT_BUILD_FLAGS_PREFIX)$(INVARIANT_AOT_OPTIONS)
+
+# end AOT config
+
 ifdef BCL_OPTIMIZE
 PROFILE_MCS_FLAGS += -optimize
 endif
 
+# Design:
+# Problem: We want to be able to build aot
+# assemblies as part of the build system. 
+#
+# For this to be done safely, we really need two passes. This
+# ensures that all of the .dlls are compiled before trying to
+# aot them. In order to reuse the traversal logic, we want to piggyback
+# on the do-all build target. Because we want this to be the
+# default target for some probiles(mobile_static) we have a
+# two-level build system. The do-all-aot-interior target is what
+# gets invoked at the top-level when someone tries to build with aot.
+# It will invoke the do-all target, and will set TOP_LEVEL_DO for this
+# recursive make call in order to prevent this recursive call from trying
+# to build aot in each of the subdirs. After this is done, we will force the
+# aot compilation by setting the TOP_LEVEL_DO to the do-all-aot-leaf target
+# which will use the same traversal logic as the do-all target but
+# will execute the all-local-aot target in each subdir. This target
+# should cause the .exe or .dll that was previously created to be aot'ed
+# and the resulting files to be moved to where that assembly was placed.
+ifndef TOP_LEVEL_DO
+
+ifdef ALWAYS_AOT
+TOP_LEVEL_DO = do-all-aot
+else
+TOP_LEVEL_DO = do-all
+endif # ALWAYS_AOT
+
+endif # !TOP_LEVEL_DO
+
 ifdef OVERRIDE_TARGET_ALL
 all: all.override
 else
-all: do-all
+all: $(TOP_LEVEL_DO)
 endif
 
 ifdef NO_INSTALL
@@ -142,6 +194,19 @@ endif
 STD_TARGETS = test run-test run-test-ondotnet clean install uninstall doc-update
 
 $(STD_TARGETS): %: do-%
+
+ifdef PLATFORM_AOT_SUFFIX
+Q_AOT=$(if $(V),,@echo "AOT     [$(PROFILE)] AOT All Assemblies";)
+LIST_ALL_PROFILE_ASSEMBLIES = find . | grep -E '(dll|exe)$$' | grep -v -E 'bare|plaincore|secxml'
+COMPILE_ALL_PROFILE_ASSEMBLIES = $(LIST_ALL_PROFILE_ASSEMBLIES) | MONO_PATH="./" xargs -I '{}' $(RUNTIME) $(RUNTIME_FLAGS) $(AOT_BUILD_FLAGS) '{}'
+
+do-all-aot:
+	$(MAKE) do-all TOP_LEVEL_DO=do-all
+	$(MAKE) aot-all-profile
+
+aot-all-profile:
+	$(Q_AOT) cd $(topdir)/class/lib/$(PROFILE)/ && $(COMPILE_ALL_PROFILE_ASSEMBLIES) &> $(PROFILE)-aot.log
+endif
 
 do-run-test:
 	ok=:; $(MAKE) run-test-recursive || ok=false; $(MAKE) run-test-local || ok=false; $$ok
