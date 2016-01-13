@@ -44,3 +44,13 @@ NO_VTS_TEST = yes
 # Note need for trailing comma. If you add, keep it
 PROFILE_TEST_HARNESS_EXCLUDES = MobileNotWorking,
 
+ifeq ($(MONO_LLVMONLY),TRUE)
+AOT_BUILD_FLAGS_PREFIX = --aot=llvmonly,
+AOT_RUN_FLAGS =  --llvmonly
+else
+AOT_BUILD_FLAGS_PREFIX = --aot=full,
+AOT_RUN_FLAGS = --full-aot
+endif
+
+ALWAYS_AOT = yes
+

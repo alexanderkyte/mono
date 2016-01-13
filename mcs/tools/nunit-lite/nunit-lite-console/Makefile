@@ -8,6 +8,5 @@ LOCAL_MCS_FLAGS = /r:nunitlite.dll
 include ../../../build/executable.make
 
 all-local-aot:
-	$(TEST_RUNTIME) $(AOT_BUILD) ../../class/lib/$(PROFILE)/nunit-lite-console.exe
-
+	$(TEST_RUNTIME) $(AOT_BUILD_FLAGS) ../../../class/lib/$(PROFILE)/nunit-lite-console.exe
 
