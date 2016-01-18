@@ -169,7 +169,11 @@ namespace System.Security.Cryptography {
 				name = "System.Security.Cryptography.X509Certificates.X509Chain, System";
 				break;
 			case "aes":
+#if MONOTOUCH
 				name = "System.Security.Cryptography.AesManaged, System.Core";
+#else
+				name = "System.Security.Cryptography.AesCryptoServiceProvider, System.Core";
+#endif
 				break;
 			}
 
