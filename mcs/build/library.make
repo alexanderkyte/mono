@@ -295,8 +295,9 @@ library_CLEAN_FILES += $(PROFILE)_aot.log
 
 ifdef PLATFORM_AOT_SUFFIX
 Q_AOT=$(if $(V),,@echo "AOT     [$(PROFILE)] $(notdir $(@))";)
+
 $(the_lib)$(PLATFORM_AOT_SUFFIX): $(the_lib)
-	$(Q_AOT) MONO_PATH='$(the_libdir)' > $(PROFILE)_aot.log 2>&1 $(RUNTIME) $(AOT_BUILD_FLAGS) --debug $(the_lib)
+	$(Q_AOT) MONO_PATH='$(the_libdir_base)' > $(PROFILE)_$(LIBRARY_NAME)_aot.log 2>&1 $(RUNTIME) $(AOT_BUILD_FLAGS) --debug $(the_lib)
 
 all-local-aot: $(the_lib)$(PLATFORM_AOT_SUFFIX)
 endif

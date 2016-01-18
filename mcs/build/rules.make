@@ -173,7 +173,7 @@ endif
 ifndef TOP_LEVEL_DO
 
 ifdef ALWAYS_AOT
-TOP_LEVEL_DO = do-all-aot-interior
+TOP_LEVEL_DO = do-all-aot
 else
 TOP_LEVEL_DO = do-all
 endif # ALWAYS_AOT
@@ -197,12 +197,15 @@ STD_TARGETS = test run-test run-test-ondotnet clean install uninstall doc-update
 
 $(STD_TARGETS): %: do-%
 
-do-all-aot-interior:
-	$(MAKE) do-all TOP_LEVEL_DO=do-all
-	$(MAKE) do-all TOP_LEVEL_DO=do-all-aot-leaf
+ifdef PLATFORM_AOT_SUFFIX
+Q_AOT=$(if $(V),,@echo "AOT     [$(PROFILE)] AOT All Assemblies";)
+LIST_ALL_PROFILE_ASSEMBLIES = find . | grep -E '(dll|exe)$$' | grep -v -E 'bare|plaincore|secxml'
+COMPILE_ALL_PROFILE_ASSEMBLIES = $(LIST_ALL_PROFILE_ASSEMBLIES) | MONO_PATH="./" xargs -I '{}' $(RUNTIME) $(RUNTIME_FLAGS) $(AOT_BUILD_FLAGS) '{}'
 
-do-all-aot-leaf:
-	$(MAKE) all-local-aot
+do-all-aot:
+	$(MAKE) do-all TOP_LEVEL_DO=do-all
+	$(Q_AOT) cd $(topdir)/class/lib/$(PROFILE)/ && $(COMPILE_ALL_PROFILE_ASSEMBLIES) &> $(PROFILE)-aot.log
+endif
 
 do-run-test:
 	ok=:; $(MAKE) run-test-recursive || ok=false; $(MAKE) run-test-local || ok=false; $$ok

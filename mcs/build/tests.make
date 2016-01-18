@@ -110,11 +110,11 @@ TESTNAME_ARG = -run=MonoTests.$(TESTNAME)
 endif
 
 ifdef ALWAYS_AOT
-test-local-aot-compile:
-	PATH="$(TEST_RUNTIME_WRAPPERS_PATH):$(PATH)" MONO_REGISTRY_PATH="$(HOME)/.mono/registry" MONO_TESTS_IN_PROGRESS="yes" $(TEST_RUNTIME) $(RUNTIME_FLAGS) $(AOT_BUILD_FLAGS) $(TEST_HARNESS) $(test_assemblies)
+test-local-aot-compile: $(topdir)/build/deps/nunit-$(PROFILE).stamp
+	PATH="$(TEST_RUNTIME_WRAPPERS_PATH):$(PATH)" MONO_REGISTRY_PATH="$(HOME)/.mono/registry" MONO_TESTS_IN_PROGRESS="yes" $(TEST_RUNTIME) $(RUNTIME_FLAGS) $(AOT_BUILD_FLAGS) $(test_assemblies)
 
 else
-test-local-aot-compile:
+test-local-aot-compile: $(topdir)/build/deps/nunit-$(PROFILE).stamp
 
 endif # ALWAYS_AOT
 
@@ -148,15 +148,10 @@ $(test_lib): $(the_assembly) $(test_response) $(test_nunit_dep)
 
 test_response_preprocessed = $(test_response)_preprocessed
 
-ifdef HAVE_SOURCE_EXCLUDES
+# This handles .excludes/.sources pairs, as well as resolving the
+# includes that occur in .sources files
 $(test_response_preprocessed): $(test_sourcefile)
 	$(SHELL) $(topdir)/build/gensources.sh $@ '$(test_sourcefile)' '$(test_sourcefile_excludes)'
-
-else
-$(test_response_preprocessed): $(test_sourcefile)
-	cp $(test_sourcefile) $(test_response_preprocessed)
-
-endif # HAVE_SOURCE_EXCLUDES
 
 $(test_response): $(test_response_preprocessed)
 #	@echo Creating $@ ...
