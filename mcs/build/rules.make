@@ -145,6 +145,8 @@ ifndef AOT_BUILD_PREFIX
 AOT_BUILD_PREFIX = --aot=
 endif
 
+AOT_BUILD_FLAGS = $(AOT_BUILD_FLAGS_PREFIX)$(INVARIANT_AOT_OPTIONS)
+
 # end AOT config
 
 ifdef BCL_OPTIMIZE
@@ -204,6 +206,9 @@ COMPILE_ALL_PROFILE_ASSEMBLIES = $(LIST_ALL_PROFILE_ASSEMBLIES) | MONO_PATH="./"
 
 do-all-aot:
 	$(MAKE) do-all TOP_LEVEL_DO=do-all
+	$(MAKE) aot-all-profile
+
+aot-all-profile:
 	$(Q_AOT) cd $(topdir)/class/lib/$(PROFILE)/ && $(COMPILE_ALL_PROFILE_ASSEMBLIES) &> $(PROFILE)-aot.log
 endif
 
