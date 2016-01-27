@@ -11,10 +11,10 @@
 #include "seq-points.h"
 
 static void
-insert_pred_seq_point (MonoBasicBlock *in_bb, MonoInst *ins, GSList **next)
+insert_pred_seq_point (MonoInst *last_seq_ins, MonoInst *ins, GSList **next)
 {
 	GSList *l;
-	int src_index = in_bb->last_seq_point->backend.size;
+	int src_index = last_seq_ins->backend.size;
 	int dst_index = ins->backend.size;
 
 	/* bb->in_bb might contain duplicates */
@@ -26,32 +26,64 @@ insert_pred_seq_point (MonoBasicBlock *in_bb, MonoInst *ins, GSList **next)
 }
 
 static void
-collect_pred_seq_points (MonoBasicBlock *bb, MonoInst *ins, GSList **next, GHashTable *memoize)
+recursively_make_pred_seq_points (MonoCompile *cfg, MonoBasicBlock *bb)
 {
 	const gpointer MONO_SEQ_SEEN_LOOP = GINT_TO_POINTER(-1);
 
+	GArray *predecessors = g_array_new (FALSE, TRUE, sizeof (gpointer));
+
+	// Insert/remove sentinel into the memoize table to detect loops containing bb
+	bb->pred_seq_points = MONO_SEQ_SEEN_LOOP;
+
 	for (int i = 0; i < bb->in_count; ++i) {
 		MonoBasicBlock *in_bb = bb->in_bb [i];
-		gpointer result = g_hash_table_lookup (memoize, in_bb);
 
-		if (result == MONO_SEQ_SEEN_LOOP) {
-			// We've looped or handled this before, exit early.
-			// No last sequence points to find.
+		// We've looped or handled this before, exit early.
+		// No last sequence points to find.
+		if (in_bb->pred_seq_points == MONO_SEQ_SEEN_LOOP)
 			continue;
-		} else if (in_bb->last_seq_point) {
-			// if last seq point, insert into next
-			insert_pred_seq_point (in_bb, ins, next);
-		} else {
-			// Compute predecessors of in_bb
+		
+		// This bb has the last seq point, append it and continue
+		if (in_bb->last_seq_point != NULL) {
+			predecessors = g_array_append_val (predecessors, in_bb->last_seq_point);
+			continue;
+		}
 
-			// Insert/remove sentinel into the memoize table to detect loops containing in_bb
-			// This works to ensure that we only have a basic block on the stack once
-			// at any given time
-			g_hash_table_insert (memoize, in_bb, MONO_SEQ_SEEN_LOOP);
-			collect_pred_seq_points (in_bb, ins, next, memoize);
-			g_hash_table_remove (memoize, in_bb);
+		// Take sequence points from incoming basic blocks
+	
+		if (in_bb == cfg->bb_entry)
+			continue;
+
+		if (in_bb->pred_seq_points == NULL)
+			recursively_make_pred_seq_points (cfg, in_bb);
+
+		// Union sequence points with incoming bb's
+		predecessors = g_array_append_vals (predecessors, in_bb->pred_seq_points, in_bb->num_pred_seq_points);
+	}
+
+	if (predecessors->len != 0) {
+		bb->pred_seq_points = (MonoInst **)mono_mempool_alloc0 (cfg->mempool, sizeof (MonoInst *) * predecessors->len);
+		bb->num_pred_seq_points = predecessors->len;
+
+		for (int newer = 0; newer < bb->num_pred_seq_points; newer++) {
+			bb->pred_seq_points [newer] = g_array_index(predecessors, gpointer, newer);
 		}
 	}
+
+	g_free (predecessors);
+}
+
+static void
+collect_pred_seq_points (MonoCompile *cfg, MonoBasicBlock *bb, MonoInst *ins, GSList **next)
+{
+	// Doesn't have a last sequence point, must find from incoming basic blocks
+	if (bb->pred_seq_points == NULL && bb != cfg->bb_entry)
+		recursively_make_pred_seq_points (cfg, bb);
+
+	for (int i = 0; i < bb->num_pred_seq_points; i++)
+		insert_pred_seq_point (bb->pred_seq_points [i], ins, next);
+
+	return;
 }
 
 void
@@ -109,7 +141,7 @@ mono_save_seq_point_info (MonoCompile *cfg)
 					next [last->backend.size] = g_slist_append (next [last->backend.size], GUINT_TO_POINTER (ins->backend.size));
 				} else {
 					/* Link with the last bb in the previous bblocks */
-					collect_pred_seq_points (bb, ins, next, memoize);
+					collect_pred_seq_points (cfg, bb, ins, next);
 				}
 
 				last = ins;

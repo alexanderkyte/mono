@@ -2248,6 +2248,7 @@ mono_add_seq_point (MonoCompile *cfg, MonoBasicBlock *bb, MonoInst *ins, int nat
 	g_ptr_array_add (cfg->seq_points, ins);
 	if (bb) {
 		bb->seq_points = g_slist_prepend_mempool (cfg->mempool, bb->seq_points, ins);
+
 		bb->last_seq_point = ins;
 	}
 }
