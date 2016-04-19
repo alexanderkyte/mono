@@ -9,36 +9,55 @@
 
 G_BEGIN_DECLS
 
+#define LOCK_TRACER_STATIC
+#define LOCK_TRACER
+
 typedef enum {
-	InvalidLock = 0,
-	LoaderLock,
-	ImageDataLock,
-	DomainLock,
-	DomainAssembliesLock,
-	DomainJitCodeHashLock,
-	IcallLock,
-	AssemblyBindingLock,
-	MarshalLock,
-	ClassesLock,
-	LoaderGlobalDataLock,
-	ThreadsLock,
+
+#define MONO_LOCK_PROCESS(name) name ,
+
+#include "lock-tracer-locks.h"
+
+#undef MONO_LOCK_PROCESS
+
 } RuntimeLocks;
 
-#ifdef LOCK_TRACER
 
-void mono_locks_tracer_init (void);
+#if defined(LOCK_TRACER) && defined(LOCK_TRACER_STATIC)
 
-void mono_locks_lock_acquired (RuntimeLocks kind, gpointer lock);
-void mono_locks_lock_released (RuntimeLocks kind, gpointer lock);
+#define MONO_LOCK_PROCESS(name) \
+void mono_locks_lock_acquired_## name (RuntimeLocks kind, gpointer lock); \
+void mono_locks_lock_released_## name (RuntimeLocks kind, gpointer lock);
 
-#else
+#include "lock-tracer-locks.h"
+
+#undef MONO_LOCK_PROCESS
 
 #define mono_locks_tracer_init() do {} while (0)
 
-#define mono_locks_lock_acquired(__UNUSED0, __UNUSED1) do {} while (0)
-#define mono_locks_lock_released(__UNUSED0, __UNUSED1) do {} while (0)
+#define mono_locks_lock_acquired(kind, lock) do { \
+	mono_locks_lock_acquired_## kind (kind, lock); \
+} while (0)
 
-#endif
+#define mono_locks_lock_released(kind, lock) do { \
+	mono_locks_lock_released_## kind (kind, lock); \
+} while (0)
+
+#elif defined(LOCK_TRACER)
+
+// void mono_locks_tracer_init (void);
+// 
+// void mono_locks_lock_acquired (RuntimeLocks kind, gpointer lock);
+// void mono_locks_lock_released (RuntimeLocks kind, gpointer lock);
+
+#else
+
+// #define mono_locks_tracer_init() do {} while (0)
+// 
+// #define mono_locks_lock_acquired(__UNUSED0, __UNUSED1) do {} while (0)
+// #define mono_locks_lock_released(__UNUSED0, __UNUSED1) do {} while (0)
+
+#endif // LOCK_TRACER
 
 #define mono_locks_os_acquire(LOCK,NAME)	\
 	do {	\

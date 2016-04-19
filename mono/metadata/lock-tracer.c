@@ -67,10 +67,21 @@ typedef enum {
 	RECORD_LOCK_RELEASED
 } RecordType;
 
+#define MONO_LOCK_PROCESS(name) \
+void mono_locks_lock_acquired_## name ##(RuntimeLocks kind, gpointer lock) { \
+	MOSTLY_ASYNC_SAFE_PRINTF("Acquired name"); \
+} \
+void mono_locks_lock_released_## name ##(RuntimeLocks kind, gpointer lock) { \
+	MOSTLY_ASYNC_SAFE_PRINTF("Released name"); \
+}
+
+#include "lock-tracer-locks.h"
+
+#undef MONO_LOCK_PROCESS
+
 void
 mono_locks_tracer_init (void)
 {
-	Dl_info info;
 	int res;
 	char *name;
 	mono_os_mutex_init_recursive (&tracer_lock);
@@ -81,6 +92,7 @@ mono_locks_tracer_init (void)
 	g_free (name);
 
 #ifdef TARGET_OSX
+	Dl_info info;
 	res = dladdr ((void*)&mono_locks_tracer_init, &info);
 	/* The 0x1000 offset was found by empirically trying it. */
 	if (res)
