@@ -23,39 +23,47 @@ typedef enum {
 } RuntimeLocks;
 
 
+void mono_locks_tracer_init (void);
+
+void mono_locks_lock_acquired_func (RuntimeLocks kind, gpointer lock);
+
+void mono_locks_lock_released_func (RuntimeLocks kind, gpointer lock);
+
 #if defined(LOCK_TRACER) && defined(LOCK_TRACER_STATIC)
 
 #define MONO_LOCK_PROCESS(name) \
-void mono_locks_lock_acquired_## name (RuntimeLocks kind, gpointer lock); \
-void mono_locks_lock_released_## name (RuntimeLocks kind, gpointer lock);
+void mono_locks_lock_acquired_fun_## name (RuntimeLocks kind, gpointer lock);
 
 #include "lock-tracer-locks.h"
 
 #undef MONO_LOCK_PROCESS
 
-#define mono_locks_tracer_init() do {} while (0)
+#define MONO_LOCK_PROCESS(name) \
+void mono_locks_lock_released_fun_## name (RuntimeLocks kind, gpointer lock);
+
+#include "lock-tracer-locks.h"
+
+#undef MONO_LOCK_PROCESS
 
 #define mono_locks_lock_acquired(kind, lock) do { \
-	mono_locks_lock_acquired_## kind (kind, lock); \
+	mono_locks_lock_acquired_fun_## kind (kind, lock); \
+	g_assert_not_reached(); // As a debug, not showing up in CFG
 } while (0)
 
 #define mono_locks_lock_released(kind, lock) do { \
-	mono_locks_lock_released_## kind (kind, lock); \
+	mono_locks_lock_released_fun_## kind (kind, lock); \
+	g_assert_not_reached(); // As a debug
 } while (0)
 
 #elif defined(LOCK_TRACER)
 
-// void mono_locks_tracer_init (void);
-// 
-// void mono_locks_lock_acquired (RuntimeLocks kind, gpointer lock);
-// void mono_locks_lock_released (RuntimeLocks kind, gpointer lock);
+#define mono_locks_lock_acquired(kind,lock) mono_locks_lock_acquired_func(kind,lock)
+#define mono_locks_lock_released(kind,lock) mono_locks_lock_released_func(kind,lock)
 
 #else
 
-// #define mono_locks_tracer_init() do {} while (0)
-// 
-// #define mono_locks_lock_acquired(__UNUSED0, __UNUSED1) do {} while (0)
-// #define mono_locks_lock_released(__UNUSED0, __UNUSED1) do {} while (0)
+#define mono_locks_lock_acquired(__UNUSED0, __UNUSED1) do {} while (0)
+#define mono_locks_lock_released(__UNUSED0, __UNUSED1) do {} while (0)
 
 #endif // LOCK_TRACER
 

@@ -68,20 +68,34 @@ typedef enum {
 } RecordType;
 
 #define MONO_LOCK_PROCESS(name) \
-void mono_locks_lock_acquired_## name ##(RuntimeLocks kind, gpointer lock) { \
-	MOSTLY_ASYNC_SAFE_PRINTF("Acquired name"); \
-} \
-void mono_locks_lock_released_## name ##(RuntimeLocks kind, gpointer lock) { \
-	MOSTLY_ASYNC_SAFE_PRINTF("Released name"); \
+void mono_locks_lock_acquired_fun_## name (RuntimeLocks kind, gpointer lock) { \
+	return; \
 }
 
 #include "lock-tracer-locks.h"
 
 #undef MONO_LOCK_PROCESS
 
+
+
+#define MONO_LOCK_PROCESS(name) \
+void mono_locks_lock_released_fun_## name (RuntimeLocks kind, gpointer lock) { \
+	return; \
+}
+
+#include "lock-tracer-locks.h"
+
+#undef MONO_LOCK_PROCESS
+
+
+
 void
 mono_locks_tracer_init (void)
 {
+#ifdef LOCK_TRACER_STATIC
+	return;
+#endif
+
 	int res;
 	char *name;
 	mono_os_mutex_init_recursive (&tracer_lock);
@@ -143,13 +157,13 @@ add_record (RecordType record_kind, RuntimeLocks kind, gpointer lock)
 }
 
 void
-mono_locks_lock_acquired (RuntimeLocks kind, gpointer lock)
+mono_locks_lock_acquired_func (RuntimeLocks kind, gpointer lock)
 {
 	add_record (RECORD_LOCK_ACQUIRED, kind, lock);
 }
 
 void
-mono_locks_lock_released (RuntimeLocks kind, gpointer lock)
+mono_locks_lock_released_func (RuntimeLocks kind, gpointer lock)
 {
 	add_record (RECORD_LOCK_RELEASED, kind, lock);
 }
