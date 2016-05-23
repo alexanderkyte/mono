@@ -120,7 +120,13 @@ namespace MonoTests.EvaluatorTest
 			Evaluator.Run ("var a = new int[]{1,2,3};");
 
 			object res = Evaluator.Evaluate ("from x in a select x + 1;");
-			CollectionAssert.AreEqual (new int[] { 2, 3, 4 }, ((IEnumerable<int>) res).ToArray ());
+
+			var compared = ((IEnumerable<int>) res).ToArray ();
+			var expected = new int[] { 2, 3, 4 };
+			Assert.AreEqual (compared.Length, expected.Length);
+			Assert.AreEqual (compared[0], expected[0]);
+			Assert.AreEqual (compared[1], expected[1]);
+			Assert.AreEqual (compared[2], expected[2]);
 		}
 
 		[Test]
