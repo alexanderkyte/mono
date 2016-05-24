@@ -17,6 +17,7 @@
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/Api/TestStatus.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/Api/XmlNode.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/AssemblyInfo.cs
+../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/Assertion.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/Assert.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/AssertionHelper.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/Assume.cs
@@ -261,6 +262,7 @@
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/Runner/TcpWriter.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/Runner/TextUI.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/SpecialValue.cs
+../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/StringAssert.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/TestCaseData.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/TestContext.cs
 ../../../../external/nunit-lite/NUnitLite-1.0.0/src/framework/Throws.cs
