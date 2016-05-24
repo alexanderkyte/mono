@@ -24,6 +24,8 @@ if [ -x "/usr/bin/dpkg-architecture" ];
 	#force build arch = dpkg arch, sometimes misdetected
 fi
 
+if [[ ${PROFILE} == 'mobile_static' ]]; then EXTRA_CONF_FLAGS="${EXTRA_CONF_FLAGS} --enable-minimal=com,remoting,reflection_emit_save,reflection_emit,appdomains"; PROFILE="mobile_static"; fi
+
 ${TESTCMD} --label=configure --timeout=60m --fatal ./autogen.sh $EXTRA_CONF_FLAGS
 if [[ ${label} == w* ]];
     then
@@ -36,6 +38,7 @@ if [[ -n "${ghprbPullId}" ]] && [[ ${label} == w* ]];
     exit 0
     # we don't run the test suite on Windows PRs, we just ensure the build succeeds, so end here
 fi
+
 ${TESTCMD} --label=mini --timeout=5m make -w -C mono/mini -k check
 ${TESTCMD} --label=runtime --timeout=140m make -w -C mono/tests -k test-wrench V=1 CI=1
 ${TESTCMD} --label=corlib --timeout=30m make -w -C mcs/class/corlib run-test
