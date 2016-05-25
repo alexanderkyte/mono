@@ -1,24 +1,10 @@
 # -*- makefile -*-
 
-with_mono_path = MONO_PATH="$(topdir)/class/lib/$(PROFILE)$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH"
-with_mono_path_monolite = MONO_PATH="$(topdir)/class/lib/monolite$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH"
-
-monolite_flag := $(depsdir)/use-monolite
-use_monolite := $(wildcard $(monolite_flag))
-
-MONOLITE_MCS = $(topdir)/class/lib/monolite/basic.exe
-
-ifdef use_monolite
-PROFILE_RUNTIME = $(with_mono_path_monolite) $(RUNTIME)
-BOOTSTRAP_MCS = $(PROFILE_RUNTIME) $(RUNTIME_FLAGS) $(MONOLITE_MCS)
-else
-PROFILE_RUNTIME = $(EXTERNAL_RUNTIME)
-BOOTSTRAP_MCS = $(EXTERNAL_MCS)
-endif
+include $(topdir)/build/monolite_or_extern.make
 
 MCS = $(with_mono_path) $(INTERNAL_GMCS)
 
-PROFILE_MCS_FLAGS = -d:NET_4_0 -d:NET_4_5 -d:MONO -d:BOOTSTRAP_BASIC -nowarn:1699 -d:DISABLE_CAS_USE -lib:$(topdir)/class/lib/$(PROFILE)
+PROFILE_MCS_FLAGS = -d:NET_4_0 -d:NET_4_5 -d:MONO -d:BOOTSTRAP_BASIC -nowarn:1699 -d:DISABLE_CAS_USE -lib:$(mcs_topdir)/class/lib/$(PROFILE)
 NO_SIGN_ASSEMBLY = yes
 NO_TEST = yes
 NO_INSTALL = yes
