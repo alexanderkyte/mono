@@ -16,7 +16,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Xml;
 using System.Text.RegularExpressions;
+
+#if !MOBILE_STATIC
 using Mono.Unix.Native;
+#endif
 
 //
 // This is a simple test runner with support for parallel execution

@@ -62,6 +62,16 @@ STRESS_TESTS_SRC=	\
 	process-stress.cs	\
 	assembly-load-stress.cs
 
+MOBILE_STATIC_BLACKLIST= \
+	bug-47295.cs		\
+	thread6.cs		\
+	loader.cs       \
+	pinvoke2.cs		\
+	generic-type-builder.2.cs	\
+	assemblyresolve_event2.2.cs	\
+	dynamic-generic-size.cs \
+	cominterop.cs
+
 # Disabled until ?mcs is fixed
 #	bug-331958.cs
 BASE_TEST_CS_SRC=		\
@@ -111,7 +121,6 @@ BASE_TEST_CS_SRC=		\
 	typeof-ptr.cs		\
 	static-constructor.cs	\
 	pinvoke.cs		\
-	pinvoke2.cs		\
 	pinvoke3.cs		\
 	pinvoke11.cs		\
 	pinvoke13.cs		\
@@ -183,7 +192,6 @@ BASE_TEST_CS_SRC=		\
 	appdomain-client.cs	\
 	appdomain-unload.cs \
 	appdomain-async-invoke.cs	\
-	loader.cs       \
 	pointer.cs		\
 	hashcode.cs		\
 	delegate1.cs		\
@@ -227,7 +235,6 @@ BASE_TEST_CS_SRC=		\
 	test-byval-in-struct.cs	\
 	thread.cs		\
 	thread5.cs		\
-	thread6.cs		\
 	thread-static.cs	\
 	thread-static-init.cs	\
 	context-static.cs	\
@@ -250,7 +257,6 @@ BASE_TEST_CS_SRC=		\
 	threadpool-exceptions7.cs \
 	base-definition.cs	\
 	bug-27420.cs		\
-	bug-47295.cs		\
 	bug-46781.cs		\
 	bug-48015.cs		\
 	bug-42136.cs		\
@@ -281,7 +287,6 @@ BASE_TEST_CS_SRC=		\
 	main-returns.cs		\
 	subthread-exit.cs	\
 	desweak.cs		\
-	cominterop.cs		\
 	exists.cs		\
 	handleref.cs	\
 	transparentproxy.cs \
@@ -290,7 +295,6 @@ BASE_TEST_CS_SRC=		\
 	soft-float-tests.cs	\
 	thread-exit.cs		\
 	finalize-parent.cs	\
-	assemblyresolve_event2.2.cs	\
 	interlocked-2.2.cs	\
 	pinvoke-2.2.cs 		\
 	bug-78431.2.cs 		\
@@ -320,14 +324,12 @@ BASE_TEST_CS_SRC=		\
 	generic-virtual2.2.cs	\
 	generic-valuetype-interface.2.cs	\
 	generic-getgenericarguments.2.cs	\
-	generic-type-builder.2.cs	\
 	generic-synchronized.2.cs	\
 	generic-delegate-ctor.2.cs	\
 	generic-array-iface-set.2.cs	\
 	generic-typedef.2.cs	\
 	generic-marshalbyref.2.cs	\
 	generic-xdomain.2.cs	\
-	dynamic-generic-size.cs	\
 	bug-431413.2.cs	\
 	bug-459285.2.cs	\
 	generic-virtual-invoke.2.cs	\
@@ -745,7 +747,13 @@ endif
 endif
 
 # Target to precompile the test executables
+
+if ALWAYS_AOT
 tests: $(TESTSI_CS) $(TESTSI_IL) $(TESTBS) libtest.la $(PREREQSI_IL) $(PREREQSI_CS) $(GSHARED_TESTS)
+	$(RUNTIME) --aot=full *.exe *.il
+else
+tests: $(TESTSI_CS) $(TESTSI_IL) $(TESTBS) libtest.la $(PREREQSI_IL) $(PREREQSI_CS) $(GSHARED_TESTS)
+endif
 
 #
 # Test that no symbols are missed in eglib-remap.h
