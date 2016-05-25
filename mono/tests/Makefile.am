@@ -1,3 +1,6 @@
+
+include $(mcs_topdir)/build/profiles/$(DEFAULT_PROFILE).make
+
 SUBDIRS = assemblyresolve gc-descriptors
 
 check-local: assemblyresolve/test/asm.dll testjit test-generic-sharing test-type-load test-cattr-type-load test-reflection-load-with-context test_platform	\
@@ -36,9 +39,9 @@ MCS_NO_LIB = $(RUNTIME) $(mcs_topdir)/class/lib/build/mcs.exe -unsafe -debug \
 	-noconfig -nologo \
 	-nowarn:0162 -nowarn:0168 -nowarn:0219 -nowarn:0414 -nowarn:0618 \
 	-nowarn:0169 -nowarn:1690 -nowarn:0649 -nowarn:0612 -nowarn:3021 \
-	-nowarn:0197
+	-nowarn:0197 $(PROFILE_MCS_FLAGS)
 
-MCS = $(MCS_NO_LIB) -lib:$(CLASS)
+MCS_CMD = $(MCS_NO_LIB) -lib:$(CLASS)
 
 ILASM = $(RUNTIME) $(CLASS)/ilasm.exe
 
@@ -717,7 +720,7 @@ EXTRA_DIST=test-driver test-runner.cs $(TEST_CS_SRC_DIST) $(TEST_IL_SRC) \
 	$(ILASM) -out:$@ $<
 
 %.exe: %.cs TestDriver.dll
-	$(MCS) -r:System.dll -r:System.Xml.dll -r:System.Core.dll -r:TestDriver.dll -r:Mono.Posix.dll -out:$@ $<
+	$(MCS_CMD) -r:System.dll -r:System.Xml.dll -r:System.Core.dll -r:TestDriver.dll -out:$@ $<
 
 # mkbundle works on ppc, but the pkg-config POC doesn't when run with make test
 if POWERPC
@@ -790,7 +793,7 @@ assemblyresolve/test/asm.dll:
 	$(MAKE) -C assemblyresolve prereq
 
 TestDriver.dll:
-	$(MCS) -target:library -out:$@ $(srcdir)/../mini/TestDriver.cs
+	$(MCS_CMD) -target:library -out:$@ $(srcdir)/../mini/TestDriver.cs
 
 test_cs: $(TEST_PROG) $(TESTSI_CS) libtest.la
 	@failed=0; \
@@ -892,7 +895,7 @@ testjitspeed: $(JITTEST_PROG) $(TESTBS)
 	done
 
 test-iomap-regression: exists.cs
-	@$(MCS) $(srcdir)/exists.cs -out:exists.exe
+	@$(MCS_CMD) $(srcdir)/exists.cs -out:exists.exe
 	@echo "Testing exists.exe..."
 	@MONO_IOMAP=all $(RUNTIME) exists.exe
 
@@ -923,17 +926,17 @@ testbundle: console.exe
 EXTRA_DIST += load-missing.il t-missing.cs load-exceptions.cs
 test-type-load: TestDriver.dll
 	@$(ILASM) /dll /output:load-missing.dll $(srcdir)/load-missing.il > /dev/null
-	@$(MCS) -t:library -out:t.dll -d:FOUND $(srcdir)/t-missing.cs
-	@$(MCS) -r:TestDriver.dll -r:load-missing.dll -r:t.dll -out:load-exceptions.exe $(srcdir)/load-exceptions.cs
-	@$(MCS) -t:library -out:t.dll $(srcdir)/t-missing.cs
+	@$(MCS_CMD) -t:library -out:t.dll -d:FOUND $(srcdir)/t-missing.cs
+	@$(MCS_CMD) -r:TestDriver.dll -r:load-missing.dll -r:t.dll -out:load-exceptions.exe $(srcdir)/load-exceptions.cs
+	@$(MCS_CMD) -t:library -out:t.dll $(srcdir)/t-missing.cs
 	@echo "Testing load-exception.exe..."
 	@$(RUNTIME) load-exceptions.exe > load-exceptions.exe.stdout 2> load-exceptions.exe.stderr
 
 EXTRA_DIST += custom-attr-errors.cs custom-attr-errors-lib.cs
 test-cattr-type-load: TestDriver.dll custom-attr-errors.cs custom-attr-errors-lib.cs
-	$(MCS) -D:WITH_MEMBERS /t:library $(srcdir)/custom-attr-errors-lib.cs
-	$(MCS) -r:TestDriver.dll -r:custom-attr-errors-lib.dll  $(srcdir)/custom-attr-errors.cs
-	$(MCS) /t:library $(srcdir)/custom-attr-errors-lib.cs
+	$(MCS_CMD) -D:WITH_MEMBERS /t:library $(srcdir)/custom-attr-errors-lib.cs
+	$(MCS_CMD) -r:TestDriver.dll -r:custom-attr-errors-lib.dll  $(srcdir)/custom-attr-errors.cs
+	$(MCS_CMD) /t:library $(srcdir)/custom-attr-errors-lib.cs
 	@echo "Testing custom-attribute-load-exceptions.exe..."
 	@$(RUNTIME) custom-attr-errors.exe > custom-attr-errors.exe.stdout 2> custom-attr-errors.exe.stderr
 
@@ -941,8 +944,8 @@ EXTRA_DIST += reflection-load-with-context-lib.cs reflection-load-with-context-s
 test-reflection-load-with-context: reflection-load-with-context-lib.cs reflection-load-with-context-second-lib.cs reflection-load-with-context.exe
 	rm -rf reflection-load-dir
 	mkdir reflection-load-dir
-	$(MCS) /t:library $(srcdir)/reflection-load-with-context-second-lib.cs -out:reflection-load-dir/reflection-load-with-context-second-lib.dll
-	$(MCS) /t:library -r:reflection-load-dir/reflection-load-with-context-second-lib.dll $(srcdir)/reflection-load-with-context-lib.cs -out:reflection-load-dir/reflection-load-with-context-lib.dll
+	$(MCS_CMD) /t:library $(srcdir)/reflection-load-with-context-second-lib.cs -out:reflection-load-dir/reflection-load-with-context-second-lib.dll
+	$(MCS_CMD) /t:library -r:reflection-load-dir/reflection-load-with-context-second-lib.dll $(srcdir)/reflection-load-with-context-lib.cs -out:reflection-load-dir/reflection-load-with-context-lib.dll
 	@echo "Testing reflection-load-with-context.cs.exe..."
 	@$(RUNTIME) reflection-load-with-context.exe > reflection-load-with-context.exe.stdout 2> reflection-load-with-context.exe.stderr
 
@@ -950,7 +953,7 @@ test-reflection-load-with-context: reflection-load-with-context-lib.cs reflectio
 EXTRA_DIST += debug-casts.cs
 # This depends on TLS, so its not ran by default
 debug-casts:
-	@$(MCS) -r:TestDriver.dll $(srcdir)/debug-casts.cs
+	@$(MCS_CMD) -r:TestDriver.dll $(srcdir)/debug-casts.cs
 	@$(RUNTIME) --debug=casts debug-casts.exe
 
 EXTRA_DIST += sgen-bridge.cs sgen-descriptors.cs sgen-gshared-vtype.cs sgen-bridge-major-fragmentation.cs sgen-domain-unload.cs sgen-weakref-stress.cs sgen-cementing-stress.cs sgen-case-23400.cs 	finalizer-wait.cs critical-finalizers.cs sgen-domain-unload-2.cs sgen-suspend.cs sgen-new-threads-dont-join-stw.cs sgen-new-threads-dont-join-stw-2.cs sgen-bridge-xref.cs bug-17590.cs sgen-toggleref.cs sgen-bridge-gchandle.cs
@@ -1172,18 +1175,18 @@ test-aot:
 EXTRA_DIST += gen-runtime-invoke.cs
 runtime-invoke.gen.exe: TestDriver.dll gen-runtime-invoke.exe
 	$(RUNTIME) gen-runtime-invoke.exe > runtime-invoke.gen.cs
-	$(MCS) -out:runtime-invoke.gen.exe -r:TestDriver.dll runtime-invoke.gen.cs
+	$(MCS_CMD) -out:runtime-invoke.gen.exe -r:TestDriver.dll runtime-invoke.gen.cs
 
 EXTRA_DIST += make-imt-test.cs
 imt_big_iface_test.exe: TestDriver.dll make-imt-test.exe
 	$(RUNTIME) make-imt-test.exe > imt_big_iface_test.cs
-	$(MCS) -out:imt_big_iface_test.exe -r:TestDriver.dll imt_big_iface_test.cs
+	$(MCS_CMD) -out:imt_big_iface_test.exe -r:TestDriver.dll imt_big_iface_test.cs
 
 EXTRA_DIST += test-inline-call-stack-library.cs test-inline-call-stack.cs
 test-inline-call-stack-library.dll: TestDriver.dll $(srcdir)/test-inline-call-stack-library.cs
-	$(MCS) -t:library -out:test-inline-call-stack-library.dll $(srcdir)/test-inline-call-stack-library.cs
+	$(MCS_CMD) -t:library -out:test-inline-call-stack-library.dll $(srcdir)/test-inline-call-stack-library.cs
 test-inline-call-stack.exe: TestDriver.dll test-inline-call-stack-library.dll $(srcdir)/test-inline-call-stack.cs
-	$(MCS) -r:TestDriver.dll -r:test-inline-call-stack-library.dll -out:test-inline-call-stack.exe $(srcdir)/test-inline-call-stack.cs
+	$(MCS_CMD) -r:TestDriver.dll -r:test-inline-call-stack-library.dll -out:test-inline-call-stack.exe $(srcdir)/test-inline-call-stack.cs
 
 EXTRA_DIST += unhandled-exception-base-configuration.config
 EXTRA_DIST += unhandled-exception-legacy-configuration.config
@@ -1202,41 +1205,41 @@ unhandled-exception-config_files: unhandled-exception-base-configuration.config 
 	cp unhandled-exception-legacy-configuration.config unhandled-exception-test-case-legacy.1.exe.config
 	cp unhandled-exception-legacy-configuration.config unhandled-exception-test-case-legacy.2.exe.config
 unhandled-exception-test-case.1.exe: unhandled-exception-test-case.1.cs
-	$(MCS) /debug unhandled-exception-test-case.1.cs
+	$(MCS_CMD) /debug unhandled-exception-test-case.1.cs
 unhandled-exception-test-case-legacy.1.exe: unhandled-exception-test-case-legacy.1.cs
-	$(MCS) /debug unhandled-exception-test-case-legacy.1.cs
+	$(MCS_CMD) /debug unhandled-exception-test-case-legacy.1.cs
 unhandled-exception-test-case.2.exe: unhandled-exception-test-case.2.cs
-	$(MCS) /debug unhandled-exception-test-case.2.cs
+	$(MCS_CMD) /debug unhandled-exception-test-case.2.cs
 unhandled-exception-test-case-legacy.2.exe: unhandled-exception-test-case-legacy.2.cs
-	$(MCS) /debug unhandled-exception-test-case-legacy.2.cs
+	$(MCS_CMD) /debug unhandled-exception-test-case-legacy.2.cs
 unhandled-exception-test-runner.2.exe: unhandled-exception-test-runner.2.cs
-	$(MCS) /debug unhandled-exception-test-runner.2.cs
+	$(MCS_CMD) /debug unhandled-exception-test-runner.2.cs
 
 test-unhandled-exception: unhandled-exception-test-runner.2.exe unhandled-exception-config_files unhandled-exception-test-case.1.exe unhandled-exception-test-case-legacy.1.exe  unhandled-exception-test-case.2.exe unhandled-exception-test-case-legacy.2.exe
 	$(RUNTIME) unhandled-exception-test-runner.2.exe RUNTIME:../mini/mono,GTC:F
 
 # We use 'test-support-files' to handle an ordering issue between the 'mono/' and 'runtime/' directories
 bug-80307.exe: $(srcdir)/bug-80307.cs
-	$(MCS) -r:System.Web.dll -out:$@ $(srcdir)/bug-80307.cs
+	$(MCS_CMD) -r:System.Web.dll -out:$@ $(srcdir)/bug-80307.cs
 	cd $(top_builddir)/runtime && $(MAKE) test-support-files
 
 EXTRA_DIST += bug-81673-interface.cs
 bug-81673.exe bug-81673-interface.dll: $(srcdir)/bug-81673.cs $(srcdir)/bug-81673-interface.cs
-	$(MCS) -target:library -out:bug-81673-interface.dll $(srcdir)/bug-81673-interface.cs
-	$(MCS) -out:bug-81673.exe -r:bug-81673-interface.dll $(srcdir)/bug-81673.cs
-	$(MCS) -define:WITH_STOP -target:library -out:bug-81673-interface.dll $(srcdir)/bug-81673-interface.cs
+	$(MCS_CMD) -target:library -out:bug-81673-interface.dll $(srcdir)/bug-81673-interface.cs
+	$(MCS_CMD) -out:bug-81673.exe -r:bug-81673-interface.dll $(srcdir)/bug-81673.cs
+	$(MCS_CMD) -define:WITH_STOP -target:library -out:bug-81673-interface.dll $(srcdir)/bug-81673-interface.cs
 
 EXTRA_DIST += bug-36848-a.cs
 bug-36848.exe bug-36848-a.dll: $(srcdir)/bug-36848.cs $(srcdir)/bug-36848-a.cs
-	$(MCS) -target:library -out:bug-36848-a.dll $(srcdir)/bug-36848-a.cs
-	$(MCS) -r:bug-36848-a.dll -out:bug-36848.exe $(srcdir)/bug-36848.cs
-	$(MCS) -target:library -out:bug-36848-a.dll $(srcdir)/bug-36848-a.cs /define:WITH_STOP
+	$(MCS_CMD) -target:library -out:bug-36848-a.dll $(srcdir)/bug-36848-a.cs
+	$(MCS_CMD) -r:bug-36848-a.dll -out:bug-36848.exe $(srcdir)/bug-36848.cs
+	$(MCS_CMD) -target:library -out:bug-36848-a.dll $(srcdir)/bug-36848-a.cs /define:WITH_STOP
 
 EXTRA_DIST += bug-81691-a.cs bug-81691-b.cs
 bug-81691.exe bug-81691-b.dll: $(srcdir)/bug-81691.cs $(srcdir)/bug-81691-a.cs $(srcdir)/bug-81691-b.cs
-	$(MCS) -target:library -out:bug-81691-a.dll $(srcdir)/bug-81691-a.cs
-	$(MCS) -target:library -out:bug-81691-b.dll -r:bug-81691-a.dll $(srcdir)/bug-81691-b.cs
-	$(MCS) -r:bug-81691-b.dll -out:bug-81691.exe $(srcdir)/bug-81691.cs
+	$(MCS_CMD) -target:library -out:bug-81691-a.dll $(srcdir)/bug-81691-a.cs
+	$(MCS_CMD) -target:library -out:bug-81691-b.dll -r:bug-81691-a.dll $(srcdir)/bug-81691-b.cs
+	$(MCS_CMD) -r:bug-81691-b.dll -out:bug-81691.exe $(srcdir)/bug-81691.cs
 	rm -f bug-81691-a.dll
 bug-81691.exe: bug-81691-b.dll
 
@@ -1250,27 +1253,27 @@ EXTRA_DIST += bug-324535-il.il
 bug-324535-il.dll : bug-324535-il.il
 	$(ILASM) /dll /output:bug-324535-il.dll $(srcdir)/bug-324535-il.il
 bug-324535.exe : bug-324535.cs bug-324535-il.dll
-	$(MCS) -r:bug-324535-il.dll -out:bug-324535.exe $(srcdir)/bug-324535.cs
+	$(MCS_CMD) -r:bug-324535-il.dll -out:bug-324535.exe $(srcdir)/bug-324535.cs
 
 EXTRA_DIST += custom-modifiers.2.cs custom-modifiers-lib.il
 custom-modifiers-lib.dll: custom-modifiers-lib.il
 	$(ILASM) /dll /output:custom-modifiers-lib.dll $(srcdir)/custom-modifiers-lib.il
 custom-modifiers.2.exe: custom-modifiers.2.cs custom-modifiers-lib.dll
-	$(MCS) -r:custom-modifiers-lib.dll -out:custom-modifiers.2.exe $(srcdir)/custom-modifiers.2.cs
+	$(MCS_CMD) -r:custom-modifiers-lib.dll -out:custom-modifiers.2.exe $(srcdir)/custom-modifiers.2.cs
 
 EXTRA_DIST += bug-382986-lib.cs
 bug-382986-lib.dll: bug-382986-lib.cs
-	$(MCS) -target:library -out:$@ $(srcdir)/bug-382986-lib.cs
+	$(MCS_CMD) -target:library -out:$@ $(srcdir)/bug-382986-lib.cs
 bug-382986.exe: bug-382986.cs bug-382986-lib.dll
-	$(MCS) -out:$@ -r:bug-382986-lib.dll $(srcdir)/bug-382986.cs
+	$(MCS_CMD) -out:$@ -r:bug-382986-lib.dll $(srcdir)/bug-382986.cs
 
 EXTRA_DIST += bug-17537-helper.cs
 bug-17537-helper.exe: bug-17537-helper.cs
-	$(MCS) -out:$@ $(srcdir)/bug-17537-helper.cs
+	$(MCS_CMD) -out:$@ $(srcdir)/bug-17537-helper.cs
 	chmod -x $@
 
 bug-17537.exe: bug-17537.cs bug-17537-helper.exe
-	$(MCS) -r:System.dll -out:$@ $(srcdir)/bug-17537.cs
+	$(MCS_CMD) -r:System.dll -out:$@ $(srcdir)/bug-17537.cs
 
 EXTRA_DIST += coreclr-security.cs
 
@@ -1291,17 +1294,17 @@ generic-boxing.2.dll : generic-boxing.2.il generic-unboxing.2.dll
 
 EXTRA_DIST += generic-unbox.2.cs
 generic-unbox.2.exe : generic-unbox.2.cs generic-unboxing.2.dll
-	$(MCS) -r:generic-unboxing.2.dll -out:$@ $(srcdir)/generic-unbox.2.cs
+	$(MCS_CMD) -r:generic-unboxing.2.dll -out:$@ $(srcdir)/generic-unbox.2.cs
 
 EXTRA_DIST += generic-box.2.cs
 generic-box.2.exe : generic-box.2.cs generic-unboxing.2.dll generic-boxing.2.dll
-	$(MCS) -r:generic-unboxing.2.dll,generic-boxing.2.dll -out:$@ $(srcdir)/generic-box.2.cs
+	$(MCS_CMD) -r:generic-unboxing.2.dll,generic-boxing.2.dll -out:$@ $(srcdir)/generic-box.2.cs
 
 EXTRA_DIST += generic-delegate2.2.cs generic-delegate2-lib.2.il
 generic-delegate2-lib.2.dll : generic-delegate2-lib.2.il
 	$(ILASM) /dll /output:$@ $(srcdir)/generic-delegate2-lib.2.il
 generic-delegate2.2.exe : generic-delegate2.2.cs generic-delegate2-lib.2.dll
-	$(MCS) -r:generic-delegate2-lib.2.dll -out:$@ $(srcdir)/generic-delegate2.2.cs
+	$(MCS_CMD) -r:generic-delegate2-lib.2.dll -out:$@ $(srcdir)/generic-delegate2.2.cs
 
 bug-3903.exe: bug-3903.cs
 	$(MCS_NO_LIB) -lib:$(srcdir)/../../external/binary-reference-assemblies/v2.0/ $(srcdir)/bug-3903.cs -r:System.Core.dll -out:$@
@@ -1361,16 +1364,16 @@ endif
 
 EXTRA_DIST += async-exceptions.cs
 async-exceptions.exe : async-exceptions.cs
-	$(MCS) -out:async-exceptions.exe $(srcdir)/async-exceptions.cs
+	$(MCS_CMD) -out:async-exceptions.exe $(srcdir)/async-exceptions.cs
 test-async-exceptions : async-exceptions.exe
 	for i in `echo 0 1 2 3 4 5 6 7 8 9 10`; do $(RUNTIME) --inject-async-exc Tests:foo $$i async-exceptions.exe || exit 1; done
 	for i in `echo 0 1 2 3 4 5 6 7 8 9 10`; do $(RUNTIME) --inject-async-exc Tests:bar $$i async-exceptions.exe || exit 1; done
 
 EXTRA_DIST += modules.cs modules-m1.cs
 modules-m1.netmodule: modules-m1.cs
-	$(MCS) -out:$@ /target:module $(srcdir)/modules-m1.cs
+	$(MCS_CMD) -out:$@ /target:module $(srcdir)/modules-m1.cs
 modules.exe: modules.cs modules-m1.netmodule TestDriver.dll
-	$(MCS) -out:$@ /addmodule:modules-m1.netmodule -r:TestDriver.dll $(srcdir)/modules.cs
+	$(MCS_CMD) -out:$@ /addmodule:modules-m1.netmodule -r:TestDriver.dll $(srcdir)/modules.cs
 
 # Useful if mono is compiled with --enable-shared=no
 patch-libtool:
@@ -1385,7 +1388,7 @@ test-process-exit:
 else
 EXTRA_DIST += threadpool-in-processexit.cs threadpool-in-processexit.exe.stdout.expected
 test-process-exit:
-	@$(MCS) $(srcdir)/threadpool-in-processexit.cs -out:threadpool-in-processexit.exe
+	@$(MCS_CMD) $(srcdir)/threadpool-in-processexit.cs -out:threadpool-in-processexit.exe
 	@echo "Testing threadpool-in-processexit.exe..."
 	@$(RUNTIME) threadpool-in-processexit.exe > threadpool-in-processexit.exe.stdout
 	@diff -w threadpool-in-processexit.exe.stdout $(srcdir)/threadpool-in-processexit.exe.stdout.expected
