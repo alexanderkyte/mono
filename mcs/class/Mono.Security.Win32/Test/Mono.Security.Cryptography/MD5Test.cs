@@ -33,9 +33,9 @@ public class MD5Test {
 		if ((array1 == null) && (array2 == null))
 			return;
 		if (array1 == null)
-			Assertion.Fail (msg + " -> First array is NULL");
+			Assert.Fail (msg + " -> First array is NULL");
 		if (array2 == null)
-			Assertion.Fail (msg + " -> Second array is NULL");
+			Assert.Fail (msg + " -> Second array is NULL");
 
 		bool a = (array1.Length == array2.Length);
 		if (a) {
@@ -50,7 +50,7 @@ public class MD5Test {
 			msg += " -> Expected " + BitConverter.ToString (array1, 0);
 			msg += " is different than " + BitConverter.ToString (array2, 0);
 		}
-		Assertion.Assert (msg, a);
+		Assert.True (a, msg);
 	}
 
 	// MD5 ("") = d41d8cd98f00b204e9800998ecf8427e
