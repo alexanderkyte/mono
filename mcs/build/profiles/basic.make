@@ -1,12 +1,12 @@
 # -*- makefile -*-
 
-with_mono_path = MONO_PATH="$(mcs_topdir)/class/lib/$(PROFILE)$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH"
-with_mono_path_monolite = MONO_PATH="$(mcs_topdir)/class/lib/monolite$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH"
+with_mono_path = MONO_PATH="$(topdir)/class/lib/$(PROFILE)$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH"
+with_mono_path_monolite = MONO_PATH="$(topdir)/class/lib/monolite$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH"
 
 monolite_flag := $(depsdir)/use-monolite
 use_monolite := $(wildcard $(monolite_flag))
 
-MONOLITE_MCS = $(mcs_topdir)/class/lib/monolite/basic.exe
+MONOLITE_MCS = $(topdir)/class/lib/monolite/basic.exe
 
 ifdef use_monolite
 PROFILE_RUNTIME = $(with_mono_path_monolite) $(RUNTIME)
@@ -18,7 +18,7 @@ endif
 
 MCS = $(with_mono_path) $(INTERNAL_GMCS)
 
-PROFILE_MCS_FLAGS = -d:NET_4_0 -d:NET_4_5 -d:MONO -d:BOOTSTRAP_BASIC -nowarn:1699 -d:DISABLE_CAS_USE -lib:$(mcs_topdir)/class/lib/$(PROFILE)
+PROFILE_MCS_FLAGS = -d:NET_4_0 -d:NET_4_5 -d:MONO -d:BOOTSTRAP_BASIC -nowarn:1699 -d:DISABLE_CAS_USE -lib:$(topdir)/class/lib/$(PROFILE)
 NO_SIGN_ASSEMBLY = yes
 NO_TEST = yes
 NO_INSTALL = yes
@@ -89,7 +89,7 @@ do-profile-check-monolite: $(depsdir)/.stamp
 
 endif
 
-$(PROFILE_EXE): $(mcs_topdir)/build/common/basic-profile-check.cs
+$(PROFILE_EXE): $(topdir)/build/common/basic-profile-check.cs
 	$(BOOTSTRAP_MCS) /warn:0 /out:$@ $<
 	echo -n "Bootstrap compiler: " 1>&2
 	$(BOOTSTRAP_MCS) --version 1>&2

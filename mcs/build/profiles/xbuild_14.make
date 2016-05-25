@@ -1,6 +1,6 @@
 # -*- makefile -*-
 
-include $(mcs_topdir)/build/profiles/xbuild_12.make
+include $(topdir)/build/profiles/xbuild_12.make
 
 PROFILE_MCS_FLAGS := $(PROFILE_MCS_FLAGS) -d:XBUILD_14
 
