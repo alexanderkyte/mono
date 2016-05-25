@@ -2,8 +2,8 @@
 
 BOOTSTRAP_PROFILE = build
 
-BOOTSTRAP_MCS = MONO_PATH="$(topdir)/class/lib/$(BOOTSTRAP_PROFILE)$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH" $(INTERNAL_GMCS)
-MCS = MONO_PATH="$(topdir)/class/lib/$(BOOTSTRAP_PROFILE)$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH" $(INTERNAL_GMCS)
+BOOTSTRAP_MCS = MONO_PATH="$(mcs_topdir)/class/lib/$(BOOTSTRAP_PROFILE)$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH" $(INTERNAL_GMCS)
+MCS = MONO_PATH="$(mcs_topdir)/class/lib/$(BOOTSTRAP_PROFILE)$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH" $(INTERNAL_GMCS)
 
 # Use system resgen as we don't want local System.Windows.Forms dependency
 RESGEN := $(dir $(shell which $(EXTERNAL_MCS)))resgen2
@@ -13,7 +13,7 @@ RESGEN := $(dir $(shell which $(EXTERNAL_MCS)))resgen2
 profile-check:
 	@:
 
-DEFAULT_REFERENCES = -r:$(topdir)/class/lib/$(PROFILE)/mscorlib.dll
+DEFAULT_REFERENCES = -r:$(mcs_topdir)/class/lib/$(PROFILE)/mscorlib.dll
 PROFILE_MCS_FLAGS = \
 	-d:NET_1_1 \
 	-d:NET_2_0 \

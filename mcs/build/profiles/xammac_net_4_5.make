@@ -1,4 +1,4 @@
-include $(topdir)/build/profiles/net_4_x.make
+include $(mcs_topdir)/build/profiles/net_4_x.make
 PROFILE_MCS_FLAGS += \
 	-d:FEATURE_INTERCEPTABLE_THREADPOOL_CALLBACK \
 	-d:NO_SYSTEM_DRAWING_DEPENDENCY \

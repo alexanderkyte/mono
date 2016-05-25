@@ -1,11 +1,11 @@
 # -*- makefile -*-
 
-include $(topdir)/build/profiles/net_4_x.make
+include $(mcs_topdir)/build/profiles/net_4_x.make
 
 PARENT_PROFILE = ../net_4_x/
-DEFAULT_REFERENCES = -r:$(topdir)/class/lib/net_4_x/mscorlib.dll
+DEFAULT_REFERENCES = -r:$(mcs_topdir)/class/lib/net_4_x/mscorlib.dll
 PROFILE_MCS_FLAGS := $(PROFILE_MCS_FLAGS) -d:XBUILD_12
 
-RESGEN_EXE = $(topdir)/class/lib/net_4_x/resgen.exe
+RESGEN_EXE = $(mcs_topdir)/class/lib/net_4_x/resgen.exe
 
 XBUILD_VERSION = 12.0

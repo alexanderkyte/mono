@@ -1,4 +1,4 @@
-include $(topdir)/build/profiles/monotouch.make
+include $(mcs_topdir)/build/profiles/monotouch.make
 
 PROFILE_MCS_FLAGS += \
 	-d:MONOTOUCH_TV
