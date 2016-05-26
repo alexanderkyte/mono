@@ -57,3 +57,11 @@ endif
 
 ALWAYS_AOT = yes
 
+INVARIANT_AOT_OPTIONS=nimt-trampolines=900,ntrampolines=8000,nrgctx-fetch-trampolines=256
+
+ifndef MONO_DISABLE_GSHAREDVT
+INVARIANT_AOT_OPTIONS:=$(INVARIANT_AOT_OPTIONS),ngsharedvt-trampolines=2800
+endif
+
+AOT_BUILD_FLAGS = $(AOT_BUILD_FLAGS_PREFIX)$(INVARIANT_AOT_OPTIONS)
+
