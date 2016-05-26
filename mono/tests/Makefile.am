@@ -3,6 +3,8 @@
 # they use topdir, not mcs_topdir
 topdir = $(mcs_topdir)
 
+include $(mcs_topdir)/build/config.make
+include $(mcs_topdir)/build/platforms/$(PLATFORM).make
 include $(mcs_topdir)/build/profiles/$(DEFAULT_PROFILE).make
 
 SUBDIRS = assemblyresolve gc-descriptors

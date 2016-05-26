@@ -53,6 +53,7 @@ public class TestRunner
 		string disabled_tests = null;
 		string runtime = "mono";
 		var opt_sets = new List<string> ();
+		string aot_flag = "";
 
 		// Process options
 		int i = 0;
@@ -117,6 +118,13 @@ public class TestRunner
 						return 1;
 					}
 					inputFile = args [i + 1];
+					i += 2;
+				} else if (args [i] == "--aot-flag") {
+					if (i + 1 >= args.Length) {
+						Console.WriteLine ("Missing argument to --aot-flag command line option.");
+						return 1;
+					}
+					aot_flag = args [i + 1];
 					i += 2;
 				} else {
 					Console.WriteLine ("Unknown command line option: '" + args [i] + "'.");
@@ -203,7 +211,7 @@ public class TestRunner
 					if (opt_set == null)
 						process_args = test;
 					else
-						process_args = "-O=" + opt_set + " " + test;
+						process_args = "-O=" + opt_set + " " + aot_flag + " " + test;
 					ProcessStartInfo info = new ProcessStartInfo (runtime, process_args);
 					info.UseShellExecute = false;
 					info.RedirectStandardOutput = true;
