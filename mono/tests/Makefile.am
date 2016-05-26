@@ -1,4 +1,8 @@
 
+# This allows us to include makefiles from mcs/
+# they use topdir, not mcs_topdir
+topdir = $(mcs_topdir)
+
 include $(mcs_topdir)/build/profiles/$(DEFAULT_PROFILE).make
 
 SUBDIRS = assemblyresolve gc-descriptors
@@ -747,13 +751,7 @@ endif
 endif
 
 # Target to precompile the test executables
-
-if ALWAYS_AOT
 tests: $(TESTSI_CS) $(TESTSI_IL) $(TESTBS) libtest.la $(PREREQSI_IL) $(PREREQSI_CS) $(GSHARED_TESTS)
-	$(RUNTIME) --aot=full *.exe *.il
-else
-tests: $(TESTSI_CS) $(TESTSI_IL) $(TESTBS) libtest.la $(PREREQSI_IL) $(PREREQSI_CS) $(GSHARED_TESTS)
-endif
 
 #
 # Test that no symbols are missed in eglib-remap.h
