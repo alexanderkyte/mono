@@ -56,8 +56,6 @@ MCS_NO_LIB = $(TEST_RUNTIME) $(mcs_topdir)/class/lib/build/mcs.exe -unsafe -debu
 MCS_CMD = $(MCS_NO_LIB) -lib:$(CLASS)
 
 if INSTALL_MOBILE_STATIC
-include $(mcs_topdir)/build/config.make
-include $(mcs_topdir)/build/platforms/$(PLATFORM).make
 include $(mcs_topdir)/build/monolite_or_extern.make
 
 ILASM = $(with_mono_path) $(PROFILE_RUNTIME) $(CLASS)/ilasm.exe
