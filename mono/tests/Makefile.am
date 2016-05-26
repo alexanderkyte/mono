@@ -1,3 +1,10 @@
+
+# This allows us to include makefiles from mcs/
+# they use topdir, not mcs_topdir
+topdir = $(mcs_topdir)
+
+include $(mcs_topdir)/build/profiles/$(DEFAULT_PROFILE).make
+
 SUBDIRS = assemblyresolve gc-descriptors
 
 check-local: assemblyresolve/test/asm.dll testjit test-generic-sharing test-type-load test-cattr-type-load test-reflection-load-with-context test_platform	\
@@ -36,7 +43,7 @@ MCS_NO_LIB = $(RUNTIME) $(mcs_topdir)/class/lib/build/mcs.exe -unsafe -debug \
 	-noconfig -nologo \
 	-nowarn:0162 -nowarn:0168 -nowarn:0219 -nowarn:0414 -nowarn:0618 \
 	-nowarn:0169 -nowarn:1690 -nowarn:0649 -nowarn:0612 -nowarn:3021 \
-	-nowarn:0197
+	-nowarn:0197 $(PROFILE_MCS_FLAGS)
 
 MCS = $(MCS_NO_LIB) -lib:$(CLASS)
 
