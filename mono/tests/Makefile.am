@@ -105,6 +105,7 @@ BAS_TEST_MOBILE_STATIC_BLACKLIST= \
 	bug-575941.cs	\
 	bug-389886-3.cs	\
 	dynamic-method-resurrection.cs	\
+	bug-80307.cs	\
 	assembly_append_ordering.cs
 
 
@@ -411,7 +412,6 @@ BASE_TEST_CS_SRC_UNIVERSAL=		\
 	bug-81673.cs	\
 	bug-36848.cs    \
 	bug-81691.cs	\
-	bug-80307.cs	\
 	bug-415577.cs	\
 	filter-stack.cs	\
 	vararg2.cs	\
