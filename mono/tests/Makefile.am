@@ -7,8 +7,14 @@ include $(mcs_topdir)/build/profiles/$(DEFAULT_PROFILE).make
 
 SUBDIRS = assemblyresolve gc-descriptors
 
+if INSTALL_MOBILE_STATIC
+FEATUREFUL_RUNTIME_TEST =  
+else
+FEATUREFUL_RUNTIME_TEST = test-appdomain-unload
+endif
+
 check-local: assemblyresolve/test/asm.dll testjit test-generic-sharing test-type-load test-cattr-type-load test-reflection-load-with-context test_platform	\
-		 test-console-output test-messages test-env-options test-unhandled-exception-2 test-appdomain-unload test-process-stress rm-empty-logs
+		 test-console-output test-messages test-env-options test-unhandled-exception-2 $(FEATUREFUL_RUNTIME_TEST) test-process-stress rm-empty-logs
 check-full: test-sgen check-local
 check-parallel: compile-tests check-full
 
@@ -66,19 +72,46 @@ STRESS_TESTS_SRC=	\
 	process-stress.cs	\
 	assembly-load-stress.cs
 
-MOBILE_STATIC_BLACKLIST= \
+BAS_TEST_MOBILE_STATIC_BLACKLIST= \
 	bug-47295.cs		\
 	thread6.cs		\
 	loader.cs       \
 	pinvoke2.cs		\
 	generic-type-builder.2.cs	\
 	assemblyresolve_event2.2.cs	\
-	dynamic-generic-size.cs \
-	cominterop.cs
+	dynamic-generic-size.cs	\
+	cominterop.cs	\
+	dynamic-method-access.2.cs	\
+	dynamic-method-finalize.2.cs	\
+	dynamic-method-stack-traces.cs	\
+	generic_type_definition.2.cs	\
+	bug-333798-tb.2.cs	\
+	bug-335131.2.cs	\
+	bug-322722_patch_bx.2.cs	\
+	bug-322722_dyn_method_throw.2.cs	\
+	bug-389886-2.cs	\
+	bug-349190.2.cs	\
+	bug-389886-sre-generic-interface-instances.cs	\
+	bug-462592.cs	\
+	appdomain-thread-abort.cs	\
+	bug-575941.cs	\
+	bug-389886-3.cs	\
+	dynamic-method-resurrection.cs	\
+	assembly_append_ordering.cs
+
+
+if INSTALL_MOBILE_STATIC
+BASE_TEST_CS_SRC= \
+	$(BASE_TEST_CS_SRC_UNIVERSAL)
+else
+BASE_TEST_CS_SRC= \
+	$(BASE_TEST_MOBILE_STATIC_BLACKLIST) \
+	$(BASE_TEST_CS_SRC_UNIVERSAL)
+endif
 
 # Disabled until ?mcs is fixed
 #	bug-331958.cs
-BASE_TEST_CS_SRC=		\
+BASE_TEST_CS_SRC_UNIVERSAL=		\
 	bug-2907.cs		\
 	array-init.cs		\
 	arraylist.cs		\
@@ -349,27 +382,17 @@ BASE_TEST_CS_SRC=		\
 	bug-479763.2.cs	\
 	bug-616463.cs	\
 	bug-80392.2.cs		\
-	dynamic-method-access.2.cs	\
-	dynamic-method-finalize.2.cs	\
-	dynamic-method-stack-traces.cs	\
 	bug-82194.2.cs	\
 	anonarray.2.cs	\
 	ienumerator-interfaces.2.cs	\
 	array-enumerator-ifaces.2.cs	\
 	generic_type_definition_encoding.2.cs \
-	generic_type_definition.2.cs	\
 	bug-333798.2.cs		\
-	bug-333798-tb.2.cs		\
-	bug-335131.2.cs		\
-	bug-322722_patch_bx.2.cs		\
 	bug-348522.2.cs		\
 	bug-340662_bug.cs	\
-	bug-322722_dyn_method_throw.2.cs	\
-	bug-389886-2.cs	\
 	bug-325283.2.cs	\
 	thunks.cs \
 	winx64structs.cs \
-	bug-349190.2.cs	\
 	nullable_boxing.2.cs	\
 	valuetype-equals.cs	\
 	custom-modifiers.2.cs	\
@@ -384,12 +407,10 @@ BASE_TEST_CS_SRC=		\
 	bug-415577.cs	\
 	filter-stack.cs	\
 	vararg2.cs	\
-	bug-389886-sre-generic-interface-instances.cs	\
 	bug-461867.cs	\
 	bug-461941.cs	\
 	bug-461261.cs	\
 	bug-400716.cs	\
-	bug-462592.cs	\
 	bug-459094.cs	\
 	generic-unloading.2.cs	\
 	generic-unloading-sub.2.cs	\
@@ -400,7 +421,6 @@ BASE_TEST_CS_SRC=		\
 	gchandles.cs	\
 	interlocked-3.cs	\
 	interlocked-4.2.cs	\
-	appdomain-thread-abort.cs \
 	xdomain-threads.cs	\
 	w32message.cs	\
 	bug-544446.cs	\
@@ -408,14 +428,11 @@ BASE_TEST_CS_SRC=		\
 	large-gc-bitmap.cs	\
 	bug-561239.cs	\
 	bug-562150.cs	\
-	bug-575941.cs	\
 	bug-599469.cs	\
-	bug-389886-3.cs \
 	monitor.cs	\
 	monitor-resurrection.cs	\
 	monitor-wait-abort.cs	\
 	monitor-abort.cs	\
-	dynamic-method-resurrection.cs	\
 	bug-666008.cs	\
 	bug-685908.cs	\
 	sgen-long-vtype.cs	\
@@ -429,7 +446,6 @@ BASE_TEST_CS_SRC=		\
 	async-with-cb-throws.cs	\
 	appdomain-unload-doesnot-raise-pending-events.cs	\
 	bug-6148.cs	\
-	assembly_append_ordering.cs	\
 	bug-10127.cs	\
 	bug-18026.cs	\
 	allow-synchronous-major.cs	\
@@ -1320,7 +1336,10 @@ gshared: test-generic-sharing
 gshared-aot:
 	@$(MAKE) AOT=1 gshared
 
-GSHARED_TESTS = \
+GSHARED_TESTS_MOBILE_STATIC_BLACKLIST = \
+		generic-type-builder.2.exe
+
+GSHARED_TESTS_UNIVERSAL = \
 		generics-sharing.2.exe shared-generic-methods.2.exe	\
 		shared-generic-synchronized.2.exe generic-initobj.2.exe		\
 		generics-sharing-other-exc.2.exe generic-box.2.exe		\
@@ -1336,7 +1355,7 @@ GSHARED_TESTS = \
 		generic-exceptions.2.exe generic-delegate2.2.exe		\
 		generic-virtual2.2.exe generic-valuetype-interface.2.exe	\
 		generic-valuetype-newobj.2.exe generic-valuetype-newobj2.2.exe	\
-		generic-getgenericarguments.2.exe generic-type-builder.2.exe	\
+		generic-getgenericarguments.2.exe	\
 		generic-synchronized.2.exe generic-delegate-ctor.2.exe		\
 		generic-constrained.2.exe bug-431413.2.exe			\
 		generic-virtual-invoke.2.exe generic-typedef.2.exe		\
@@ -1347,6 +1366,15 @@ GSHARED_TESTS = \
 		bug-479763.2.exe				\
 		generic-type-load-exception.2.exe bug-616463.exe	\
 		bug-1147.exe
+
+if INSTALL_MOBILE_STATIC
+GSHARED_TESTS= \
+	$(GSHARED_TESTS_UNIVERSAL)
+else
+GSHARED_TESTS= \
+	$(GSHARED_TESTS_MOBILE_STATIC_BLACKLIST) \
+	$(GSHARED_TESTS_UNIVERSAL)
+endif
 
 test-generic-sharing-normal: $(GSHARED_TESTS)
 	@for fn in $+ ; do	\
