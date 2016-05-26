@@ -53,7 +53,9 @@ public class TestRunner
 		string disabled_tests = null;
 		string runtime = "mono";
 		var opt_sets = new List<string> ();
-		string aot_flag = "";
+
+		string aot_run_flag = "";
+		string aot_build_flag = null;
 
 		// Process options
 		int i = 0;
@@ -119,12 +121,19 @@ public class TestRunner
 					}
 					inputFile = args [i + 1];
 					i += 2;
-				} else if (args [i] == "--aot-flag") {
+				} else if (args [i] == "--aot-run-flag") {
 					if (i + 1 >= args.Length) {
-						Console.WriteLine ("Missing argument to --aot-flag command line option.");
+						Console.WriteLine ("Missing argument to --aot-run-flag command line option.");
 						return 1;
 					}
-					aot_flag = args [i + 1];
+					aot_run_flag = args [i + 1];
+					i += 2;
+				} else if (args [i] == "--aot-build-flag") {
+					if (i + 1 >= args.Length) {
+						Console.WriteLine ("Missing argument to --aot-build-flag command line option.");
+						return 1;
+					}
+					aot_build_flag = args [i + 1];
 					i += 2;
 				} else {
 					Console.WriteLine ("Unknown command line option: '" + args [i] + "'.");
@@ -206,12 +215,41 @@ public class TestRunner
 
 					output.Write (String.Format ("{{0,-{0}}} ", output_width), test);
 
+					if (aot_build_flag != null)  {
+						string aot_args = aot_build_flag + " " + test
+						ProcessStartInfo info = new ProcessStartInfo (runtime, aot_args);
+						info.UseShellExecute = false;
+						info.RedirectStandardOutput = true;
+						info.RedirectStandardError = true;
+						info.EnvironmentVariables[ENV_TIMEOUT] = timeout.ToString();
+						Process p = new Process ();
+						p.StartInfo = info;
+
+						p.Start ();
+
+						if (!p.WaitForExit (timeout * 1000)) {
+							try {
+								p.Kill ();
+							} catch {
+							}
+							throw new Exception(String.Format("Timeout AOT compiling test {0}", test));
+						} else if (p.ExitCode != 0) {
+							throw new Exception(String.Format("Error AOT compiling test {0}", test));
+						}
+					}
+
+					if (this.aot_run_flag != null) 
+						test_invoke = aot_run_flag + " " + test
+					else
+						test_invoke = test
+
 					/* Spawn a new process */
 					string process_args;
 					if (opt_set == null)
-						process_args = test;
+						process_args = test_invoke;
 					else
-						process_args = "-O=" + opt_set + " " + aot_flag + " " + test;
+						process_args = "-O=" + opt_set + " " + test_invoke;
+
 					ProcessStartInfo info = new ProcessStartInfo (runtime, process_args);
 					info.UseShellExecute = false;
 					info.RedirectStandardOutput = true;
