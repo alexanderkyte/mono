@@ -255,12 +255,14 @@ public class TestRunner
 							timedout.Add (data);
 						}
 
+#if !MOBILE_STATIC
 						// Force the process to print a thread dump
 						try {
 							Syscall.kill (p.Id, Signum.SIGQUIT);
 							Thread.Sleep (1000);
 						} catch {
 						}
+#endif
 
 						output.Write ("timed out");
 
