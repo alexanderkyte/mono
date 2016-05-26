@@ -53,7 +53,15 @@ MCS_NO_LIB = $(RUNTIME) $(mcs_topdir)/class/lib/build/mcs.exe -unsafe -debug \
 
 MCS_CMD = $(MCS_NO_LIB) -lib:$(CLASS)
 
+if INSTALL_MOBILE_STATIC
+include $(mcs_topdir)/build/config.make
+include $(mcs_topdir)/build/platforms/$(PLATFORM).make
+include $(mcs_topdir)/build/monolite_or_extern.make
+
+ILASM = $(with_mono_path) $(PROFILE_RUNTIME) $(CLASS)/ilasm.exe
+else
 ILASM = $(RUNTIME) $(CLASS)/ilasm.exe
+endif
 
 BENCHSRC=fib.cs random.cs nested-loops.cs ackermann.cs tight-loop.cs sieve.cs
 
