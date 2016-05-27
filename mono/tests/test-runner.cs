@@ -31,6 +31,7 @@ public class TestRunner
 	const string TEST_TIME_FORMAT = "mm\\:ss\\.fff";
 	const string ENV_TIMEOUT = "TEST_DRIVER_TIMEOUT_SEC";
 	const string MONO_PATH = "MONO_PATH";
+	const bool REDIRECT_LOGS = true;
 
 	class ProcessData {
 		public string test;
@@ -278,8 +279,10 @@ public class TestRunner
 
 					ProcessStartInfo info = new ProcessStartInfo (runtime, process_args);
 					info.UseShellExecute = false;
-					info.RedirectStandardOutput = true;
-					info.RedirectStandardError = true;
+					if (REDIRECT_LOGS) {
+						info.RedirectStandardOutput = true;
+						info.RedirectStandardError = true;
+					}
 					info.EnvironmentVariables[ENV_TIMEOUT] = timeout.ToString();
 					info.EnvironmentVariables[MONO_PATH] = mono_path;
 					Process p = new Process ();
@@ -288,40 +291,44 @@ public class TestRunner
 					ProcessData data = new ProcessData ();
 					data.test = test;
 
-					string log_prefix = "";
-					if (opt_set != null)
-						log_prefix = "." + opt_set.Replace ("-", "no").Replace (",", "_");
+					if (REDIRECT_LOGS) {
 
-					data.stdoutFile = test + log_prefix + ".stdout";
-					data.stdout = new StreamWriter (new FileStream (data.stdoutFile, FileMode.Create));
+						string log_prefix = "";
+						if (opt_set != null)
+							log_prefix = "." + opt_set.Replace ("-", "no").Replace (",", "_");
 
-					data.stderrFile = test + log_prefix + ".stderr";
-					data.stderr = new StreamWriter (new FileStream (data.stderrFile, FileMode.Create));
+						data.stdoutFile = test + log_prefix + ".stdout";
+						data.stdout = new StreamWriter (new FileStream (data.stdoutFile, FileMode.Create));
 
-					p.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e) {
-						if (e.Data != null) {
-							data.stdout.WriteLine (e.Data);
-						} else {
-							data.stdout.Flush ();
-							data.stdout.Close ();
-						}
-					};
+						data.stderrFile = test + log_prefix + ".stderr";
+						data.stderr = new StreamWriter (new FileStream (data.stderrFile, FileMode.Create));
 
-					p.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e) {
-						if (e.Data != null) {
-							data.stderr.WriteLine (e.Data);
-						} else {
-							data.stderr.Flush ();
-							data.stderr.Close ();
-						}
-					};
+						p.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e) {
+							if (e.Data != null) {
+								data.stdout.WriteLine (e.Data);
+							} else {
+								data.stdout.Flush ();
+								data.stdout.Close ();
+							}
+						};
+
+						p.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e) {
+							if (e.Data != null) {
+								data.stderr.WriteLine (e.Data);
+							} else {
+								data.stderr.Flush ();
+								data.stderr.Close ();
+							}
+						};
+					}
 
 					var start = DateTime.UtcNow;
-
 					p.Start ();
 
-					p.BeginOutputReadLine ();
-					p.BeginErrorReadLine ();
+					if (REDIRECT_LOGS) {
+						p.BeginOutputReadLine ();
+						p.BeginErrorReadLine ();
+					}
 
 					if (!p.WaitForExit (timeout * 1000)) {
 						lock (monitor) {
@@ -350,7 +357,9 @@ public class TestRunner
 							failed.Add (data);
 						}
 
-						output.Write ("failed, time: {0}, exit code: {1}", (end - start).ToString (TEST_TIME_FORMAT), p.ExitCode);
+						if(REDIRECT_LOGS)
+							output.Write ("failed, time: {0}, exit code: {1}", (end - start).ToString (TEST_TIME_FORMAT), p.ExitCode);
+
 					} else {
 						var end = DateTime.UtcNow;
 
@@ -358,7 +367,8 @@ public class TestRunner
 							passed.Add (data);
 						}
 
-						output.Write ("passed, time: {0}", (end - start).ToString (TEST_TIME_FORMAT));
+						if(REDIRECT_LOGS)
+							output.Write ("passed, time: {0}", (end - start).ToString (TEST_TIME_FORMAT));
 					}
 
 					p.Close ();
