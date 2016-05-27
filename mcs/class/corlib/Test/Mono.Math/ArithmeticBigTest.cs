@@ -179,48 +179,48 @@ namespace MonoTests.Mono.Math.Arithmetic.Big {
 		[Test]
 		public void AgtB () 
 		{
-			Assertion.Assert(A > B);
+			Assert.True(A > B);
 		}
 		
 		[Test]
 		public void ANotLtB () 
 		{
-			Assertion.Assert(!(A < B));
+			Assert.True(!(A < B));
 		}
 		
 		[Test]
 		public void BNotGtA () 
 		{
-			Assertion.Assert(!(B > A));
+			Assert.True(!(B > A));
 		}
 		
 		[Test]
 		public void AltB () 
 		{
-			Assertion.Assert(B < A);
+			Assert.True(B < A);
 		}
 		
 		[Test]
 		public void AeqA () 
 		{
-			Assertion.Assert(A == A);
+			Assert.True(A == A);
 		}
 		[Test]
 		public void BeqB () 
 		{
-			Assertion.Assert(B == B);
+			Assert.True(B == B);
 		}
 		
 		[Test]
 		public void AneqB () 
 		{
-			Assertion.Assert(A != B);
+			Assert.True(A != B);
 		}
 		
 		[Test]
 		public void BneqA () 
 		{
-			Assertion.Assert(B != A);
+			Assert.True(B != A);
 		}
 
 		#endregion

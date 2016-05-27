@@ -253,7 +253,7 @@ namespace MonoTests.System.Runtime.Serialization.Formatters.Soap {
 			Array objTestAsArray = objTest as Array;
 			Array objReturnAsArray = objReturn as Array;
 			
-			Assertion.Assert("#Not an Array "+objTest, objReturnAsArray != null);
+			Assert.True(objReturnAsArray != null, "#Not an Array "+objTest);
 			Assert.AreEqual(objTestAsArray.Length, objReturnAsArray.Length, "#Different lengths "+objTest);
 			
 			IEnumerator iEnum = objReturnAsArray.GetEnumerator();
