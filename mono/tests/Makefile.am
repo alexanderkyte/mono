@@ -828,8 +828,15 @@ rm-empty-logs:
 assemblyresolve/test/asm.dll:
 	$(MAKE) -C assemblyresolve prereq
 
+
+if INSTALL_MOBILE_STATIC
 TestDriver.dll:
 	$(MCS_CMD) -target:library -out:$@ $(srcdir)/../mini/TestDriver.cs
+	$(TEST_RUNTIME) $(AOT_BUILD_FLAGS) $@
+else
+TestDriver.dll:
+	$(MCS_CMD) -target:library -out:$@ $(srcdir)/../mini/TestDriver.cs
+endif
 
 test_cs: $(TEST_PROG) $(TESTSI_CS) libtest.la
 	@failed=0; \
