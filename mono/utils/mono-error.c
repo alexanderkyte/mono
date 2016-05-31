@@ -441,6 +441,15 @@ mono_error_set_invalid_operation (MonoError *oerror, const char *msg_format, ...
 }
 
 void
+mono_error_set_invalid_program (MonoError *oerror)
+{
+	MonoErrorInternal *error = (MonoErrorInternal*)oerror;
+
+	mono_error_prepare (error);
+	error->error_code = MONO_ERROR_INVALID_PROGRAM;
+}
+
+void
 mono_error_set_exception_instance (MonoError *oerror, MonoException *exc)
 {
 	MonoErrorInternal *error = (MonoErrorInternal*)oerror;
@@ -448,6 +457,52 @@ mono_error_set_exception_instance (MonoError *oerror, MonoException *exc)
 	mono_error_prepare (error);
 	error->error_code = MONO_ERROR_EXCEPTION_INSTANCE;
 	error->exn.instance_handle = mono_gchandle_new (exc ? &exc->object : NULL, FALSE);
+}
+
+void
+mono_error_set_for_class_failure (MonoError *oerror, MonoClass *klass)
+{
+	gpointer exception_data = mono_class_get_exception_data (klass);
+
+	switch (mono_class_get_failure(klass)) {
+	case MONO_EXCEPTION_TYPE_LOAD: {
+		mono_error_set_type_load_class (oerror, klass, "Error Loading class");
+		return;
+	}
+	case MONO_EXCEPTION_MISSING_METHOD: {
+		char *class_name = (char *)exception_data;
+		char *member_name = class_name + strlen (class_name) + 1;
+
+		mono_error_set_method_load (oerror, klass, member_name, "Error Loading Method");
+		return;
+	}
+	case MONO_EXCEPTION_MISSING_FIELD: {
+		char *class_name = (char *)exception_data;
+		char *member_name = class_name + strlen (class_name) + 1;
+
+		mono_error_set_field_load (oerror, klass, member_name, "Error Loading Field");
+		return;
+	}
+	case MONO_EXCEPTION_FILE_NOT_FOUND: {
+		char *msg_format = (char *)exception_data;
+		char *assembly_name = msg_format + strlen (msg_format) + 1;
+		char *msg = g_strdup_printf (msg_format, assembly_name);
+
+		mono_error_set_assembly_load (oerror, assembly_name, msg);
+		return;
+	}
+	case MONO_EXCEPTION_BAD_IMAGE: {
+		mono_error_set_bad_image (oerror, NULL, (const char *)exception_data);
+		return;
+	}
+	case MONO_EXCEPTION_INVALID_PROGRAM: {
+		mono_error_set_invalid_program (oerror);
+		return;
+	}
+	default: {
+		g_assert_not_reached ();
+	}
+	}
 }
 
 void
@@ -687,6 +742,10 @@ mono_error_prepare_exception (MonoError *oerror, MonoError *error_out)
 	case MONO_ERROR_CLEANUP_CALLED_SENTINEL:
 		mono_error_set_execution_engine (error_out, "MonoError reused after mono_error_cleanup");
 		break;
+
+	case MONO_ERROR_INVALID_PROGRAM:
+		return mono_exception_from_name_msg (mono_defaults.corlib, "System", "InvalidProgramException", "");
+
 	default:
 		mono_error_set_execution_engine (error_out, "Invalid error-code %d", error->error_code);
 	}
