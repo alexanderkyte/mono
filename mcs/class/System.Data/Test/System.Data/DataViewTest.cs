@@ -179,7 +179,7 @@ namespace MonoTests.System.Data
 		 public void TestValue ()
 		 {
 			DataView TestView = new DataView (dataTable);
-			Assert.AreEqual ("Dv #1", "item 1", TestView [0]["itemId"]);
+			Assert.AreEqual ("item 1", TestView [0]["itemId"], "Dv #1");
 		 }
 
 		 [Test]
