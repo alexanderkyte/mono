@@ -133,7 +133,7 @@ mono_class_init_checked (MonoClass *klass, MonoError *error)
 	mono_error_init (error);
 
 	if (!mono_class_init (klass))
-		mono_error_set_exception_instance (error, mono_class_get_exception_for_failure (klass));
+		mono_error_set_for_class_failure (error, klass);
 }
 
 ICALL_EXPORT MonoObject *
@@ -4318,9 +4318,8 @@ handle_parent:
 
 
 loader_error:
-	if (mono_class_has_failure (klass)) {
-		mono_error_set_exception_instance (&error, mono_class_get_exception_for_failure (klass));
-	}
+	if (mono_class_has_failure (klass))
+		mono_error_set_for_class_failure (&error, klass);
 
 failure:
 	if (properties)
@@ -4465,9 +4464,8 @@ handle_parent:
 	return res;
 
 loader_error:
-	if (mono_class_has_failure (klass)) {
-		mono_error_set_exception_instance (&error, mono_class_get_exception_for_failure (klass));
-	}
+	if (mono_class_has_failure (klass))
+		mono_error_set_for_class_failure (&error, klass);
 
 failure:
 	
