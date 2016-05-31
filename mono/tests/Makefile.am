@@ -58,7 +58,7 @@ MCS_CMD = $(MCS_NO_LIB) -lib:$(CLASS)
 if INSTALL_MOBILE_STATIC
 include $(mcs_topdir)/build/monolite_or_extern.make
 
-ILASM = $(with_mono_path) $(PROFILE_RUNTIME) $(CLASS)/ilasm.exe
+ILASM = MONO_PATH="./" $(PROFILE_RUNTIME) $(CLASS)/ilasm.exe
 else
 ILASM = $(TEST_RUNTIME) $(CLASS)/ilasm.exe
 endif
