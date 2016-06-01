@@ -1,8 +1,12 @@
 
 # This allows us to include makefiles from mcs/
-# they use topdir, not mcs_topdir
+# they use topdir, not mcs_topdir and expect PROFILE
+# to be set
 topdir = $(mcs_topdir)
+PROFILE = $(DEFAULT_PROFILE)
 
+include $(mcs_topdir)/build/config.make
+include $(mcs_topdir)/build/platforms/$(PLATFORM).make
 include $(mcs_topdir)/build/profiles/$(DEFAULT_PROFILE).make
 
 SUBDIRS = assemblyresolve gc-descriptors
@@ -54,8 +58,6 @@ MCS_NO_LIB = $(RUNTIME) $(mcs_topdir)/class/lib/build/mcs.exe -unsafe -debug \
 MCS = $(MCS_NO_LIB) -lib:$(CLASS)
 
 if INSTALL_MOBILE_STATIC
-include $(mcs_topdir)/build/config.make
-include $(mcs_topdir)/build/platforms/$(PLATFORM).make
 include $(mcs_topdir)/build/monolite_or_extern.make
 
 ILASM = MONO_PATH="./" $(PROFILE_RUNTIME) $(CLASS)/ilasm.exe
