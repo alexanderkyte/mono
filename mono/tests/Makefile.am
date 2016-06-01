@@ -3,6 +3,8 @@
 # they use topdir, not mcs_topdir
 topdir = $(mcs_topdir)
 
+include $(mcs_topdir)/build/config.make
+include $(mcs_topdir)/build/platforms/$(PLATFORM).make
 include $(mcs_topdir)/build/profiles/$(DEFAULT_PROFILE).make
 
 SUBDIRS = assemblyresolve gc-descriptors
@@ -54,8 +56,6 @@ MCS_NO_LIB = $(RUNTIME) $(mcs_topdir)/class/lib/build/mcs.exe -unsafe -debug \
 MCS_CMD = $(MCS_NO_LIB) -lib:$(CLASS)
 
 if INSTALL_MOBILE_STATIC
-include $(mcs_topdir)/build/config.make
-include $(mcs_topdir)/build/platforms/$(PLATFORM).make
 include $(mcs_topdir)/build/monolite_or_extern.make
 
 ILASM = MONO_PATH="./" $(PROFILE_RUNTIME) $(CLASS)/ilasm.exe
