@@ -3566,7 +3566,7 @@ AC_ARG_WITH(runtime_profile, [  --with-runtime_profile=net_4_x,mobile_static,bit
 dnl
 dnl Profile defaults
 dnl
-with_cooperative_gc_default=no
+TEST_PROFILE=default
 
 if test x$cross_compiling = xyes -o x$enable_mcs_build = xno; then
    DISABLE_MCS_DOCS_default=yes
@@ -3600,6 +3600,7 @@ elif test x$with_runtime_profile = xmobile_static; then
    with_mobile_static_default=yes
    with_bitcode_default=no
    with_cooperative_gc_default=no
+   TEST_PROFILE=mobile_static 
 elif test x$with_runtime_profile = xbitcode_mobile_static; then
    with_profile4_x_default=no
    with_monodroid_default=no
@@ -3610,6 +3611,7 @@ elif test x$with_runtime_profile = xbitcode_mobile_static; then
    with_mobile_static_default=yes
    with_bitcode_default=yes
    with_cooperative_gc_default=yes
+   TEST_PROFILE=mobile_static 
 else
    with_profile4_x_default=yes
    with_monodroid_default=no
@@ -3621,6 +3623,8 @@ else
    with_mobile_static_default=no
    with_cooperative_gc_default=no
 fi
+
+AC_SUBST(TEST_PROFILE)
 
 if test "x$with_profile4_x" = "xdefault"; then
    with_profile4_x=$with_profile4_x_default
@@ -3655,6 +3659,9 @@ AM_CONDITIONAL(INSTALL_MONOTOUCH_TV, [test "x$with_monotouch_tv" != "xno"])
 AM_CONDITIONAL(BITCODE, test "x$with_bitcode" = "xyes")
 AM_CONDITIONAL(INSTALL_XAMMAC, [test "x$with_xammac" != "xno"])
 AM_CONDITIONAL(INSTALL_MOBILE_STATIC, [test "x$with_mobile_static" != "xno"])
+
+# Make available to ./Makefile.am
+AC_SUBST(BITCODE)
 
 default_profile=net_4_x
 if test -z "$INSTALL_MONODROID_TRUE"; then :
