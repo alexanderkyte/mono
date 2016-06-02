@@ -3591,6 +3591,7 @@ elif test x$with_runtime_profile = xnet_4_x && test x$TARGET != xPOWERPC && test
    with_bitcode_default=no
    with_cooperative_gc_default=no
 elif test x$with_runtime_profile = xmobile_static; then
+   DISABLE_MCS_DOCS_default=yes
    with_profile4_x_default=no
    with_monodroid_default=no
    with_monotouch_default=no
@@ -3602,6 +3603,7 @@ elif test x$with_runtime_profile = xmobile_static; then
    with_cooperative_gc_default=no
    TEST_PROFILE=mobile_static 
 elif test x$with_runtime_profile = xbitcode_mobile_static; then
+   DISABLE_MCS_DOCS_default=yes
    with_profile4_x_default=no
    with_monodroid_default=no
    with_monotouch_default=no
@@ -3710,7 +3712,7 @@ AC_ARG_WITH(malloc_mempools,[  --with-malloc-mempools=yes,no  Use malloc for eac
 ])
 
 
-DISABLE_MCS_DOCS=no
+DISABLE_MCS_DOCS=default
 AC_ARG_WITH(mcs_docs,[  --with-mcs-docs=yes,no         If you want to build the documentation under mcs (defaults to yes)],[
 	if test x$with_mcs_docs != xyes; then
 		DISABLE_MCS_DOCS=yes
@@ -3718,6 +3720,9 @@ AC_ARG_WITH(mcs_docs,[  --with-mcs-docs=yes,no         If you want to build the 
 ])
 if test -z "$INSTALL_4_x_TRUE"; then :
 	DISABLE_MCS_DOCS=yes
+fi
+if test "x$DISABLE_MCS_DOCS" = "xdefault"; then
+   DISABLE_MCS_DOCS=$DISABLE_MCS_DOCS_default
 fi
 
 AC_ARG_WITH(lazy_gc_thread_creation, [  --with-lazy-gc-thread-creation=yes|no      Enable lazy runtime thread creation, embedding host must do it explicitly (defaults to no)],[
