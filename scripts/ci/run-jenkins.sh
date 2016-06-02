@@ -12,15 +12,9 @@ if [[ ${label} == 'osx-amd64' ]]; then EXTRA_CONF_FLAGS="${EXTRA_CONF_FLAGS} --w
 if [[ ${label} == 'w32' ]]; then PLATFORM=Win32; EXTRA_CONF_FLAGS="${EXTRA_CONF_FLAGS} --host=i686-w64-mingw32"; export MONO_EXECUTABLE="`cygpath -u ${WORKSPACE}\\\msvc\\\Win32\\\bin\\\Release_SGen\\\mono-sgen.exe`";fi
 if [[ ${label} == 'w64' ]]; then PLATFORM=x64; EXTRA_CONF_FLAGS="${EXTRA_CONF_FLAGS} --host=x86_64-w64-mingw32"; export MONO_EXECUTABLE="`cygpath -u ${WORKSPACE}\\\msvc\\\x64\\\bin\\\Release_SGen\\\mono-sgen.exe`"; fi
 
-if [[ ${PROFILE} != 'mobile_static' ]] && [[ ${label} != w* ]] && [[ ${label} != 'debian-ppc64el' ]] && [[ ${label} != 'centos-s390x' ]];
-    then
-    EXTRA_CONF_FLAGS="$EXTRA_CONF_FLAGS --with-monodroid --with-monotouch --with-monotouch_watch --with-monotouch_tv --with-xammac"
-    # only enable the mobile profiles and mobile_static on the main architectures
-fi
-
 if [[ ${PROFILE} == 'mobile_static' ]]; 
 	then 
-	EXTRA_CONF_FLAGS="${EXTRA_CONF_FLAGS} --with-profile4_x=no --enable-minimal=com,remoting,reflection_emit_save,reflection_emit,appdomains --with-mobile_static --enable-nls=no";
+	EXTRA_CONF_FLAGS="${EXTRA_CONF_FLAGS} --with-runtime_profile=mobile_static";
 	export PROFILE=mobile_static;
 fi
 
