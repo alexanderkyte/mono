@@ -109,10 +109,17 @@ cur_dir_cmd = pwd
 PLATFORM_PATH_SEPARATOR = :
 endif
 
+if INSTALL_MOBILE_STATIC
+MOBILE_STATIC_FILTER=grep -v ilasm
+else
+MOBILE_STATIC_FILTER=echo
+endif
+
 # Compile all assemblies with the verifier turned on. Code must be valid but not verifiable.
 # TODO it would be nice to split assemblies without unsafe code to use the verifier with verifiable mode.
 # Skip binary_reference_assemblies because they contain metadata only
 mcs-compileall: mono-wrapper etc/mono/config
+	export verifiable_files=`ls "$(mcs_topdir)/class/lib/$$profile/" | grep -E '\.(dll|exe)$$' | $(MOBILE_STATIC_FILTER)` ; \
 	save_MONO_PATH=$$MONO_PATH; mcs_topdir=`cd $(mcs_topdir) && $(cur_dir_cmd)`; ok=:; \
 	for profile in $(test_profiles); do \
 	  if [ "binary_reference_assemblies" = "$$profile" ]; then \
@@ -126,7 +133,9 @@ mcs-compileall: mono-wrapper etc/mono/config
 		  MONO_PATH="$$mcs_topdir/class/lib/$$profile$(PLATFORM_PATH_SEPARATOR)$$save_MONO_PATH"; \
 	  fi; \
 	  export MONO_PATH; \
-	  for i in $(mcs_topdir)/class/lib/$$profile/*.{dll,exe}; do \
+	  for stub in $$verifiable_files; do \
+	  i=$(mcs_topdir)/class/lib/$$profile/$$stub ; \
+	  echo $$i ; \
 		if [ ! -f $$i ] ; then \
 			continue ; \
 		fi ;  \
