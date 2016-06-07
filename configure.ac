@@ -793,6 +793,9 @@ elif test x$with_runtime_preset = xbitcode_mobile_static; then
    with_bitcode_default=yes
    with_cooperative_gc_default=yes
    TEST_PROFILE=mobile_static 
+
+   # Bitcode branch doesn't support boehm
+   support_boehm=no
 else
    with_profile4_x_default=yes
    with_monodroid_default=no
