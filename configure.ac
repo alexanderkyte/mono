@@ -4236,8 +4236,17 @@ fi
 
     echo "MONO_VERSION = $myver" >> $mcs_topdir/build/config.make
 
-    if test x$host_darwin = xyes; then
+    # Note that these are expected to be names(without extension) of files
+    # in build/platforms
+
+    if test -z "$PLATFORM_DARWIN_TRUE"; then :
       echo "PLATFORM = darwin" >> $mcs_topdir/build/config.make
+    fi
+    if test -z "$PLATFORM_LINUX_TRUE"; then :
+      echo "PLATFORM = linux" >> $mcs_topdir/build/config.make
+    fi
+    if test -z "$TARGET_WIN32_TRUE"; then :
+      echo "PLATFORM = win32" >> $mcs_topdir/build/config.make
     fi
 
     if test "x$PLATFORM_AOT_SUFFIX" != "x"; then
