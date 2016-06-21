@@ -935,6 +935,15 @@ fi
 
 fi
 
+if test "x$default_profile" == "xmobile_static"; then
+mono_feature_disable_com='yes'
+mono_feature_disable_remoting='yes'
+mono_feature_disable_reflection_emit_save='yes'
+mono_feature_disable_reflection_emit='yes'
+mono_feature_disable_appdomains='yes'
+mono_feature_disable_jit = yes
+fi
+
 AC_ARG_ENABLE(minimal, [  --enable-minimal=LIST      drop support for LIST subsystems.
      LIST is a comma-separated list from: aot, profiler, decimal, pinvoke, debug, appdomains, verifier, 
      reflection_emit, reflection_emit_save, large_code, logging, com, ssa, generics, attach, jit, simd, soft_debug, perfcounters, normalization, assembly_remapping, shared_perfcounters, remoting,
