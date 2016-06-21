@@ -793,6 +793,13 @@ elif test x$with_runtime_preset = xall; then
    with_xammac_default=yes
    with_mobile_static_default=no
    with_bitcode_default=no
+
+mono_feature_disable_com='yes'
+mono_feature_disable_remoting='yes'
+mono_feature_disable_reflection_emit_save='yes'
+mono_feature_disable_reflection_emit='yes'
+mono_feature_disable_appdomains='yes'
+#mono_feature_disable_jit='yes'
 elif test x$with_runtime_preset = xmobile_static; then
    DISABLE_MCS_DOCS_default=yes
    with_cooperative_gc_default=no
@@ -933,15 +940,6 @@ else
   AC_MSG_RESULT([$USE_NLS])
 fi
 
-fi
-
-if test "x$default_profile" == "xmobile_static"; then
-mono_feature_disable_com='yes'
-mono_feature_disable_remoting='yes'
-mono_feature_disable_reflection_emit_save='yes'
-mono_feature_disable_reflection_emit='yes'
-mono_feature_disable_appdomains='yes'
-mono_feature_disable_jit = yes
 fi
 
 AC_ARG_ENABLE(minimal, [  --enable-minimal=LIST      drop support for LIST subsystems.
