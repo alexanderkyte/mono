@@ -3121,6 +3121,39 @@ emit_entry_bb (EmitContext *ctx, LLVMBuilderRef builder)
 	ctx->builder = old_builder;
 }
 
+static gboolean
+accepted_wrapper_type (EmitContext *ctx, int wrapper_type)
+{
+	switch (wrapper_type) {
+		case MONO_WRAPPER_REMOTING_INVOKE:
+		case MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK:
+		case MONO_WRAPPER_XDOMAIN_INVOKE: {
+			// Remoting / appdomains disabled on llvmonly
+			return !ctx->llvm_only;
+		}
+		case MONO_WRAPPER_NONE:
+		case MONO_WRAPPER_STFLD:
+		case MONO_WRAPPER_LDFLD:
+		case MONO_WRAPPER_LDFLDA:
+		case MONO_WRAPPER_LDFLD_REMOTE:
+		case MONO_WRAPPER_STFLD_REMOTE:
+		case MONO_WRAPPER_STELEMREF:
+		case MONO_WRAPPER_ISINST:
+		case MONO_WRAPPER_PROXY_ISINST:
+		case MONO_WRAPPER_ALLOC:
+		case MONO_WRAPPER_UNKNOWN:
+		case MONO_WRAPPER_WRITE_BARRIER:
+		case MONO_WRAPPER_DELEGATE_INVOKE:
+		case MONO_WRAPPER_DELEGATE_BEGIN_INVOKE:
+		case MONO_WRAPPER_DELEGATE_END_INVOKE:
+		case MONO_WRAPPER_SYNCHRONIZED:
+		case MONO_WRAPPER_MANAGED_TO_MANAGED:
+		case MONO_WRAPPER_CASTCLASS:
+		default:
+			return TRUE;
+	}
+}
+
 static void
 process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref, MonoInst *ins)
 {
@@ -3142,6 +3175,13 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 
 	if ((call->signature->call_convention != MONO_CALL_DEFAULT) && !((call->signature->call_convention == MONO_CALL_C) && ctx->llvm_only)) {
 		set_failure (ctx, "non-default callconv");
+		return;
+	}
+
+	if (call->method != NULL && !accepted_wrapper_type (ctx, call->method->wrapper_type)) {
+		gchar *reason = g_strdup_printf ("unsupported wrapper type %d needed for %s to call %s", call->method->wrapper_type, ctx->cfg->method->name, call->method->name);
+		set_failure (ctx, reason);
+		g_free (reason);
 		return;
 	}
 
