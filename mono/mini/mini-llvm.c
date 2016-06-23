@@ -3121,36 +3121,64 @@ emit_entry_bb (EmitContext *ctx, LLVMBuilderRef builder)
 	ctx->builder = old_builder;
 }
 
-static gboolean
-accepted_wrapper_type (EmitContext *ctx, int wrapper_type)
+static void
+assert_only_accepted_wrappers (EmitContext *ctx, MonoMethod *method)
 {
-	switch (wrapper_type) {
+	gboolean FAIL = FALSE;
+
+	switch (method->wrapper_type) {
 		case MONO_WRAPPER_REMOTING_INVOKE:
 		case MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK:
-		case MONO_WRAPPER_XDOMAIN_INVOKE: {
-			// Remoting / appdomains disabled on llvmonly
-			return !ctx->llvm_only;
-		}
-		case MONO_WRAPPER_NONE:
-		case MONO_WRAPPER_STFLD:
-		case MONO_WRAPPER_LDFLD:
-		case MONO_WRAPPER_LDFLDA:
-		case MONO_WRAPPER_LDFLD_REMOTE:
-		case MONO_WRAPPER_STFLD_REMOTE:
-		case MONO_WRAPPER_STELEMREF:
-		case MONO_WRAPPER_ISINST:
-		case MONO_WRAPPER_PROXY_ISINST:
-		case MONO_WRAPPER_ALLOC:
-		case MONO_WRAPPER_UNKNOWN:
-		case MONO_WRAPPER_WRITE_BARRIER:
-		case MONO_WRAPPER_DELEGATE_INVOKE:
-		case MONO_WRAPPER_DELEGATE_BEGIN_INVOKE:
-		case MONO_WRAPPER_DELEGATE_END_INVOKE:
-		case MONO_WRAPPER_SYNCHRONIZED:
-		case MONO_WRAPPER_MANAGED_TO_MANAGED:
-		case MONO_WRAPPER_CASTCLASS:
-		default:
-			return TRUE;
+		case MONO_WRAPPER_XDOMAIN_INVOKE:
+			if (ctx->llvm_only)
+				FAIL = TRUE;
+	}
+
+	if (FAIL) {
+		gchar *callee_name = mono_method_full_name (method, TRUE);
+		gchar *reason = g_strdup_printf ("unsupported wrapper type %s needed to call %s", MonoWrapperTypeName [method->wrapper_type], callee_name);
+		set_failure (ctx, reason);
+
+		g_free (reason);
+		g_free (callee_name);
+	}
+}
+
+static void
+assert_only_accepted_wrappers_patch (EmitContext *ctx, MonoJumpInfo *patch_info)
+{
+	switch (patch_info->type) {
+	case MONO_PATCH_INFO_METHODCONST:
+	case MONO_PATCH_INFO_METHOD:
+	case MONO_PATCH_INFO_METHOD_JUMP:
+	case MONO_PATCH_INFO_ICALL_ADDR:
+	case MONO_PATCH_INFO_ICALL_ADDR_CALL:
+	case MONO_PATCH_INFO_METHOD_RGCTX:
+	case MONO_PATCH_INFO_METHOD_CODE_SLOT:
+		assert_only_accepted_wrappers (ctx, patch_info->data.method);
+		break;
+	case MONO_PATCH_INFO_DELEGATE_TRAMPOLINE:
+		if (patch_info->data.del_tramp->method) {
+			assert_only_accepted_wrappers (ctx, patch_info->data.del_tramp->method);
+		} 
+		break;
+	case MONO_PATCH_INFO_RGCTX_FETCH:
+	case MONO_PATCH_INFO_RGCTX_SLOT_INDEX: {
+		MonoJumpInfoRgctxEntry *entry = patch_info->data.rgctx_entry;
+		assert_only_accepted_wrappers (ctx, entry->method);
+		assert_only_accepted_wrappers_patch (ctx, entry->data);
+		break;
+	}
+	case MONO_PATCH_INFO_GSHAREDVT_CALL:
+		assert_only_accepted_wrappers (ctx, patch_info->data.gsharedvt->method);
+		break;
+	case MONO_PATCH_INFO_GSHAREDVT_METHOD: {
+		assert_only_accepted_wrappers (ctx, patch_info->data.gsharedvt_method->method);
+		break;
+	}
+	case MONO_PATCH_INFO_VIRT_METHOD:
+		assert_only_accepted_wrappers (ctx, patch_info->data.virt_method->method);
+		break;
 	}
 }
 
@@ -3178,12 +3206,8 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 		return;
 	}
 
-	if (call->method != NULL && !accepted_wrapper_type (ctx, call->method->wrapper_type)) {
-		gchar *reason = g_strdup_printf ("unsupported wrapper type %d needed for %s to call %s", call->method->wrapper_type, ctx->cfg->method->name, call->method->name);
-		set_failure (ctx, reason);
-		g_free (reason);
-		return;
-	}
+	if (call->method != NULL)
+		assert_only_accepted_wrappers (ctx, call->method);
 
 	cinfo = call->cinfo;
 	g_assert (cinfo);
@@ -5280,6 +5304,12 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 			tmp_ji = g_new0 (MonoJumpInfo, 1);
 			tmp_ji->type = (MonoJumpInfoType)ins->inst_c1;
 			tmp_ji->data.target = ins->inst_p0;
+
+			assert_only_accepted_wrappers_patch (ctx, tmp_ji);
+			if (!ctx_ok (ctx)) {
+				g_free (tmp_ji);
+				break;
+			}
 
 			ji = mono_aot_patch_info_dup (tmp_ji);
 			g_free (tmp_ji);

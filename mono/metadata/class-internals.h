@@ -48,6 +48,13 @@ typedef enum {
 	MONO_WRAPPER_NUM
 } MonoWrapperType;
 
+static const char * MonoWrapperTypeName[] = {
+#define WRAPPER(e,n) n,
+#include "wrapper-types.h"
+#undef WRAPPER
+""
+};
+
 typedef enum {
 	MONO_TYPE_NAME_FORMAT_IL,
 	MONO_TYPE_NAME_FORMAT_REFLECTION,
