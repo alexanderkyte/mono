@@ -179,8 +179,6 @@ STD_TARGETS = test run-test run-test-ondotnet clean install uninstall doc-update
 $(STD_TARGETS): %: do-%
 
 ifdef PLATFORM_AOT_SUFFIX
-AOT_PROFILE_ASSEMBLIES = $(shell cd $(topdir)/class/lib/$(PROFILE)/ && find . | grep -E '(dll|exe)$$' | grep -v -E 'bare|plaincore|secxml|Facades' | sed 's:\./::g' | tr '\n' ' ')
-
 do-all-aot:
 	$(MAKE) do-all TOP_LEVEL_DO=do-all
 	$(MAKE) aot-all-profile
