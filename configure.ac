@@ -571,6 +571,7 @@ fi
 CFLAGS="$CFLAGS -g $WARN"
 CFLAGS_FOR_LIBGC="$CFLAGS_FOR_LIBGC -g"
 CPPFLAGS="$CPPFLAGS -g $WARN"
+CXXFLAGS="$CXXFLAGS -g $WARN"
 
 # Where's the 'mcs' source tree?
 if test -d $srcdir/mcs; then
@@ -3074,6 +3075,7 @@ case "$host" in
 		if test x"$GCC" = xyes; then
 			# We don't support v8 cpus
 			CFLAGS="$CFLAGS -Wno-cast-align -mcpu=v9"
+			CXXFLAGS="$CXXFLAGS -Wno-cast-align -mcpu=v9"
 		fi
 		if test x"$AR" = xfalse; then
 			AC_MSG_ERROR([The required utility 'ar' is not found in your PATH. Usually it can be found in /usr/ccs/bin.])
@@ -3090,6 +3092,7 @@ case "$host" in
 			TARGET=POWERPC64;
 			CPPFLAGS="$CPPFLAGS -D__mono_ppc__ -D__mono_ppc64__"
 			CFLAGS="$CFLAGS -mminimal-toc"
+			CXXFLAGS="$CXXFLAGS -mminimal-toc"
 		else
 			TARGET=POWERPC;
 			CPPFLAGS="$CPPFLAGS -D__mono_ppc__"
@@ -3147,6 +3150,7 @@ case "$host" in
 		arch_target=s390x;
 		ACCESS_UNALIGNED="yes"
 		CFLAGS="$CFLAGS -mbackchain -D__USE_STRING_INLINES"
+		CXXFLAGS="$CXXFLAGS -mbackchain -D__USE_STRING_INLINES"
 		;;
 esac
 
@@ -3870,6 +3874,7 @@ if test x"$GCC" = xyes; then
    	# Implicit function declarations are not 64 bit safe
 	# Do this late, since this causes lots of configure tests to fail
 	CFLAGS="$CFLAGS -Werror-implicit-function-declaration"
+	CXXFLAGS="$CXXFLAGS -Werror-implicit-function-declaration"
 	# jay has a lot of implicit declarations
 	JAY_CFLAGS="-Wno-implicit-function-declaration"
 fi
@@ -3929,6 +3934,7 @@ AC_SUBST(XINERAMA)
 AC_DEFINE_UNQUOTED(MONO_ARCHITECTURE,"$arch_target",[The architecture this is running on])
 AC_SUBST(arch_target)
 AC_SUBST(CFLAGS)
+AC_SUBST(CXXFLAGS)
 AC_SUBST(CPPFLAGS)
 AC_SUBST(LDFLAGS)
 
