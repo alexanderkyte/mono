@@ -2856,9 +2856,6 @@ if test "x$enable_llvm" = "xyes"; then
    # LLVM is compiled with -fno-rtti, so we need this too, since our classes inherit
    # from LLVM classes.
    LLVM_CXXFLAGS="$LLVM_CXXFLAGS -fno-rtti -fexceptions"
-if test "x$with_bitcode" = "xyes"; then
-   LLVM_CXXFLAGS="$LLVM_CXXFLAGS -stdlib=libc++"
-fi
    LLVM_LDFLAGS=`$LLVM_CONFIG --ldflags`
    # This might include empty lines
    LLVM_SYSTEM_LIBS=`$LLVM_CONFIG --system-libs 2>/dev/null | grep -- -`
@@ -2879,11 +2876,11 @@ fi
    fi
    LLVM_LIBS="$LLVM_LIBS $LLVM_LDFLAGS $LLVM_SYSTEM_LIBS"
    # The c++ standard library used by llvm doesn't show up in $LLVM_SYSTEM_LIBS so add it manually
-   if echo $LLVM_CXXFLAGS | grep -q -- '-stdlib=libc++'; then
-      LLVM_LIBS="$LLVM_LIBS -lc++ -lc++abi"
-   else
-      LLVM_LIBS="$LLVM_LIBS -lstdc++"
-   fi
+   # if echo $LLVM_CXXFLAGS | grep -q -- '-stdlib=libc++'; then
+   #    LLVM_LIBS="$LLVM_LIBS -lc++ -lc++abi"
+   # else
+      LLVM_LIBS="$LLVM_LIBS -lstdc++ -stdlib=libstdc++"
+   # fi
 
    expected_llvm_version="3.4svn-mono-mono/e656cac"
 
@@ -2903,12 +2900,6 @@ fi
          -lLLVMipa -lLLVMAnalysis -lLLVMProfileData -lLLVMMCJIT -lLLVMTarget -lLLVMRuntimeDyld \
          -lLLVMObject -lLLVMMCParser -lLLVMBitReader -lLLVMExecutionEngine -lLLVMMC -lLLVMCore \
          -lLLVMSupport"
-
-if test "x$with_bitcode" = "xyes"; then
-   LLVM_LIBS="$LLVM_LIBS -lc++ -lc++abi"
-else
-   LLVM_LIBS="$LLVM_LIBS -lstdc++"
-fi
 
        LLVM_LIBS="$LLVM_LIBS $LLVM_SYSTEM_LIBS"
 
