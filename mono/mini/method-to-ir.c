@@ -7193,6 +7193,9 @@ inline_method (MonoCompile *cfg, MonoMethod *cmethod, MonoMethodSignature *fsig,
 		
 		cfg->stat_inlined_methods++;
 
+		if (cfg->inline_ledger)
+			g_hash_table_insert (cfg->inline_ledger, cmethod, (gpointer) 0x1);
+
 		/* always add some code to avoid block split failures */
 		MONO_INST_NEW (cfg, ins, OP_NOP);
 		MONO_ADD_INS (prev_cbb, ins);

@@ -264,6 +264,7 @@ typedef struct MonoAotCompile {
 	FILE *data_outfile;
 	int datafile_offset;
 	int gc_name_offset;
+	GHashTable *inline_ledger;
 } MonoAotCompile;
 
 typedef struct {
@@ -7468,7 +7469,7 @@ compile_method (MonoAotCompile *acfg, MonoMethod *method)
 		flags = (JitFlags)(flags | JIT_FLAG_NO_DIRECT_ICALLS);
 
 	jit_timer = mono_time_track_start ();
-	cfg = mini_method_compile (method, acfg->opts, mono_get_root_domain (), flags, 0, index);
+	cfg = mini_method_compile (method, acfg->opts, mono_get_root_domain (), flags, 0, index, acfg->inline_ledger);
 	mono_time_track_end (&mono_jit_stats.jit_time, jit_timer);
 
 	if (cfg->exception_type == MONO_EXCEPTION_GENERIC_SHARING_FAILED) {
@@ -10056,6 +10057,7 @@ acfg_create (MonoAssembly *ass, guint32 opts)
 	MonoAotCompile *acfg;
 
 	acfg = g_new0 (MonoAotCompile, 1);
+	acfg->inline_ledger = g_hash_table_new (NULL, NULL);
 	acfg->methods = g_ptr_array_new ();
 	acfg->method_indexes = g_hash_table_new (NULL, NULL);
 	acfg->method_depth = g_hash_table_new (NULL, NULL);
@@ -10115,6 +10117,7 @@ acfg_free (MonoAotCompile *acfg)
 
 	g_free (acfg->cfgs);
 
+	g_hash_table_destroy (acfg->inline_ledger);
 	g_free (acfg->static_linking_symbol);
 	g_free (acfg->got_symbol);
 	g_free (acfg->plt_symbol);
@@ -10164,6 +10167,44 @@ get_wrapper_type_name (int type)
 //#define DUMP_PLT
 //#define DUMP_GOT
 
+static void aot_dump_method (JsonWriter *writer, MonoMethod *method, MonoCompile *cfg)
+{
+	mono_json_writer_indent (writer);
+	mono_json_writer_object_begin(writer);
+
+	mono_json_writer_indent (writer);
+	mono_json_writer_object_key(writer, "name");
+	mono_json_writer_printf (writer, "\"%s\",\n", method->name);
+
+	mono_json_writer_indent (writer);
+	mono_json_writer_object_key(writer, "signature");
+	mono_json_writer_printf (writer, "\"%s\",\n", mono_method_get_full_name (method));
+
+	if (cfg) {
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "code_size");
+		mono_json_writer_printf (writer, "\"%d\",\n", cfg->code_size);
+	}
+
+	MonoClass *klass = method->klass;
+
+	mono_json_writer_indent (writer);
+	mono_json_writer_object_key(writer, "class");
+	mono_json_writer_printf (writer, "\"%s\",\n", klass->name);
+
+	mono_json_writer_indent (writer);
+	mono_json_writer_object_key(writer, "namespace");
+	mono_json_writer_printf (writer, "\"%s\",\n", klass->name_space);
+
+	mono_json_writer_indent (writer);
+	mono_json_writer_object_key(writer, "wrapper_type");
+	mono_json_writer_printf (writer, "\"%s\",\n", get_wrapper_type_name(method->wrapper_type));
+
+	mono_json_writer_indent_pop (writer);
+	mono_json_writer_indent (writer);
+	mono_json_writer_printf (writer, "}");
+}
+
 static void aot_dump (MonoAotCompile *acfg)
 {
 	FILE *dumpfile;
@@ -10183,7 +10224,6 @@ static void aot_dump (MonoAotCompile *acfg)
 	for (i = 0; i < acfg->nmethods; ++i) {
 		MonoCompile *cfg;
 		MonoMethod *method;
-		MonoClass *klass;
 
 		cfg = acfg->cfgs [i];
 		if (!cfg)
@@ -10191,48 +10231,20 @@ static void aot_dump (MonoAotCompile *acfg)
 
 		method = cfg->orig_method;
 
-		mono_json_writer_indent (&writer);
-		mono_json_writer_object_begin(&writer);
+		if (i > 0)
+			mono_json_writer_printf (&writer, ",\n");
 
-		mono_json_writer_indent (&writer);
-		mono_json_writer_object_key(&writer, "name");
-		mono_json_writer_printf (&writer, "\"%s\",\n", method->name);
-
-		mono_json_writer_indent (&writer);
-		mono_json_writer_object_key(&writer, "signature");
-		mono_json_writer_printf (&writer, "\"%s\",\n", mono_method_get_full_name (method));
-
-		mono_json_writer_indent (&writer);
-		mono_json_writer_object_key(&writer, "code_size");
-		mono_json_writer_printf (&writer, "\"%d\",\n", cfg->code_size);
-
-		klass = method->klass;
-
-		mono_json_writer_indent (&writer);
-		mono_json_writer_object_key(&writer, "class");
-		mono_json_writer_printf (&writer, "\"%s\",\n", klass->name);
-
-		mono_json_writer_indent (&writer);
-		mono_json_writer_object_key(&writer, "namespace");
-		mono_json_writer_printf (&writer, "\"%s\",\n", klass->name_space);
-
-		mono_json_writer_indent (&writer);
-		mono_json_writer_object_key(&writer, "wrapper_type");
-		mono_json_writer_printf (&writer, "\"%s\",\n", get_wrapper_type_name(method->wrapper_type));
-
-		mono_json_writer_indent_pop (&writer);
-		mono_json_writer_indent (&writer);
-		mono_json_writer_object_end (&writer);
-		mono_json_writer_printf (&writer, ",\n");
+		aot_dump_method (&writer, method, cfg);
 	}
+	mono_json_writer_printf (&writer, "\n");
 
 	mono_json_writer_indent_pop (&writer);
 	mono_json_writer_indent (&writer);
-	mono_json_writer_array_end (&writer);
-	mono_json_writer_printf (&writer, ",\n");
+	mono_json_writer_printf (&writer, "]");
 
 	// PLT entries
 #ifdef DUMP_PLT
+	mono_json_writer_printf (&writer, ",\n");
 	mono_json_writer_indent_push (&writer);
 	mono_json_writer_indent (&writer);
 	mono_json_writer_object_key(&writer, "plt");
@@ -10260,11 +10272,36 @@ static void aot_dump (MonoAotCompile *acfg)
 	mono_json_writer_indent_pop (&writer);
 	mono_json_writer_indent (&writer);
 	mono_json_writer_array_end (&writer);
-	mono_json_writer_printf (&writer, ",\n");
 #endif
 
+	// Inlined methods
+	mono_json_writer_printf (&writer, ",\n");
+	mono_json_writer_indent (&writer);
+	mono_json_writer_object_key(&writer, "inlined_methods");
+	mono_json_writer_array_begin (&writer);
+
+	GHashTableIter iter; 
+	MonoMethod *cmethod;
+	gboolean first_line = TRUE;
+	g_hash_table_iter_init (&iter, acfg->inline_ledger);
+	while (g_hash_table_iter_next (&iter, (void *) &cmethod, NULL)) {
+		if (first_line)
+			mono_json_writer_printf (&writer, "\n");
+		else
+			mono_json_writer_printf (&writer, ",\n"); 
+
+		aot_dump_method (&writer, cmethod, NULL);
+
+		first_line = FALSE;
+	}
+
+	mono_json_writer_printf (&writer, "]");
+
 	// GOT entries
-#ifdef DUMP_GOT
+#ifndef DUMP_GOT
+	mono_json_writer_printf (&writer, "\n");
+#else
+	mono_json_writer_printf (&writer, ",\n");
 	mono_json_writer_indent_push (&writer);
 	mono_json_writer_indent (&writer);
 	mono_json_writer_object_key(&writer, "got");
@@ -10283,7 +10320,7 @@ static void aot_dump (MonoAotCompile *acfg)
 	mono_json_writer_indent_pop (&writer);
 	mono_json_writer_indent (&writer);
 	mono_json_writer_array_end (&writer);
-	mono_json_writer_printf (&writer, ",\n");
+	mono_json_writer_printf (&writer, "\n");
 #endif
 
 	mono_json_writer_indent_pop (&writer);
@@ -10292,7 +10329,10 @@ static void aot_dump (MonoAotCompile *acfg)
 
 	dumpname = g_strdup_printf ("%s.json", g_path_get_basename (acfg->image->name));
 	dumpfile = fopen (dumpname, "w+");
+
+	fprintf(stdout, "Check out %s\n", dumpname);
 	g_free (dumpname);
+
 
 	fprintf (dumpfile, "%s", writer.text->str);
 	fclose (dumpfile);
@@ -10814,8 +10854,7 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options)
 
 	aot_printf (acfg, "JIT time: %d ms, Generation time: %d ms, Assembly+Link time: %d ms.\n", acfg->stats.jit_time / 1000, acfg->stats.gen_time / 1000, acfg->stats.link_time / 1000);
 
-	if (acfg->aot_opts.dump_json)
-		aot_dump (acfg);
+	aot_dump (acfg);
 
 	acfg_free (acfg);
 	

@@ -1873,6 +1873,8 @@ typedef struct {
 	int stat_inlineable_methods;
 	int stat_inlined_methods;
 	int stat_code_reallocs;
+
+	GHashTable *inline_ledger;
 } MonoCompile;
 
 typedef enum {
@@ -2426,7 +2428,7 @@ void      mono_analyze_liveness_gc          (MonoCompile *cfg);
 void      mono_linear_scan                  (MonoCompile *cfg, GList *vars, GList *regs, regmask_t *used_mask);
 void      mono_global_regalloc              (MonoCompile *cfg);
 void      mono_create_jump_table            (MonoCompile *cfg, MonoInst *label, MonoBasicBlock **bbs, int num_blocks);
-MonoCompile *mini_method_compile            (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFlags flags, int parts, int aot_method_index);
+MonoCompile *mini_method_compile            (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFlags flags, int parts, int aot_method_index, GHashTable *inline_ledger);
 void      mono_destroy_compile              (MonoCompile *cfg);
 void      mono_empty_compile              (MonoCompile *cfg);
 MonoJitICallInfo *mono_find_jit_opcode_emulation (int opcode);
