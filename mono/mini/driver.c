@@ -393,7 +393,7 @@ mini_regression_step (MonoImage *image, int verbose, int *total_run, int *total,
 			run++;
 			start_time = g_timer_elapsed (timer, NULL);
 			comp_time -= start_time;
-			cfg = mini_method_compile (method, mono_get_optimizations_for_method (method, opt_flags), mono_get_root_domain (), JIT_FLAG_RUN_CCTORS, 0, -1, NULL);
+			cfg = mini_method_compile (method, mono_get_optimizations_for_method (method, opt_flags), mono_get_root_domain (), JIT_FLAG_RUN_CCTORS, 0, -1, NULL, NULL);
 			comp_time += g_timer_elapsed (timer, NULL);
 			if (cfg->exception_type == MONO_EXCEPTION_NONE) {
 				if (verbose >= 2)
@@ -953,7 +953,7 @@ compile_all_methods_thread_main_inner (CompileAllThreadArgs *args)
 			g_print ("Compiling %d %s\n", count, desc);
 			g_free (desc);
 		}
-		cfg = mini_method_compile (method, mono_get_optimizations_for_method (method, args->opts), mono_get_root_domain (), (JitFlags)0, 0, -1, NULL);
+		cfg = mini_method_compile (method, mono_get_optimizations_for_method (method, args->opts), mono_get_root_domain (), (JitFlags)0, 0, -1, NULL, NULL);
 		if (cfg->exception_type != MONO_EXCEPTION_NONE) {
 			printf ("Compilation of %s failed with exception '%s':\n", mono_method_full_name (cfg->method, TRUE), cfg->exception_message);
 			fail_count ++;
@@ -2197,10 +2197,10 @@ mono_main (int argc, char* argv[])
 			(method->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL)) {
 			MonoMethod *nm;
 			nm = mono_marshal_get_native_wrapper (method, TRUE, FALSE);
-			cfg = mini_method_compile (nm, opt, mono_get_root_domain (), (JitFlags)0, part, -1, NULL);
+			cfg = mini_method_compile (nm, opt, mono_get_root_domain (), (JitFlags)0, part, -1, NULL, NULL);
 		}
 		else
-			cfg = mini_method_compile (method, opt, mono_get_root_domain (), (JitFlags)0, part, -1, NULL);
+			cfg = mini_method_compile (method, opt, mono_get_root_domain (), (JitFlags)0, part, -1, NULL, NULL);
 		if ((mono_graph_options & MONO_GRAPH_CFG_SSA) && !(cfg->comp_done & MONO_COMP_SSA)) {
 			g_warning ("no SSA info available (use -O=deadce)");
 			return 1;
@@ -2232,7 +2232,7 @@ mono_main (int argc, char* argv[])
 				opt = opt_sets [i];
 				g_timer_start (timer);
 				for (j = 0; j < count; ++j) {
-					cfg = mini_method_compile (method, opt, mono_get_root_domain (), (JitFlags)0, 0, -1, NULL);
+					cfg = mini_method_compile (method, opt, mono_get_root_domain (), (JitFlags)0, 0, -1, NULL, NULL);
 					mono_destroy_compile (cfg);
 				}
 				g_timer_stop (timer);
@@ -2255,12 +2255,12 @@ mono_main (int argc, char* argv[])
 					(method->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL))
 					method = mono_marshal_get_native_wrapper (method, TRUE, FALSE);
 
-				cfg = mini_method_compile (method, opt, mono_get_root_domain (), (JitFlags)0, 0, -1, NULL);
+				cfg = mini_method_compile (method, opt, mono_get_root_domain (), (JitFlags)0, 0, -1, NULL, NULL);
 				mono_destroy_compile (cfg);
 			}
 		}
 	} else {
-		cfg = mini_method_compile (method, opt, mono_get_root_domain (), (JitFlags)0, 0, -1, NULL);
+		cfg = mini_method_compile (method, opt, mono_get_root_domain (), (JitFlags)0, 0, -1, NULL, NULL);
 		mono_destroy_compile (cfg);
 	}
 #endif

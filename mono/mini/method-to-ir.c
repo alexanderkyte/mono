@@ -7059,6 +7059,24 @@ emit_init_local (MonoCompile *cfg, int local, MonoType *type, gboolean init)
 	}
 }
 
+static void
+update_inline_ledger (MonoCompile *cfg, MonoMethod *cmethod, gboolean success)
+{
+	// Both should be defined together
+	if (!cfg->inline_ledger_success)
+		return;
+
+	if (success) {
+		intptr_t count = (intptr_t) g_hash_table_lookup (cfg->inline_ledger_success, cmethod);
+		count++;
+		g_hash_table_insert (cfg->inline_ledger_success, cmethod, (gpointer) count);
+	} else {
+		intptr_t count = (intptr_t) g_hash_table_lookup (cfg->inline_ledger_failure, cmethod);
+		count++;
+		g_hash_table_insert (cfg->inline_ledger_failure, cmethod, (gpointer) count);
+	}
+}
+
 /*
  * inline_method:
  *
@@ -7193,8 +7211,7 @@ inline_method (MonoCompile *cfg, MonoMethod *cmethod, MonoMethodSignature *fsig,
 		
 		cfg->stat_inlined_methods++;
 
-		if (cfg->inline_ledger)
-			g_hash_table_insert (cfg->inline_ledger, cmethod, (gpointer) 0x1);
+		update_inline_ledger (cfg, cmethod, TRUE);
 
 		/* always add some code to avoid block split failures */
 		MONO_INST_NEW (cfg, ins, OP_NOP);
@@ -7262,6 +7279,8 @@ inline_method (MonoCompile *cfg, MonoMethod *cmethod, MonoMethodSignature *fsig,
 		cfg->headers_to_free = g_slist_prepend_mempool (cfg->mempool, cfg->headers_to_free, cheader);
 		return costs + 1;
 	} else {
+		update_inline_ledger (cfg, cmethod, FALSE);
+
 		if (cfg->verbose_level > 2)
 			printf ("INLINE ABORTED %s (cost %d)\n", mono_method_full_name (cmethod, TRUE), costs);
 		cfg->exception_type = MONO_EXCEPTION_NONE;

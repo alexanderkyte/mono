@@ -3177,7 +3177,7 @@ init_backend (MonoBackend *backend)
  * field in the returned struct to see if compilation succeded.
  */
 MonoCompile*
-mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFlags flags, int parts, int aot_method_index, GHashTable *inline_ledger)
+mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFlags flags, int parts, int aot_method_index, GHashTable *inline_ledger_success, GHashTable *inline_ledger_failure)
 {
 	MonoMethodHeader *header;
 	MonoMethodSignature *sig;
@@ -3260,7 +3260,8 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 	}
 
 	cfg = g_new0 (MonoCompile, 1);
-	cfg->inline_ledger = inline_ledger;
+	cfg->inline_ledger_success = inline_ledger_success;
+	cfg->inline_ledger_failure = inline_ledger_failure;
 	cfg->method = method_to_compile;
 	cfg->mempool = mono_mempool_new ();
 	cfg->opt = opts;
@@ -4237,7 +4238,7 @@ mono_jit_compile_method_inner (MonoMethod *method, MonoDomain *target_domain, in
 	}
 
 	jit_timer = mono_time_track_start ();
-	cfg = mini_method_compile (method, opt, target_domain, JIT_FLAG_RUN_CCTORS, 0, -1, NULL);
+	cfg = mini_method_compile (method, opt, target_domain, JIT_FLAG_RUN_CCTORS, 0, -1, NULL, NULL);
 	mono_time_track_end (&mono_jit_stats.jit_time, jit_timer);
 
 	prof_method = cfg->method;

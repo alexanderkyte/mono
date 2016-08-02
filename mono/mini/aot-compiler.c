@@ -264,7 +264,8 @@ typedef struct MonoAotCompile {
 	FILE *data_outfile;
 	int datafile_offset;
 	int gc_name_offset;
-	GHashTable *inline_ledger;
+	GHashTable *inline_ledger_success;
+	GHashTable *inline_ledger_failure;
 } MonoAotCompile;
 
 typedef struct {
@@ -7469,7 +7470,7 @@ compile_method (MonoAotCompile *acfg, MonoMethod *method)
 		flags = (JitFlags)(flags | JIT_FLAG_NO_DIRECT_ICALLS);
 
 	jit_timer = mono_time_track_start ();
-	cfg = mini_method_compile (method, acfg->opts, mono_get_root_domain (), flags, 0, index, acfg->inline_ledger);
+	cfg = mini_method_compile (method, acfg->opts, mono_get_root_domain (), flags, 0, index, acfg->inline_ledger_success, acfg->inline_ledger_failure);
 	mono_time_track_end (&mono_jit_stats.jit_time, jit_timer);
 
 	if (cfg->exception_type == MONO_EXCEPTION_GENERIC_SHARING_FAILED) {
@@ -10057,7 +10058,8 @@ acfg_create (MonoAssembly *ass, guint32 opts)
 	MonoAotCompile *acfg;
 
 	acfg = g_new0 (MonoAotCompile, 1);
-	acfg->inline_ledger = g_hash_table_new (NULL, NULL);
+	acfg->inline_ledger_success = g_hash_table_new (NULL, NULL);
+	acfg->inline_ledger_failure = g_hash_table_new (NULL, NULL);
 	acfg->methods = g_ptr_array_new ();
 	acfg->method_indexes = g_hash_table_new (NULL, NULL);
 	acfg->method_depth = g_hash_table_new (NULL, NULL);
@@ -10117,7 +10119,8 @@ acfg_free (MonoAotCompile *acfg)
 
 	g_free (acfg->cfgs);
 
-	g_hash_table_destroy (acfg->inline_ledger);
+	g_hash_table_destroy (acfg->inline_ledger_failure);
+	g_hash_table_destroy (acfg->inline_ledger_success);
 	g_free (acfg->static_linking_symbol);
 	g_free (acfg->got_symbol);
 	g_free (acfg->plt_symbol);
@@ -10170,9 +10173,6 @@ get_wrapper_type_name (int type)
 static void aot_dump_method (JsonWriter *writer, MonoMethod *method, MonoCompile *cfg)
 {
 	mono_json_writer_indent (writer);
-	mono_json_writer_object_begin(writer);
-
-	mono_json_writer_indent (writer);
 	mono_json_writer_object_key(writer, "name");
 	mono_json_writer_printf (writer, "\"%s\",\n", method->name);
 
@@ -10199,10 +10199,6 @@ static void aot_dump_method (JsonWriter *writer, MonoMethod *method, MonoCompile
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_key(writer, "wrapper_type");
 	mono_json_writer_printf (writer, "\"%s\",\n", get_wrapper_type_name(method->wrapper_type));
-
-	mono_json_writer_indent_pop (writer);
-	mono_json_writer_indent (writer);
-	mono_json_writer_printf (writer, "}");
 }
 
 static void aot_dump (MonoAotCompile *acfg)
@@ -10220,8 +10216,8 @@ static void aot_dump (MonoAotCompile *acfg)
 	mono_json_writer_object_key(&writer, "methods");
 	mono_json_writer_array_begin (&writer);
 
-	int i;
-	for (i = 0; i < acfg->nmethods; ++i) {
+	gboolean first_iter = TRUE;
+	for (int i = 0; i < acfg->nmethods; ++i) {
 		MonoCompile *cfg;
 		MonoMethod *method;
 
@@ -10231,10 +10227,17 @@ static void aot_dump (MonoAotCompile *acfg)
 
 		method = cfg->orig_method;
 
-		if (i > 0)
+		if (!first_iter)
 			mono_json_writer_printf (&writer, ",\n");
 
+		first_iter = FALSE;
+
+		mono_json_writer_indent (&writer);
+		mono_json_writer_object_begin(&writer);
 		aot_dump_method (&writer, method, cfg);
+		mono_json_writer_indent_pop (&writer);
+		mono_json_writer_indent (&writer);
+		mono_json_writer_printf (&writer, "}");
 	}
 	mono_json_writer_printf (&writer, "\n");
 
@@ -10250,7 +10253,7 @@ static void aot_dump (MonoAotCompile *acfg)
 	mono_json_writer_object_key(&writer, "plt");
 	mono_json_writer_array_begin (&writer);
 
-	for (i = 0; i < acfg->plt_offset; ++i) {
+	for (int i = 0; i < acfg->plt_offset; ++i) {
 		MonoPltEntry *plt_entry = NULL;
 		MonoJumpInfo *ji;
 
@@ -10282,15 +10285,32 @@ static void aot_dump (MonoAotCompile *acfg)
 
 	GHashTableIter iter; 
 	MonoMethod *cmethod;
+	intptr_t success_count;
 	gboolean first_line = TRUE;
-	g_hash_table_iter_init (&iter, acfg->inline_ledger);
-	while (g_hash_table_iter_next (&iter, (void *) &cmethod, NULL)) {
+	g_hash_table_iter_init (&iter, acfg->inline_ledger_success);
+	while (g_hash_table_iter_next (&iter, (void *) &cmethod, (void *) &success_count)) {
 		if (first_line)
 			mono_json_writer_printf (&writer, "\n");
 		else
 			mono_json_writer_printf (&writer, ",\n"); 
 
+		intptr_t failure_count = (intptr_t )g_hash_table_lookup (acfg->inline_ledger_failure, cmethod);
+
+		mono_json_writer_indent (&writer);
+		mono_json_writer_object_begin(&writer);
+
 		aot_dump_method (&writer, cmethod, NULL);
+
+		mono_json_writer_indent (&writer);
+		mono_json_writer_object_key(&writer, "inline_successes");
+		mono_json_writer_printf (&writer, "\"%d\",\n", success_count);
+		mono_json_writer_indent (&writer);
+		mono_json_writer_object_key(&writer, "inline_failures");
+		mono_json_writer_printf (&writer, "\"%d\",\n", failure_count);
+
+		mono_json_writer_indent_pop (&writer);
+		mono_json_writer_indent (&writer);
+		mono_json_writer_printf (&writer, "}");
 
 		first_line = FALSE;
 	}
