@@ -531,6 +531,22 @@ emit_restore_lmf (MonoCompile *cfg, guint8 *code, gint32 lmf_offset)
 #endif /* #ifndef DISABLE_JIT */
 
 /*
+ * mono_arm_have_tls_get:
+ *
+ * Returns whether we have tls access implemented on the current
+ * platform
+ */
+gboolean
+mono_arm_have_tls_get (void)
+{
+#if defined(HAVE_FAST_TLS) && !defined(DISABLE_FAST_TLS)
+	return TRUE;
+#else
+	return FALSE;
+#endif
+}
+
+/*
  * mono_arch_get_argument_info:
  * @csig:  a method signature
  * @param_count: the number of parameters to consider
