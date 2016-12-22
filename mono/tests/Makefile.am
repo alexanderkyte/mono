@@ -353,7 +353,6 @@ BASE_TEST_CS_SRC=		\
 	bug-340662_bug.cs	\
 	bug-325283.2.cs	\
 	thunks.cs \
-	winx64structs.cs \
 	nullable_boxing.2.cs	\
 	valuetype-equals.cs	\
 	custom-modifiers.2.cs	\
@@ -556,7 +555,6 @@ TEST_IL_SRC=			\
 	generic-array-exc.2.il	\
 	generic-valuetype-newobj2.2.il	\
 	generic-valuetype-newobj.2.il	\
-	generic-constrained.2.il	\
 	generic-type-load-exception.2.il	\
 	bug-81466.il	\
 	bug457574.il	\
@@ -739,6 +737,10 @@ PROFILE_DISABLED_TESTS += \
 	bug-415577.exe \
 	generic-marshalbyref.2.exe \
 	unhandled-exception-7.exe
+
+# Tests which crash the LLVM verifier
+PROFILE_DISABLED_TESTS += \
+	winx64structs.cs
 
 # Tests which use unsupported pinvoke+full aot
 # functionality
@@ -1641,7 +1643,6 @@ GSHARED_TESTS_SRC = \
 	generic-getgenericarguments.2.cs	\
 	generic-synchronized.2.cs	\
 	generic-delegate-ctor.2.cs		\
-	generic-constrained.2.cs	\
 	bug-431413.2.cs			\
 	generic-virtual-invoke.2.cs	\
 	generic-typedef.2.cs		\
