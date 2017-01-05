@@ -1635,7 +1635,13 @@ resolve_vcall (MonoVTable *vt, int slot, MonoMethod *imt_method, gpointer *out_a
 
 	// FIXME: This can throw exceptions
 	addr = compiled_method = mono_compile_method_checked (m, error);
-	mono_error_assert_ok (error);
+	if (mono_llvm_only && !is_ok (error)) {
+		MonoException *ex = mono_error_convert_to_exception (error);
+		mono_llvm_throw_exception ((MonoObject*)ex);
+	} else {
+		mono_error_assert_ok (error);
+	}
+
 	g_assert (addr);
 
 	addr = mini_add_method_wrappers_llvmonly (m, addr, gsharedvt, need_unbox_tramp, out_arg);
