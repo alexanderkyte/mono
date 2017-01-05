@@ -1517,6 +1517,9 @@ mono_class_get_declsec_flags (MonoClass *class);
 void
 mono_class_set_declsec_flags (MonoClass *class, guint32 value);
 
+gboolean
+mono_class_set_failure_from_mono_error (MonoClass *klass, MonoError *error);
+
 /*Now that everything has been defined, let's include the inline functions */
 #include <mono/metadata/class-inlines.h>
 
