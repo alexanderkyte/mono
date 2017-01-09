@@ -333,7 +333,7 @@ gpointer __aeabi_read_tp (void);
 gboolean
 mono_arch_have_fast_tls (void)
 {
-#ifdef HAVE_AEABI_READ_TP
+#ifdef HAVE_AEABI_READ_TP && !defined(DISABLE_FAST_TLS)
 	static gboolean have_fast_tls = FALSE;
         static gboolean inited = FALSE;
 	gpointer tp1, tp2;
