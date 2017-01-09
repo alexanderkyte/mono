@@ -8282,7 +8282,7 @@ emit_llvm_file (MonoAotCompile *acfg)
 		// FIXME: arch
                 command = NULL;
 #if TARGET_ARM
-		command = g_strdup_printf ("clang++ -fexceptions -march=armv7 -fpic  -O2 -fno-optimize-sibling-calls -Wno-override-module -c -o \"%s\" \"%s.opt.bc\"", acfg->llvm_ofile, acfg->tmpbasename);
+		command = g_strdup_printf ("clang++ -fexceptions -march=armv7 -fpic -mfpu=vfp3 -O2 -fno-optimize-sibling-calls -Wno-override-module -c -o \"%s\" \"%s.opt.bc\"", acfg->llvm_ofile, acfg->tmpbasename);
 #endif
 
 #ifdef TARGET_AMD64
