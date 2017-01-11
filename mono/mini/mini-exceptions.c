@@ -3088,7 +3088,7 @@ throw_exception (MonoObject *ex, gboolean rethrow)
 		mono_ex = (MonoException*)ex;
 
 	// Note: Not pinned
-	jit_tls->thrown_exc = mono_gchandle_new ((MonoObject*)mono_ex, FALSE);
+	jit_tls->thrown_exc = mono_gchandle_new ((MonoObject*)mono_ex, TRUE);
 
 	if (!rethrow) {
 #ifdef MONO_ARCH_HAVE_UNWIND_BACKTRACE
@@ -3168,16 +3168,17 @@ mono_llvm_load_exception (void)
 	MonoException *mono_ex = (MonoException*)mono_gchandle_get_target (jit_tls->thrown_exc);
 
 	if (mono_ex->trace_ips) {
-		GList *trace_ips = NULL;
+		MonoArray *trace_ips = mono_ex->trace_ips;
+		GList *out_trace_ips = NULL;
 		gpointer ip = __builtin_return_address (0);
 
-		size_t upper = mono_array_length (mono_ex->trace_ips);
+		size_t upper = mono_array_length (trace_ips);
 
 		for (int i = 0; i < upper; i+= 2) {
-			gpointer curr_ip = mono_array_get (mono_ex->trace_ips, gpointer, i);
-			gpointer curr_info = mono_array_get (mono_ex->trace_ips, gpointer, i + 1);
-			trace_ips = g_list_append (trace_ips, curr_ip);
-			trace_ips = g_list_append (trace_ips, curr_info);
+			gpointer curr_ip = mono_array_get (trace_ips, gpointer, i);
+			gpointer curr_info = mono_array_get (trace_ips, gpointer, i + 1);
+			out_trace_ips = g_list_append (out_trace_ips, curr_ip);
+			out_trace_ips = g_list_append (out_trace_ips, curr_info);
 
 			if (ip == curr_ip)
 				break;
@@ -3186,10 +3187,10 @@ mono_llvm_load_exception (void)
 		// FIXME: Does this work correctly for rethrows?
 		// We may be discarding useful information
 		// when this gets GC'ed
-		MonoArray *ips_arr = mono_glist_to_array (trace_ips, mono_defaults.int_class, &error);
+		MonoArray *ips_arr = mono_glist_to_array (out_trace_ips, mono_defaults.int_class, &error);
 		mono_error_assert_ok (&error);
 		MONO_OBJECT_SETREF (mono_ex, trace_ips, ips_arr);
-		g_list_free (trace_ips);
+		g_list_free (out_trace_ips);
 
 		// FIXME:
 		//MONO_OBJECT_SETREF (mono_ex, stack_trace, ves_icall_System_Exception_get_trace (mono_ex));
