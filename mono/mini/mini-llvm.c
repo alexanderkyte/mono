@@ -1686,6 +1686,7 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 	char *callee_name;
 	if (ctx->llvm_only) {
 		callee_name = mono_aot_get_direct_call_symbol (type, data);
+
 		if (callee_name) {
 			/* Directly callable */
 			// FIXME: Locking
@@ -1693,7 +1694,7 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 			if (!callee) {
 				callee = LLVMAddFunction (ctx->lmodule, callee_name, llvm_sig);
 
-				LLVMSetVisibility (callee, LLVMHiddenVisibility);
+				/*LLVMSetVisibility (callee, LLVMHiddenVisibility);*/
 
 				g_hash_table_insert (ctx->module->direct_callables, (char*)callee_name, callee);
 			} else {
@@ -1704,6 +1705,17 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 				g_free (callee_name);
 			}
 			return callee;
+		}
+
+		MonoMethod *method = (MonoMethod *) data;
+		
+		if (type == MONO_PATCH_INFO_METHOD && method->klass->image->assembly == ctx->cfg->method->klass->image->assembly) {
+			LLVMValueRef lmethod = (LLVMValueRef)g_hash_table_lookup (ctx->module->method_to_lmethod, method);
+			if (!lmethod) {
+				lmethod = LLVMAddFunction (ctx->module->lmodule, ctx->method_name, llvm_sig);
+				g_hash_table_insert (ctx->module->method_to_lmethod, method, lmethod);
+			}
+			return LLVMConstBitCast (lmethod, LLVMPointerType (llvm_sig, 0));
 		}
 
 		/*
@@ -1726,7 +1738,7 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 		if (!callee) {
 			callee = LLVMAddFunction (ctx->lmodule, callee_name, llvm_sig);
 
-			LLVMSetVisibility (callee, LLVMHiddenVisibility);
+			/*LLVMSetVisibility (callee, LLVMHiddenVisibility);*/
 
 			g_hash_table_insert (ctx->module->plt_entries, (char*)callee_name, callee);
 		}
@@ -2621,7 +2633,7 @@ emit_get_unbox_tramp (MonoLLVMModule *module)
 	rtype = LLVMPointerType (LLVMInt8Type (), 0);
 	func = LLVMAddFunction (lmodule, module->get_unbox_tramp_symbol, LLVMFunctionType1 (rtype, LLVMInt32Type (), FALSE));
 	LLVMSetLinkage (func, LLVMExternalLinkage);
-	LLVMSetVisibility (func, LLVMHiddenVisibility);
+	/*LLVMSetVisibility (func, LLVMHiddenVisibility);*/
 	LLVMAddFunctionAttr (func, LLVMNoUnwindAttribute);
 	module->get_unbox_tramp = func;
 
@@ -7051,8 +7063,12 @@ emit_method_inner (EmitContext *ctx)
 	if (!ctx_ok (ctx))
 		return;
 
-	method = LLVMAddFunction (lmodule, ctx->method_name, method_type);
+	method = (LLVMValueRef)g_hash_table_lookup (ctx->module->method_to_lmethod, cfg->method);
+	if (!method)
+		method = LLVMAddFunction (lmodule, ctx->method_name, method_type);
 	ctx->lmethod = method;
+	if (ctx->module->method_to_lmethod)
+		g_hash_table_insert (ctx->module->method_to_lmethod, cfg->method, ctx->lmethod);
 
 	if (!cfg->llvm_only)
 		LLVMSetFunctionCallConv (method, LLVMMono1CallConv);
@@ -7064,7 +7080,7 @@ emit_method_inner (EmitContext *ctx)
 		LLVMSetLinkage (method, LLVMInternalLinkage);
 		if (ctx->module->external_symbols) {
 			LLVMSetLinkage (method, LLVMExternalLinkage);
-			LLVMSetVisibility (method, LLVMHiddenVisibility);
+			/*LLVMSetVisibility (method, LLVMHiddenVisibility);*/
 		}
 		if (ctx->is_linkonce) {
 			mono_llvm_set_comdat (method, lmodule);
@@ -7553,8 +7569,6 @@ emit_method_inner (EmitContext *ctx)
 #endif
 	}
 
-	if (ctx->module->method_to_lmethod)
-		g_hash_table_insert (ctx->module->method_to_lmethod, cfg->method, ctx->lmethod);
 	if (ctx->module->idx_to_lmethod)
 		g_hash_table_insert (ctx->module->idx_to_lmethod, GINT_TO_POINTER (cfg->method_index), ctx->lmethod);
 
@@ -8973,28 +8987,28 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 	 * their bodies, but that couldn't handle the case when a method fails to compile
 	 * with llvm.
 	 */
-	if (module->llvm_only) {
-		GHashTableIter iter;
-		MonoMethod *method;
-		GSList *callers, *l;
+	/*if (module->llvm_only) {*/
+		/*GHashTableIter iter;*/
+		/*MonoMethod *method;*/
+		/*GSList *callers, *l;*/
 
-		g_hash_table_iter_init (&iter, module->method_to_callers);
-		while (g_hash_table_iter_next (&iter, (void**)&method, (void**)&callers)) {
-			LLVMValueRef lmethod;
+		/*g_hash_table_iter_init (&iter, module->method_to_callers);*/
+		/*while (g_hash_table_iter_next (&iter, (void**)&method, (void**)&callers)) {*/
+			/*LLVMValueRef lmethod;*/
 
-			if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)
-				continue;
+			/*if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)*/
+				/*continue;*/
 
-			lmethod = (LLVMValueRef)g_hash_table_lookup (module->method_to_lmethod, method);
-			if (lmethod) {
-				for (l = callers; l; l = l->next) {
-					LLVMValueRef caller = (LLVMValueRef)l->data;
+			/*lmethod = (LLVMValueRef)g_hash_table_lookup (module->method_to_lmethod, method);*/
+			/*if (lmethod) {*/
+				/*for (l = callers; l; l = l->next) {*/
+					/*LLVMValueRef caller = (LLVMValueRef)l->data;*/
 
-					mono_llvm_replace_uses_of (caller, lmethod);
-				}
-			}
-		}
-	}
+					/*mono_llvm_replace_uses_of (caller, lmethod);*/
+				/*}*/
+			/*}*/
+		/*}*/
+	/*}*/
 
 	/* Replace PLT entries for directly callable methods with the methods themselves */
 	{
@@ -9017,7 +9031,7 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 		}
 	}
 
-#if 0
+#if 1
 	{
 		char *verifier_err;
 
