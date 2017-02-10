@@ -1706,6 +1706,16 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 			return callee;
 		}
 
+		if (type == MONO_PATCH_INFO_METHOD) {
+			MonoMethod *method = (MonoMethod *) data;
+			if (!method->is_inflated && ctx->cfg->llvm_only && method->klass->image->assembly == ctx->module->assembly) {
+				callee = (LLVMValueRef)g_hash_table_lookup (ctx->module->method_to_lmethod, method);
+				if (callee)
+					return LLVMConstBitCast (callee, LLVMPointerType (llvm_sig, 0));
+				/*callee_name = mono_aot_get_mangled_method_name (cfg->method);*/
+			}
+		}
+
 		/*
 		 * Calls are made through the GOT.
 		 */
@@ -3306,7 +3316,7 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 					set_failure (ctx, "can't encode patch");
 					return;
 				}
-				if (cfg->llvm_only && call->method->klass->image->assembly == ctx->module->assembly) {
+				if (call->method->is_inflated && cfg->llvm_only && call->method->klass->image->assembly == ctx->module->assembly) {
 					/*
 					 * Collect instructions representing the callee into a hash so they can be replaced
 					 * by the llvm method for the callee if the callee turns out to be direct
