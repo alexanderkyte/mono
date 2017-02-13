@@ -3197,11 +3197,28 @@ decode_exception_debug_info (MonoAotModule *amodule, MonoDomain *domain,
 	return jinfo;
 }
 
+static MonoAotModule *
+get_addr_containing_amodule (MonoAotModule *seed_amodule, guint8 *code)
+{
+	guint32 method_index = (guint32) g_hash_table_lookup (amodule->code_to_idx, (gconstpointer) code);
+
+	g_assert (amodule->got_initializing);
+	gpointer (*get_module) (int) = (gpointer (*)(int))amodule->info.llvm_get_module;
+
+	MonoAotModule **mod = (MonoAotModule **) get_module (method_index);
+
+	g_assert ((*mod)->got_initializing);
+
+	return *mod;
+}
+
+
 static gboolean
 amodule_contains_code_addr (MonoAotModule *amodule, guint8 *code)
 {
 	guint32 method_index = (guint32) g_hash_table_lookup (amodule->code_to_idx, (gconstpointer) code);
 
+	g_assert (amodule->got_initializing);
 	gpointer (*get_module) (int) = (gpointer (*)(int))amodule->info.llvm_get_module;
 
 	MonoAotModule **mod = (MonoAotModule **) get_module (method_index);
@@ -3209,9 +3226,11 @@ amodule_contains_code_addr (MonoAotModule *amodule, guint8 *code)
 	if (!mod)
 		return FALSE;
 
+	g_assert ((*mod)->got_initializing);
+
 	// Important for the method_index = 0 case
 	gpointer addr = (*mod)->methods [method_index];
-	if (addr != code)
+	if (method_index == 0 && addr != code)
 		return FALSE;
 
 	return *mod == amodule;

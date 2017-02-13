@@ -2453,6 +2453,7 @@ void	  mono_print_ins (MonoInst *ins);
 gboolean  mini_assembly_can_skip_verification (MonoDomain *domain, MonoMethod *method);
 gboolean mono_compile_is_broken (MonoCompile *cfg, MonoMethod *method, gboolean fail_compile);
 MonoInst *mono_get_got_var (MonoCompile *cfg);
+gboolean will_get_mono_vtable_var (MonoMethod *method);
 void      mono_add_seq_point (MonoCompile *cfg, MonoBasicBlock *bb, MonoInst *ins, int native_offset);
 void      mono_add_var_location (MonoCompile *cfg, MonoInst *var, gboolean is_reg, int reg, int offset, int from, int to);
 MonoInst* mono_emit_jit_icall (MonoCompile *cfg, gconstpointer func, MonoInst **args);
