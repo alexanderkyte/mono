@@ -67,7 +67,7 @@ typedef struct {
 	GHashTable *method_to_lmethod;
 	GHashTable *direct_callables;
 	GHashTable *name_to_lmethod;
-	GHashTable *name_to_method;
+	GHashTable *name_to_type;
 	char **bb_names;
 	int bb_names_len;
 	GPtrArray *used;
@@ -1712,39 +1712,28 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 		if (type == MONO_PATCH_INFO_METHOD) {
 			MonoMethod *method = (MonoMethod *) data;
 			if (can_forward && !method->is_inflated && ctx->cfg->llvm_only && method->klass->image->assembly == ctx->module->assembly) {
-				/*callee = (LLVMValueRef)g_hash_table_lookup (ctx->module->method_to_lmethod, method);*/
-				/*if (callee)*/
-					/*return callee;*/
+				callee = (LLVMValueRef)g_hash_table_lookup (ctx->module->method_to_lmethod, method);
+				if (callee)
+					return callee;
 
-				MonoMethodSignature *sig = mono_method_signature (method);
+				/*MonoMethodSignature *sig = mono_method_signature (method);*/
 
-				LLVMCallInfo *linfo = get_llvm_call_info (ctx->cfg, sig);
-				LLVMTypeRef method_type = sig_to_llvm_sig_full (ctx, sig, linfo);
-				if (!ctx_ok (ctx))
-					g_assert_not_reached ();
-				if (method_type == llvm_sig) {
-					callee_name = mono_aot_get_mangled_method_name (method);
-					callee = (LLVMValueRef) g_hash_table_lookup (ctx->module->name_to_lmethod, callee_name);
+				/*LLVMCallInfo *linfo = get_llvm_call_info (ctx->cfg, sig);*/
+				/*LLVMTypeRef method_type = sig_to_llvm_sig_full (ctx, sig, linfo);*/
+				/*if (!ctx_ok (ctx))*/
+					/*g_assert_not_reached ();*/
+				/*g_assert (method_type == llvm_sig);*/
 
-						/*if (strcmp ("aot__MonoTests.System.Security.Cryptography_MonoTests.System.Security.Cryptography.DSACryptoServiceProviderTest__SignAndVerifyvoid_this_cl6_string_cl3b_System_2eSecurity_2eCryptography_2eDSACryptoServiceProvider_", callee_name) == 0) {*/
-							/*fprintf (stderr, "%s %p\n", callee_name, method);*/
-							/*g_assert_not_reached ();*/
-						/*}*/
+				callee_name = mono_aot_get_mangled_method_name (method);
+				callee = (LLVMValueRef) g_hash_table_lookup (ctx->module->name_to_lmethod, callee_name);
 
-					if (!callee) {
-						callee = LLVMAddFunction (ctx->lmodule, callee_name, llvm_sig);
-						g_hash_table_insert (ctx->module->name_to_lmethod, callee_name, callee);
-						g_assert (method);
-						g_hash_table_insert (ctx->module->name_to_method, callee_name, method);
-					} else {
-						MonoMethod *secondary = (MonoMethod *) g_hash_table_lookup (ctx->module->name_to_method, callee_name);
-						g_assert (LLVMGetElementType (LLVMTypeOf (callee)) == llvm_sig);
-						g_assert (secondary);
-					}
-					/*return callee;*/
-				}
+				if (!callee)
+					callee = LLVMAddFunction (ctx->lmodule, callee_name, llvm_sig);
+				else
+					g_hash_table_insert (ctx->module->name_to_lmethod, callee_name, method);
 
 				/*g_assert (found_sig == llvm_sig);*/
+				/*g_hash_table_insert (ctx->module->name_to_type, callee_name, llvm_sig);*/
 			}
 		}
 
@@ -3360,6 +3349,9 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 				}
 
 				if (mono_metadata_signature_equal (call->signature, mono_method_signature (call->method)) && cfg->llvm_only && call->method->klass->image->assembly == ctx->module->assembly) {
+					MonoMethodSignature *sig2 = (MonoMethodSignature *) g_hash_table_lookup (ctx->module->name_to_type, mono_aot_get_mangled_method_name (call->method));
+					if (!sig2)
+						g_hash_table_insert (ctx->module->name_to_type, mono_aot_get_mangled_method_name (call->method), mono_method_signature (call->method));
 				}
 			} else {
 				MonoError error;
@@ -7119,27 +7111,20 @@ emit_method_inner (EmitContext *ctx)
 	if (!ctx_ok (ctx))
 		return;
 
-	gboolean fetched = FALSE;
-
-	char *method_name = mono_aot_get_mangled_method_name (ctx->cfg->method);
 	if (ctx->is_linkonce) {
-		method = (LLVMValueRef) g_hash_table_lookup (ctx->module->name_to_lmethod, method_name);
-	}
-	MonoMethod *secondary = (MonoMethod *) g_hash_table_lookup (ctx->module->name_to_method, method_name);
-
-	if (!method) {
-		method = LLVMAddFunction (lmodule, method_name, method_type);
-		if (!ctx->cfg->method->is_inflated) {
-			g_hash_table_insert (ctx->module->name_to_lmethod, method_name, method);
-			g_hash_table_insert (ctx->module->name_to_method, method_name, ctx->cfg->method);
+		method = (LLVMValueRef) g_hash_table_lookup (ctx->module->name_to_lmethod, cfg->llvm_method_name);
+		if (method) {
+			g_assert (method_type == (LLVMTypeRef) g_hash_table_lookup (ctx->module->name_to_type, cfg->llvm_method_name));
+			fprintf (stderr, "Asserted");
 		}
-
-		g_assert (strcmp(ctx->method_name, mono_aot_get_mangled_method_name (ctx->cfg->method)) == 0);
-	} else {
-		fetched = TRUE;
-		g_assert (secondary);
 	}
-	g_assert (LLVMGetElementType (LLVMTypeOf (method)) == method_type);
+
+	if (!method)
+		method = LLVMAddFunction (lmodule, ctx->method_name, method_type);
+	else {
+		g_hash_table_insert (ctx->module->name_to_lmethod, cfg->llvm_method_name, method);
+		g_hash_table_insert (ctx->module->name_to_type, cfg->llvm_method_name, sig);
+	}
 
 	ctx->lmethod = method;
 
@@ -8740,7 +8725,7 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 	module->plt_entries_ji = g_hash_table_new (NULL, NULL);
 	module->direct_callables = g_hash_table_new (g_str_hash, g_str_equal);
 	module->name_to_lmethod = g_hash_table_new (g_str_hash, g_str_equal);
-	module->name_to_method = g_hash_table_new (g_str_hash, g_str_equal);
+	module->name_to_type = g_hash_table_new (g_str_hash, g_str_equal);
 	module->method_to_lmethod = g_hash_table_new (NULL, NULL);
 	module->idx_to_lmethod = g_hash_table_new (NULL, NULL);
 	module->idx_to_amod = g_hash_table_new (NULL, NULL);
