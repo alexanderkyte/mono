@@ -3197,26 +3197,9 @@ decode_exception_debug_info (MonoAotModule *amodule, MonoDomain *domain,
 	return jinfo;
 }
 
-static MonoAotModule *
-get_addr_containing_amodule (MonoAotModule *seed_amodule, guint8 *code)
-{
-	g_assert (seed_amodule->got_initializing);
-	guint32 method_index = (guint32) g_hash_table_lookup (seed_amodule->code_to_idx, (gconstpointer) code);
-
-	gpointer (*get_module) (int) = (gpointer (*)(int))seed_amodule->info.llvm_get_module;
-
-	MonoAotModule **mod = (MonoAotModule **) get_module (method_index);
-
-	g_assert ((*mod)->got_initializing);
-
-	return *mod;
-}
-
-
 static gboolean
 amodule_contains_code_addr (MonoAotModule *amodule, guint8 *code)
 {
-	g_assert (amodule->got_initializing);
 	guint32 method_index = (guint32) g_hash_table_lookup (amodule->code_to_idx, (gconstpointer) code);
 
 	gpointer (*get_module) (int) = (gpointer (*)(int))amodule->info.llvm_get_module;
@@ -3226,11 +3209,9 @@ amodule_contains_code_addr (MonoAotModule *amodule, guint8 *code)
 	if (!mod)
 		return FALSE;
 
-	g_assert ((*mod)->got_initializing);
-
 	// Important for the method_index = 0 case
-	guint8 *addr = (*mod)->methods [method_index];
-	if (method_index == 0 && addr != code)
+	gpointer addr = (*mod)->methods [method_index];
+	if (addr != code)
 		return FALSE;
 
 	return *mod == amodule;
@@ -4441,7 +4422,7 @@ mono_aot_init_llvm_method (gpointer aot_module, intptr_t code)
 	g_assert (amodule->got_initializing);
 	guint32 method_index = (guint32) g_hash_table_lookup (amodule->code_to_idx, (gconstpointer) code);
 
-	g_assert ((intptr_t) amodule->methods[method_index] == code);
+	g_assert (amodule->methods[method_index] == code);
 
 	init_llvmonly_method (amodule, method_index, NULL, NULL, NULL);
 }
@@ -4456,7 +4437,7 @@ mono_aot_init_gshared_method_this (gpointer aot_module, intptr_t code, MonoObjec
 	MonoGenericContext *context;
 	MonoMethod *method;
 
-	g_assert ((intptr_t) amodule->methods[method_index] == code);
+	g_assert (amodule->methods[method_index] == code);
 
 	// FIXME:
 	g_assert (this_obj);
@@ -4482,7 +4463,7 @@ mono_aot_init_gshared_method_mrgctx (gpointer aot_module, intptr_t code, MonoMet
 	MonoGenericContext context = { NULL, NULL };
 	MonoClass *klass = rgctx->class_vtable->klass;
 
-	g_assert ((intptr_t) amodule->methods[method_index] == code);
+	g_assert (amodule->methods[method_index] == code);
 
 	if (mono_class_is_ginst (klass))
 		context.class_inst = mono_class_get_generic_class (klass)->context.class_inst;

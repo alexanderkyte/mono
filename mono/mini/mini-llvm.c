@@ -66,8 +66,6 @@ typedef struct {
 	GHashTable *plt_entries_ji;
 	GHashTable *method_to_lmethod;
 	GHashTable *direct_callables;
-	GHashTable *name_to_lmethod;
-	GHashTable *name_to_type;
 	char **bb_names;
 	int bb_names_len;
 	GPtrArray *used;
@@ -283,7 +281,6 @@ static void emit_dbg_info (MonoLLVMModule *module, const char *filename, const c
 static void emit_cond_system_exception (EmitContext *ctx, MonoBasicBlock *bb, const char *exc_type, LLVMValueRef cmp);
 static LLVMValueRef get_intrinsic (EmitContext *ctx, const char *name);
 static void decode_llvm_eh_info (EmitContext *ctx, gpointer eh_frame);
-static LLVMCallInfo* get_llvm_call_info (MonoCompile *cfg, MonoMethodSignature *sig);
 
 static LLVMValueRef
 get_or_generate_amodule_ref (MonoLLVMModule *module, guint32 method_index, char *llvm_method_name);
@@ -1683,7 +1680,7 @@ get_aotconst (EmitContext *ctx, MonoJumpInfoType type, gconstpointer data)
 }
 
 static LLVMValueRef
-get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gconstpointer data, gboolean can_forward)
+get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gconstpointer data)
 {
 	LLVMValueRef callee;
 	char *callee_name;
@@ -1711,29 +1708,11 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 
 		if (type == MONO_PATCH_INFO_METHOD) {
 			MonoMethod *method = (MonoMethod *) data;
-			if (can_forward && !method->is_inflated && ctx->cfg->llvm_only && method->klass->image->assembly == ctx->module->assembly) {
+			if (!method->is_inflated && ctx->cfg->llvm_only && method->klass->image->assembly == ctx->module->assembly) {
 				callee = (LLVMValueRef)g_hash_table_lookup (ctx->module->method_to_lmethod, method);
 				if (callee)
-					return callee;
-
-				/*MonoMethodSignature *sig = mono_method_signature (method);*/
-
-				/*LLVMCallInfo *linfo = get_llvm_call_info (ctx->cfg, sig);*/
-				/*LLVMTypeRef method_type = sig_to_llvm_sig_full (ctx, sig, linfo);*/
-				/*if (!ctx_ok (ctx))*/
-					/*g_assert_not_reached ();*/
-				/*g_assert (method_type == llvm_sig);*/
-
-				callee_name = mono_aot_get_mangled_method_name (method);
-				callee = (LLVMValueRef) g_hash_table_lookup (ctx->module->name_to_lmethod, callee_name);
-
-				if (!callee)
-					callee = LLVMAddFunction (ctx->lmodule, callee_name, llvm_sig);
-				else
-					g_hash_table_insert (ctx->module->name_to_lmethod, callee_name, method);
-
-				/*g_assert (found_sig == llvm_sig);*/
-				/*g_hash_table_insert (ctx->module->name_to_type, callee_name, llvm_sig);*/
+					return LLVMConstBitCast (callee, LLVMPointerType (llvm_sig, 0));
+				/*callee_name = mono_aot_get_mangled_method_name (cfg->method);*/
 			}
 		}
 
@@ -2164,7 +2143,7 @@ emit_cond_system_exception (EmitContext *ctx, MonoBasicBlock *bb, const char *ex
 
 		if (!sig)
 			sig = LLVMFunctionType1 (LLVMVoidType (), LLVMInt32Type (), FALSE);
-		callee = get_callee (ctx, sig, MONO_PATCH_INFO_JIT_ICALL_ADDR, "mono_llvm_throw_corlib_exception", FALSE);
+		callee = get_callee (ctx, sig, MONO_PATCH_INFO_JIT_ICALL_ADDR, "mono_llvm_throw_corlib_exception");
 
 		LLVMBuildBr (builder, ex2_bb);
 
@@ -2196,7 +2175,7 @@ emit_cond_system_exception (EmitContext *ctx, MonoBasicBlock *bb, const char *ex
 		icall_name = "llvm_throw_corlib_exception_abs_trampoline";
 
 		if (ctx->cfg->compile_aot) {
-			callee = get_callee (ctx, sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name, FALSE);
+			callee = get_callee (ctx, sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 		} else {
 			/*
 			 * Differences between the LLVM/non-LLVM throw corlib exception trampoline:
@@ -3332,7 +3311,7 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 			callee = NULL;
 		} else {
 			if (cfg->compile_aot) {
-				callee = get_callee (ctx, llvm_sig, MONO_PATCH_INFO_METHOD, call->method, mono_metadata_signature_equal (call->signature, mono_method_signature (call->method)));
+				callee = get_callee (ctx, llvm_sig, MONO_PATCH_INFO_METHOD, call->method);
 				if (!callee) {
 					set_failure (ctx, "can't encode patch");
 					return;
@@ -3346,12 +3325,6 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 					GSList *l = (GSList*)g_hash_table_lookup (ctx->method_to_callers, call->method);
 					l = g_slist_prepend (l, callee);
 					g_hash_table_insert (ctx->method_to_callers, call->method, l);
-				}
-
-				if (mono_metadata_signature_equal (call->signature, mono_method_signature (call->method)) && cfg->llvm_only && call->method->klass->image->assembly == ctx->module->assembly) {
-					MonoMethodSignature *sig2 = (MonoMethodSignature *) g_hash_table_lookup (ctx->module->name_to_type, mono_aot_get_mangled_method_name (call->method));
-					if (!sig2)
-						g_hash_table_insert (ctx->module->name_to_type, mono_aot_get_mangled_method_name (call->method), mono_method_signature (call->method));
 				}
 			} else {
 				MonoError error;
@@ -3424,7 +3397,7 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 			  target = mono_resolve_patch_target (cfg->method, cfg->domain, NULL, &ji, FALSE);
 			*/
 			if (cfg->compile_aot) {
-				callee = get_callee (ctx, llvm_sig, MONO_PATCH_INFO_INTERNAL_METHOD, (char*)info->name, FALSE);
+				callee = get_callee (ctx, llvm_sig, MONO_PATCH_INFO_INTERNAL_METHOD, (char*)info->name);
 				if (!callee) {
 					set_failure (ctx, "can't encode patch");
 					return;
@@ -3439,7 +3412,7 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 				if (cfg->abs_patches) {
 					MonoJumpInfo *abs_ji = (MonoJumpInfo*)g_hash_table_lookup (cfg->abs_patches, call->fptr);
 					if (abs_ji) {
-						callee = get_callee (ctx, llvm_sig, abs_ji->type, abs_ji->data.target, FALSE);
+						callee = get_callee (ctx, llvm_sig, abs_ji->type, abs_ji->data.target);
 						if (!callee) {
 							set_failure (ctx, "can't encode patch");
 							return;
@@ -3754,7 +3727,7 @@ emit_llvmonly_throw (EmitContext *ctx, MonoBasicBlock *bb, gboolean rethrow, LLV
 		LLVMTypeRef fun_sig = LLVMFunctionType1 (LLVMVoidType (), exc_type, FALSE);
 
 		if (ctx->cfg->compile_aot) {
-			callee = get_callee (ctx, fun_sig, MONO_PATCH_INFO_JIT_ICALL_ADDR, icall_name, FALSE);
+			callee = get_callee (ctx, fun_sig, MONO_PATCH_INFO_JIT_ICALL_ADDR, icall_name);
 		} else {
 			callee = LLVMAddFunction (ctx->lmodule, icall_name, fun_sig);
 			LLVMAddGlobalMapping (ctx->module->ee, callee, resolve_patch (ctx->cfg, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name));
@@ -3792,7 +3765,7 @@ emit_throw (EmitContext *ctx, MonoBasicBlock *bb, gboolean rethrow, LLVMValueRef
 		throw_sig->ret = &mono_get_void_class ()->byval_arg;
 		throw_sig->params [0] = &mono_get_object_class ()->byval_arg;
 		if (ctx->cfg->compile_aot) {
-			callee = get_callee (ctx, sig_to_llvm_sig (ctx, throw_sig), MONO_PATCH_INFO_INTERNAL_METHOD, icall_name, FALSE);
+			callee = get_callee (ctx, sig_to_llvm_sig (ctx, throw_sig), MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 		} else {
 			gpointer target;
 #ifdef TARGET_X86
@@ -3829,7 +3802,7 @@ emit_resume_eh (EmitContext *ctx, MonoBasicBlock *bb)
 
 	if (!callee) {
 		if (ctx->cfg->compile_aot) {
-			callee = get_callee (ctx, fun_sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name, FALSE);
+			callee = get_callee (ctx, fun_sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 		} else {
 			callee = LLVMAddFunction (ctx->lmodule, icall_name, fun_sig);
 			LLVMAddGlobalMapping (ctx->module->ee, callee, resolve_patch (ctx->cfg, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name));
@@ -3856,7 +3829,7 @@ mono_llvm_emit_clear_exception_call (EmitContext *ctx, LLVMBuilderRef builder)
 
 	if (!callee) {
 		if (ctx->cfg->compile_aot) {
-			callee = get_callee (ctx, call_sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name, FALSE);
+			callee = get_callee (ctx, call_sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 		} else {
 			// FIXME: This is broken.
 			callee = LLVMAddFunction (ctx->lmodule, icall_name, call_sig);
@@ -3878,7 +3851,7 @@ mono_llvm_emit_load_exception_call (EmitContext *ctx, LLVMBuilderRef builder)
 
 	if (!callee) {
 		if (ctx->cfg->compile_aot) {
-			callee = get_callee (ctx, call_sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name, FALSE);
+			callee = get_callee (ctx, call_sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 		} else {
 			// FIXME: This is broken.
 			callee = LLVMAddFunction (ctx->lmodule, icall_name, call_sig);
@@ -3922,7 +3895,7 @@ mono_llvm_emit_match_exception_call (EmitContext *ctx, LLVMBuilderRef builder, g
 		if (ctx->cfg->compile_aot) {
 			ctx->builder = builder;
 			// get_callee expects ctx->builder to be the emitting builder
-			callee = get_callee (ctx, match_sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name, FALSE);
+			callee = get_callee (ctx, match_sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 		} else {
 			callee = ctx->module->match_exc = LLVMAddFunction (ctx->lmodule, icall_name, match_sig);
 			LLVMAddGlobalMapping (ctx->module->ee, ctx->module->match_exc, resolve_patch (ctx->cfg, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name));
@@ -3983,7 +3956,7 @@ get_mono_personality (EmitContext *ctx)
 		}
 	} else {
 		if (ctx->cfg->compile_aot) {
-			personality = get_callee (ctx, personality_type, MONO_PATCH_INFO_INTERNAL_METHOD, default_personality_name, FALSE);
+			personality = get_callee (ctx, personality_type, MONO_PATCH_INFO_INTERNAL_METHOD, default_personality_name);
 		} else {
 			personality = LLVMAddFunction (ctx->lmodule, default_personality_name, personality_type);
 			LLVMAddGlobalMapping (ctx->module->ee, personality, resolve_patch (ctx->cfg, MONO_PATCH_INFO_INTERNAL_METHOD, default_personality_name));
@@ -5789,7 +5762,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 			LLVMPositionBuilderAtEnd (builder, poll_bb);
 
 			if (ctx->cfg->compile_aot) {
-				callee = get_callee (ctx, sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name, FALSE);
+				callee = get_callee (ctx, sig, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 			} else {
 				gpointer target = resolve_patch (ctx->cfg, MONO_PATCH_INFO_INTERNAL_METHOD, icall_name);
 				callee = emit_jit_callee (ctx, icall_name, sig, target);
@@ -6694,7 +6667,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 				emit_resume_eh (ctx, bb);
 			} else {
 				if (ctx->cfg->compile_aot) {
-					callee = get_callee (ctx, LLVMFunctionType (LLVMVoidType (), NULL, 0, FALSE), MONO_PATCH_INFO_INTERNAL_METHOD, "llvm_resume_unwind_trampoline", FALSE);
+					callee = get_callee (ctx, LLVMFunctionType (LLVMVoidType (), NULL, 0, FALSE), MONO_PATCH_INFO_INTERNAL_METHOD, "llvm_resume_unwind_trampoline");
 				} else {
 #if LLVM_API_VERSION > 100
 					MonoJitICallInfo *info;
@@ -7039,7 +7012,7 @@ mono_llvm_emit_method (MonoCompile *cfg)
 			/*LLVMBuildUnreachable (builder);*/
 
 			LLVMTypeRef sig = LLVMFunctionType0 (LLVMVoidType (), FALSE);
-			LLVMValueRef callee = get_callee (ctx, sig, MONO_PATCH_INFO_JIT_ICALL_ADDR, "mono_llvm_throw_ee_exception", FALSE);
+			LLVMValueRef callee = get_callee (ctx, sig, MONO_PATCH_INFO_JIT_ICALL_ADDR, "mono_llvm_throw_ee_exception");
 			LLVMBuildCall (builder, callee, NULL, 0, "");
 			LLVMBuildUnreachable (builder);
 			/*fprintf (stderr, "Scooped %s\n", ctx->cfg->llvm_method_name);*/
@@ -7111,21 +7084,7 @@ emit_method_inner (EmitContext *ctx)
 	if (!ctx_ok (ctx))
 		return;
 
-	if (ctx->is_linkonce) {
-		method = (LLVMValueRef) g_hash_table_lookup (ctx->module->name_to_lmethod, cfg->llvm_method_name);
-		if (method) {
-			g_assert (method_type == (LLVMTypeRef) g_hash_table_lookup (ctx->module->name_to_type, cfg->llvm_method_name));
-			fprintf (stderr, "Asserted");
-		}
-	}
-
-	if (!method)
-		method = LLVMAddFunction (lmodule, ctx->method_name, method_type);
-	else {
-		g_hash_table_insert (ctx->module->name_to_lmethod, cfg->llvm_method_name, method);
-		g_hash_table_insert (ctx->module->name_to_type, cfg->llvm_method_name, sig);
-	}
-
+	method = LLVMAddFunction (lmodule, ctx->method_name, method_type);
 	ctx->lmethod = method;
 
 	if (!cfg->llvm_only)
@@ -8724,8 +8683,6 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 	module->plt_entries = g_hash_table_new (g_str_hash, g_str_equal);
 	module->plt_entries_ji = g_hash_table_new (NULL, NULL);
 	module->direct_callables = g_hash_table_new (g_str_hash, g_str_equal);
-	module->name_to_lmethod = g_hash_table_new (g_str_hash, g_str_equal);
-	module->name_to_type = g_hash_table_new (g_str_hash, g_str_equal);
 	module->method_to_lmethod = g_hash_table_new (NULL, NULL);
 	module->idx_to_lmethod = g_hash_table_new (NULL, NULL);
 	module->idx_to_amod = g_hash_table_new (NULL, NULL);

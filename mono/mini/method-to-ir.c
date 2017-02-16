@@ -1266,29 +1266,10 @@ mono_get_got_var (MonoCompile *cfg)
 	return cfg->got_var;
 }
 
-/*gboolean*/
-/*will_get_mono_vtable_var (MonoMethod *method)*/
-/*{*/
-	/*// method->klass*/
-	/*int context_used = 0;*/
-
-	/*// Is gshared during AOT*/
-	/*if (mini_is_gsharedvt_sharable_method (method))*/
-		/*context_used = mono_class_check_context_used (method->klass);*/
-
-	/*gboolean good = FALSE;*/
-	/*good = good || (context_used & MONO_GENERIC_CONTEXT_USED_METHOD);*/
-	/*good = good || (method->flags & METHOD_ATTRIBUTE_STATIC || method->klass->valuetype);*/
-	/*good = good || ((method->flags & METHOD_ATTRIBUTE_STATIC) || (mini_method_get_context (method) && mini_method_get_context (method)->method_inst) || method->klass->valuetype);*/
-
-	/*return good;*/
-/*}*/
-
 static MonoInst *
 mono_get_vtable_var (MonoCompile *cfg)
 {
 	g_assert (cfg->gshared);
-	/*g_assert (will_get_mono_vtable_var (cfg->method));*/
 
 	if (!cfg->rgctx_var) {
 		cfg->rgctx_var = mono_compile_create_var (cfg, &mono_defaults.int_class->byval_arg, OP_LOCAL);
