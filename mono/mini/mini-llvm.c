@@ -65,6 +65,7 @@ typedef struct {
 	GHashTable *plt_entries;
 	GHashTable *plt_entries_ji;
 	GHashTable *method_to_lmethod;
+	GHashTable *name_to_lmethod;
 	GHashTable *direct_callables;
 	char **bb_names;
 	int bb_names_len;
@@ -1496,6 +1497,20 @@ sig_to_llvm_sig (EmitContext *ctx, MonoMethodSignature *sig)
 	return sig_to_llvm_sig_full (ctx, sig, NULL);
 }
 
+static LLVMTypeRef
+mono_method_llvm_sig (EmitContext *ctx, MonoMethod *method) 
+{
+	if (method->is_inflated || method->is_generic)
+		return NULL;
+
+	MonoMethodSignature *sig = mono_method_signature (method);
+
+	LLVMCallInfo *linfo = mono_arch_get_llvm_call_info (ctx->cfg, sig);
+	for (int i = 0; i < sig->param_count; ++i)
+		linfo->args [i + sig->hasthis].type = sig->params [i];
+	return sig_to_llvm_sig_full (ctx, sig, linfo);
+}
+
 /*
  * LLVMFunctionType1:
  *
@@ -1704,6 +1719,20 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 				g_free (callee_name);
 			}
 			return callee;
+		}
+
+		if (type == MONO_PATCH_INFO_METHOD) {
+			MonoMethod *method = (MonoMethod *)data;
+			if (method->wrapper_type == MONO_WRAPPER_NONE && ctx->module->assembly == method->klass->image->assembly && mono_method_llvm_sig (ctx, method) == llvm_sig) {
+				callee_name = mono_aot_get_mangled_method_name (method);
+				callee = (LLVMValueRef)g_hash_table_lookup (ctx->module->name_to_lmethod, callee_name);
+				/*callee = (LLVMValueRef)g_hash_table_lookup (ctx->module->method_to_lmethod, method);*/
+				if (callee) {
+					fprintf (stderr, "Direct call %s\n", mono_aot_get_mangled_method_name (method));
+					g_assert (LLVMGetElementType (LLVMTypeOf (callee)) == llvm_sig);
+					return callee;
+				}
+			}
 		}
 
 		/*
@@ -7077,6 +7106,15 @@ emit_method_inner (EmitContext *ctx)
 	method = LLVMAddFunction (lmodule, ctx->method_name, method_type);
 	ctx->lmethod = method;
 
+	if (strcmp(mono_aot_get_mangled_method_name (cfg->method), ctx->method_name) == 0) {
+		if (!cfg->method->is_inflated && !cfg->method->string_ctor) {
+			g_assert (method_type == mono_method_llvm_sig (ctx, cfg->method));
+			g_hash_table_insert (ctx->module->name_to_lmethod, mono_aot_get_mangled_method_name (cfg->method), method);
+		}
+	} else {
+		g_assert_not_reached ();
+	}
+
 	if (!cfg->llvm_only)
 		LLVMSetFunctionCallConv (method, LLVMMono1CallConv);
 	LLVMSetLinkage (method, LLVMPrivateLinkage);
@@ -8673,6 +8711,7 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 	module->plt_entries = g_hash_table_new (g_str_hash, g_str_equal);
 	module->plt_entries_ji = g_hash_table_new (NULL, NULL);
 	module->direct_callables = g_hash_table_new (g_str_hash, g_str_equal);
+	module->name_to_lmethod = g_hash_table_new (g_str_hash, g_str_equal);
 	module->method_to_lmethod = g_hash_table_new (NULL, NULL);
 	module->idx_to_lmethod = g_hash_table_new (NULL, NULL);
 	module->idx_to_amod = g_hash_table_new (NULL, NULL);
@@ -8996,28 +9035,28 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 	 * their bodies, but that couldn't handle the case when a method fails to compile
 	 * with llvm.
 	 */
-	if (module->llvm_only) {
-		GHashTableIter iter;
-		MonoMethod *method;
-		GSList *callers, *l;
+	/*if (module->llvm_only) {*/
+		/*GHashTableIter iter;*/
+		/*MonoMethod *method;*/
+		/*GSList *callers, *l;*/
 
-		g_hash_table_iter_init (&iter, module->method_to_callers);
-		while (g_hash_table_iter_next (&iter, (void**)&method, (void**)&callers)) {
-			LLVMValueRef lmethod;
+		/*g_hash_table_iter_init (&iter, module->method_to_callers);*/
+		/*while (g_hash_table_iter_next (&iter, (void**)&method, (void**)&callers)) {*/
+			/*LLVMValueRef lmethod;*/
 
-			if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)
-				continue;
+			/*if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)*/
+				/*continue;*/
 
-			lmethod = (LLVMValueRef)g_hash_table_lookup (module->method_to_lmethod, method);
-			if (lmethod) {
-				for (l = callers; l; l = l->next) {
-					LLVMValueRef caller = (LLVMValueRef)l->data;
+			/*lmethod = (LLVMValueRef)g_hash_table_lookup (module->method_to_lmethod, method);*/
+			/*if (lmethod) {*/
+				/*for (l = callers; l; l = l->next) {*/
+					/*LLVMValueRef caller = (LLVMValueRef)l->data;*/
 
-					mono_llvm_replace_uses_of (caller, lmethod);
-				}
-			}
-		}
-	}
+					/*mono_llvm_replace_uses_of (caller, lmethod);*/
+				/*}*/
+			/*}*/
+		/*}*/
+	/*}*/
 
 	/* Replace PLT entries for directly callable methods with the methods themselves */
 	{
