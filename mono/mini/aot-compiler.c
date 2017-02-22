@@ -5567,7 +5567,7 @@ get_debug_sym (MonoMethod *method, const char *prefix, GHashTable *cache)
 	int i, j, len, count;
 	MonoMethod *cached_method;
 
-	name1 = mono_method_full_name (method, TRUE);
+	name1 = mono_aot_get_mangled_method_name (method);
 
 #ifdef TARGET_MACH
 	// This is so that we don't accidentally create a local symbol (which starts with 'L')
