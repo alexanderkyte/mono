@@ -8304,6 +8304,8 @@ append_mangled_wrapper (GString *s, MonoMethod *method)
 		/* The GC name is saved once in MonoAotFileInfo */
 		g_assert (info->d.alloc.alloc_type != -1);
 		g_string_append_printf (s, "%d_", info->d.alloc.alloc_type);
+		// SlowAlloc, etc
+		g_string_append_printf (s, "%s_", method->name);
 		break;
 	}
 	case MONO_WRAPPER_WRITE_BARRIER: {
