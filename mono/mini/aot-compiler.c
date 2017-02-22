@@ -8406,7 +8406,7 @@ append_mangled_wrapper (GString *s, MonoMethod *method)
 	default:
 		g_assert_not_reached ();
 	}
-	return success;
+	return append_mangled_signature (s, method->signature);
 }
 
 static void
