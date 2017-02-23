@@ -485,9 +485,15 @@ mangle_symbol_alloc (const char * symbol)
 }
 
 static inline void
+emit_section_change_attrs (MonoAotCompile *acfg, const char *section_name, char *attrs)
+{
+	mono_img_writer_emit_section_change (acfg->w, section_name, -1, attrs);
+}
+
+static inline void
 emit_section_change (MonoAotCompile *acfg, const char *section_name, int subsection_index)
 {
-	mono_img_writer_emit_section_change (acfg->w, section_name, subsection_index);
+	mono_img_writer_emit_section_change (acfg->w, section_name, subsection_index, NULL);
 }
 
 #if defined(TARGET_WIN32) && defined(TARGET_X86)
@@ -522,6 +528,12 @@ emit_local_symbol (MonoAotCompile *acfg, const char *name, const char *end_label
 }
 
 #endif
+
+static inline void
+emit_weak_symbol (MonoAotCompile *acfg, const char *name, gboolean func) 
+{ 
+	mono_img_writer_emit_weak_global (acfg->w, name, func);
+}
 
 static inline void
 emit_label (MonoAotCompile *acfg, const char *name) 
@@ -722,7 +734,7 @@ emit_string_symbol (MonoAotCompile *acfg, const char *name, const char *value)
 		return;
 	}
 
-	mono_img_writer_emit_section_change (acfg->w, RODATA_SECT, 1);
+	mono_img_writer_emit_section_change (acfg->w, RODATA_SECT, 1, NULL);
 #ifdef TARGET_MACH
 	/* On apple, all symbols need to be aligned to avoid warnings from ld */
 	emit_alignment (acfg, 4);
@@ -5630,12 +5642,15 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 
 	method = cfg->orig_method;
 	code = cfg->native_code;
+	debug_sym = mono_aot_get_mangled_method_name (method); // get_debug_sym (method, "", acfg->method_label_hash);
 
 	method_index = get_method_index (acfg, method);
 	symbol = g_strdup_printf ("%sme_%x", acfg->temp_prefix, method_index);
 
-	/* Make the labels local */
-	emit_section_change (acfg, ".text", 0);
+	/* Make the labels comdat */
+	char *section_name = g_strdup_printf (".text.%s", debug_sym);
+	char *section_attrs = g_strdup_printf ("\"axG\",@progbits,%s,comdat", debug_sym);
+	emit_section_change_attrs (acfg, section_name, section_attrs);
 	emit_alignment_code (acfg, func_alignment);
 	
 	if (acfg->global_symbols && acfg->need_no_dead_strip)
@@ -5650,12 +5665,11 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 		 *   yet supported.
 		 * - it allows the setting of breakpoints of aot-ed methods.
 		 */
-		debug_sym = get_debug_sym (method, "", acfg->method_label_hash);
 		cfg->asm_debug_symbol = g_strdup (debug_sym);
 
 		if (acfg->need_no_dead_strip)
 			fprintf (acfg->fp, "	.no_dead_strip %s\n", debug_sym);
-		emit_local_symbol (acfg, debug_sym, symbol, TRUE);
+		emit_weak_symbol (acfg, debug_sym, TRUE);
 		emit_label (acfg, debug_sym);
 	}
 
@@ -8309,6 +8323,7 @@ append_mangled_wrapper (GString *s, MonoMethod *method)
 		break;
 	}
 	case MONO_WRAPPER_WRITE_BARRIER: {
+		g_string_append_printf (s, "%s_", method->name);
 		break;
 	}
 	case MONO_WRAPPER_STELEMREF: {
@@ -8414,8 +8429,7 @@ append_mangled_context (GString *str, MonoGenericContext *context)
 {
 	GString *res = g_string_new ("");
 
-	g_string_append_printf (res, "gens_");
-	g_string_append (res, "00");
+	g_string_append (res, "scont_");
 
 	gboolean good = context->class_inst && context->class_inst->type_argc > 0;
 	good = good || (context->method_inst && context->method_inst->type_argc > 0);
@@ -8425,9 +8439,12 @@ append_mangled_context (GString *str, MonoGenericContext *context)
 		mono_ginst_get_desc (res, context->class_inst);
 	if (context->method_inst) {
 		if (context->class_inst)
-			g_string_append (res, "11");
+			g_string_append (res, "_");
 		mono_ginst_get_desc (res, context->method_inst);
 	}
+
+	g_string_append (res, "_econt_");
+
 	g_string_append_printf (str, "gens_%s", res->str);
 }	
 
@@ -8453,7 +8470,6 @@ append_mangled_method (GString *s, MonoMethod *method)
 		g_string_append_printf (s, "_%s_", method->name);
 
 		MonoGenericContainer *container = mono_method_get_generic_container (method);
-		g_string_append_printf (s, "_%s");
 		append_mangled_context (s, &container->context);
 
 		return append_mangled_signature (s, method->signature);

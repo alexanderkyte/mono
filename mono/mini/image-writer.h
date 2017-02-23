@@ -38,13 +38,15 @@ int mono_img_writer_emit_writeout (MonoImageWriter *w);
 
 guint8* mono_img_writer_get_output (MonoImageWriter *acfg, guint32 *size);
 
-void mono_img_writer_emit_section_change (MonoImageWriter *w, const char *section_name, int subsection_index);
+void mono_img_writer_emit_section_change (MonoImageWriter *w, const char *section_name, int subsection_index, char *attrs);
 
 void mono_img_writer_emit_push_section (MonoImageWriter *w, const char *section_name, int subsection);
 
 void mono_img_writer_emit_pop_section (MonoImageWriter *w);
 
 void mono_img_writer_set_section_addr (MonoImageWriter *acfg, guint64 addr);
+
+void mono_img_writer_emit_weak_global (MonoImageWriter *w, const char *name, gboolean func);
 
 void mono_img_writer_emit_global (MonoImageWriter *w, const char *name, gboolean func);
 

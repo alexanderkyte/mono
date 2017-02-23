@@ -112,7 +112,7 @@ mono_dwarf_writer_get_il_file_line_index (MonoDwarfWriter *w)
 static inline void
 emit_section_change (MonoDwarfWriter *w, const char *section_name, int subsection_index)
 {
-	mono_img_writer_emit_section_change (w->w, section_name, subsection_index);
+	mono_img_writer_emit_section_change (w->w, section_name, subsection_index, NULL);
 }
 
 static inline void

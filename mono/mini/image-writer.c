@@ -1696,7 +1696,8 @@ asm_writer_emit_unset_mode (MonoImageWriter *acfg)
 }
 
 static void
-asm_writer_emit_section_change (MonoImageWriter *acfg, const char *section_name, int subsection_index)
+asm_writer_emit_section_change (MonoImageWriter *acfg, const char *section_name, 
+				int subsection_index, char *section_attrs)
 {
 	asm_writer_emit_unset_mode (acfg);
 #if defined(TARGET_ASM_APPLE)
@@ -1712,8 +1713,13 @@ asm_writer_emit_section_change (MonoImageWriter *acfg, const char *section_name,
 	if (!strcmp (section_name, ".text") || !strcmp (section_name, ".data")) {
 		fprintf (acfg->fp, "%s %d\n", section_name, subsection_index);
 	} else {
-		fprintf (acfg->fp, ".section \"%s\"\n", section_name);
-		fprintf (acfg->fp, ".subsection %d\n", subsection_index);
+		if (section_attrs)
+			fprintf (acfg->fp, ".section \"%s\",%s \n", section_name, section_attrs);
+		else
+			fprintf (acfg->fp, ".section \"%s\"\n", section_name);
+
+		if (subsection_index >= 0)
+			fprintf (acfg->fp, ".subsection %d\n", subsection_index);
 	}
 #elif defined(HOST_WIN32)
 	fprintf (acfg->fp, ".section %s\n", section_name);
@@ -1721,8 +1727,13 @@ asm_writer_emit_section_change (MonoImageWriter *acfg, const char *section_name,
 	if (!strcmp (section_name, ".text") || !strcmp (section_name, ".data") || !strcmp (section_name, ".bss")) {
 		fprintf (acfg->fp, "%s %d\n", section_name, subsection_index);
 	} else {
-		fprintf (acfg->fp, ".section \"%s\"\n", section_name);
-		fprintf (acfg->fp, ".subsection %d\n", subsection_index);
+		if (section_attrs)
+			fprintf (acfg->fp, ".section %s,%s \n", section_name, section_attrs);
+		else
+			fprintf (acfg->fp, ".section \"%s\"\n", section_name);
+
+		if (subsection_index >= 0)
+			fprintf (acfg->fp, ".subsection %d\n", subsection_index);
 	}
 #endif
 }
@@ -1803,6 +1814,16 @@ asm_writer_emit_global (MonoImageWriter *acfg, const char *name, gboolean func)
 	asm_writer_emit_unset_mode (acfg);
 
 	fprintf (acfg->fp, "\t.globl %s\n", name);
+
+	asm_writer_emit_symbol_type (acfg, name, func, TRUE);
+}
+
+static void
+asm_writer_emit_weak_global (MonoImageWriter *acfg, const char *name, gboolean func)
+{
+	asm_writer_emit_unset_mode (acfg);
+
+	fprintf (acfg->fp, "\t.weak %s\n", name);
 
 	asm_writer_emit_symbol_type (acfg, name, func, TRUE);
 }
@@ -2030,15 +2051,16 @@ mono_img_writer_emit_start (MonoImageWriter *acfg)
 }
 
 void
-mono_img_writer_emit_section_change (MonoImageWriter *acfg, const char *section_name, int subsection_index)
+mono_img_writer_emit_section_change (MonoImageWriter *acfg, const char *section_name,
+				int subsection_index, char *attrs)
 {
 #ifdef USE_BIN_WRITER
 	if (acfg->use_bin_writer)
-		bin_writer_emit_section_change (acfg, section_name, subsection_index);
+		bin_writer_emit_section_change (acfg, section_name, subsection_index); // FIXME: COMDAT
 	else
-		asm_writer_emit_section_change (acfg, section_name, subsection_index);
+		asm_writer_emit_section_change (acfg, section_name, subsection_index, attrs);
 #else
-	asm_writer_emit_section_change (acfg, section_name, subsection_index);
+	asm_writer_emit_section_change (acfg, section_name, subsection_index, attrs);
 #endif
 
 	acfg->current_section = section_name;
@@ -2053,7 +2075,7 @@ mono_img_writer_emit_push_section (MonoImageWriter *acfg, const char *section_na
 	acfg->subsection_stack [acfg->stack_pos] = acfg->current_subsection;
 	acfg->stack_pos ++;
 
-	mono_img_writer_emit_section_change (acfg, section_name, subsection);
+	mono_img_writer_emit_section_change (acfg, section_name, subsection, NULL);
 }
 
 void
@@ -2061,7 +2083,7 @@ mono_img_writer_emit_pop_section (MonoImageWriter *acfg)
 {
 	g_assert (acfg->stack_pos > 0);
 	acfg->stack_pos --;
-	mono_img_writer_emit_section_change (acfg, acfg->section_stack [acfg->stack_pos], acfg->subsection_stack [acfg->stack_pos]);
+	mono_img_writer_emit_section_change (acfg, acfg->section_stack [acfg->stack_pos], acfg->subsection_stack [acfg->stack_pos], NULL);
 }
 
 void
@@ -2074,6 +2096,19 @@ mono_img_writer_set_section_addr (MonoImageWriter *acfg, guint64 addr)
 		bin_writer_set_section_addr (acfg, addr);
 #else
 	NOT_IMPLEMENTED;
+#endif
+}
+
+void
+mono_img_writer_emit_weak_global (MonoImageWriter *acfg, const char *name, gboolean func)
+{
+#ifdef USE_BIN_WRITER
+	if (acfg->use_bin_writer)
+		g_assert_not_reached ();
+	else
+		asm_writer_emit_weak_global (acfg, name, func);
+#else
+	asm_writer_emit_weak_global (acfg, name, func);
 #endif
 }
 
