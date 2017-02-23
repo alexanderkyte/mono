@@ -8263,6 +8263,9 @@ sanitize_mangled_string (const char *input)
 		case '(':
 			g_string_append (s, "_lparen_");
 			break;
+		case '-':
+			g_string_append (s, "_dash_");
+			break;
 		case ')':
 			g_string_append (s, "_rparen_");
 			break;
