@@ -8404,14 +8404,12 @@ append_mangled_wrapper (GString *s, MonoMethod *method)
 			g_string_append_printf (s, "i_");
 			success = success && append_mangled_klass (s, method->klass);
 		} else {
-			MonoMethodSignature *sig = mono_method_signature (method);
 			WrapperInfo *info = mono_marshal_get_wrapper_info (method);
 
 			g_string_append_printf (s, "u_");
 			if (method->wrapper_type == MONO_WRAPPER_DELEGATE_INVOKE)
 				append_mangled_wrapper_subtype (s, info->subtype);
 			g_string_append_printf (s, "u_sigstart");
-			success = success && append_mangled_signature (s, sig);
 		}
 		break;
 	}
@@ -8424,7 +8422,7 @@ append_mangled_wrapper (GString *s, MonoMethod *method)
 	default:
 		g_assert_not_reached ();
 	}
-	return append_mangled_signature (s, method->signature);
+	return success && append_mangled_signature (s, mono_method_signature (method));
 }
 
 static void
@@ -8475,12 +8473,12 @@ append_mangled_method (GString *s, MonoMethod *method)
 		MonoGenericContainer *container = mono_method_get_generic_container (method);
 		append_mangled_context (s, &container->context);
 
-		return append_mangled_signature (s, method->signature);
+		return append_mangled_signature (s, mono_method_signature (method));
 	} else {
 		g_string_append_printf (s, "_");
 		append_mangled_klass (s, method->klass);
 		g_string_append_printf (s, "_%s_", method->name);
-		if (!append_mangled_signature (s, method->signature)) {
+		if (!append_mangled_signature (s, mono_method_signature (method))) {
 			g_string_free (s, TRUE);
 			return FALSE;
 		}
