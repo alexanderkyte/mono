@@ -3584,9 +3584,10 @@ static void
 add_method_with_index (MonoAotCompile *acfg, MonoMethod *method, int index, gboolean extra)
 {
 	g_assert (method);
-	if (!g_hash_table_lookup (acfg->method_indexes, method)) {
+	char *name = mono_aot_get_mangled_method_name (method);
+	if (!g_hash_table_lookup (acfg->method_indexes, name)) {
 		g_ptr_array_add (acfg->methods, method);
-		g_hash_table_insert (acfg->method_indexes, method, GUINT_TO_POINTER (index + 1));
+		g_hash_table_insert (acfg->method_indexes, name, GUINT_TO_POINTER (index + 1));
 		acfg->nmethods = acfg->methods->len + 1;
 	}
 
@@ -3607,7 +3608,8 @@ prefer_gsharedvt_method (MonoAotCompile *acfg, MonoMethod *method)
 static guint32
 get_method_index (MonoAotCompile *acfg, MonoMethod *method)
 {
-	int index = GPOINTER_TO_UINT (g_hash_table_lookup (acfg->method_indexes, method));
+	char *name = mono_aot_get_mangled_method_name (method);
+	int index = GPOINTER_TO_UINT (g_hash_table_lookup (acfg->method_indexes, name));
 	
 	g_assert (index);
 
@@ -3618,8 +3620,9 @@ static int
 add_method_full (MonoAotCompile *acfg, MonoMethod *method, gboolean extra, int depth)
 {
 	int index;
+	char *name = mono_aot_get_mangled_method_name (method);
 
-	index = GPOINTER_TO_UINT (g_hash_table_lookup (acfg->method_indexes, method));
+	index = GPOINTER_TO_UINT (g_hash_table_lookup (acfg->method_indexes, name));
 	if (index)
 		return index - 1;
 
@@ -11015,7 +11018,7 @@ acfg_create (MonoAssembly *ass, guint32 opts)
 
 	acfg = g_new0 (MonoAotCompile, 1);
 	acfg->methods = g_ptr_array_new ();
-	acfg->method_indexes = g_hash_table_new (NULL, NULL);
+	acfg->method_indexes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 	acfg->method_depth = g_hash_table_new (NULL, NULL);
 	acfg->plt_offset_to_entry = g_hash_table_new (NULL, NULL);
 	acfg->patch_to_plt_entry = g_new0 (GHashTable*, MONO_PATCH_INFO_NUM);
