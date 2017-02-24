@@ -8239,6 +8239,9 @@ sanitize_mangled_string (const char *input)
 	for (int i=0; input [i] != '\0'; i++) {
 		char c = input [i];
 		switch (c) {
+		case '.':
+			g_string_append (s, "_dot_");
+			break;
 		case ' ':
 			g_string_append (s, "_");
 			break;
