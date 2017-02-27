@@ -4315,14 +4315,14 @@ init_method (MonoAotModule *amodule, guint32 method_index, MonoMethod *method, M
 
 		mp = mono_mempool_new ();
 
-		if ((gpointer)code >= amodule->info.jit_code_start && (gpointer)code <= amodule->info.jit_code_end) {
-			llvm = FALSE;
-			got = amodule->got;
-		} else {
+		if (amodule->llvm_got) {
 			llvm = TRUE;
 			got = amodule->llvm_got;
-			g_assert (got);
+		} else {
+			llvm = FALSE;
+			got = amodule->got;
 		}
+		g_assert (got);
 
 		patches = load_patch_info (amodule, mp, n_patches, llvm, &got_slots, p, &p);
 		if (patches == NULL) {

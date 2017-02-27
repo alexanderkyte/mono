@@ -377,6 +377,9 @@ get_patch_name (int info)
 static guint32
 get_unwind_info_offset (MonoAotCompile *acfg, guint8 *encoded, guint32 encoded_len);
 
+static char *
+get_static_linking_symbol (MonoAotCompile *acfg);
+
 static char*
 get_plt_entry_debug_sym (MonoAotCompile *acfg, MonoJumpInfo *ji, GHashTable *cache);
 
@@ -5633,6 +5636,23 @@ get_debug_sym (MonoMethod *method, const char *prefix, GHashTable *cache)
 }
 
 static void
+emit_amodule_tag (MonoAotCompile *acfg, char *debug_sym)
+{
+	char *section_name = g_strdup_printf (".text.%s_amodule", debug_sym);
+	char *section_attrs = g_strdup_printf ("\"aG\",@progbits,%s_amodule,comdat", debug_sym);
+	emit_section_change_attrs (acfg, section_name, section_attrs);
+	g_free (section_name);
+	g_free (section_attrs);
+
+	char *label_name = g_strdup_printf ("%s_amodule", debug_sym);
+	emit_label (acfg, label_name);
+	emit_weak_symbol (acfg, label_name, TRUE);
+	emit_pointer (acfg, get_static_linking_symbol (acfg));
+
+	g_free (label_name);
+}
+
+static void
 emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 {
 	MonoMethod *method;
@@ -5649,6 +5669,8 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 
 	method_index = get_method_index (acfg, method);
 	symbol = g_strdup_printf ("%sme_%x", acfg->temp_prefix, method_index);
+
+	emit_amodule_tag (acfg, debug_sym);
 
 	/* Make the labels comdat */
 	char *section_name = g_strdup_printf (".text.%s", debug_sym);
@@ -8242,6 +8264,7 @@ sanitize_mangled_string (const char *input)
 		case '.':
 			g_string_append (s, "_dot_");
 			break;
+		case '_':
 		case ' ':
 			g_string_append (s, "_");
 			break;
@@ -8276,6 +8299,7 @@ sanitize_mangled_string (const char *input)
 			g_string_append (s, "_comma_");
 			break;
 		default:
+			g_assert (isalpha (c) || isdigit (c));
 			g_string_append_c (s, c);
 		}
 	}
@@ -8894,6 +8918,28 @@ emit_code (MonoAotCompile *acfg)
 	}
 
 	sprintf (symbol, "method_addresses_end");
+	emit_label (acfg, symbol);
+	emit_line (acfg);
+
+	sprintf (symbol, "method_amodules");
+	emit_section_change (acfg, ".text", 0);
+	emit_alignment_code (acfg, 8);
+	emit_info_symbol (acfg, symbol);
+
+	for (i = 0; i < acfg->nmethods; ++i) {
+		if (!acfg->cfgs [i])
+			continue;
+
+		MonoMethod *method = acfg->cfgs [i]->orig_method;
+		char *mangled = mono_aot_get_mangled_method_name (method);
+		char *amod = g_strdup_printf ("%s_amodule", mangled);
+
+		emit_pointer (acfg, amod);
+
+		g_free (amod);
+		g_free (mangled);
+	}
+	sprintf (symbol, "method_amodules_end");
 	emit_label (acfg, symbol);
 	emit_line (acfg);
 
@@ -9927,7 +9973,9 @@ emit_aot_file_info (MonoAotCompile *acfg, MonoAotFileInfo *info)
 		symbols [sindex ++] = "jit_code_start";
 		symbols [sindex ++] = "jit_code_end";
 		symbols [sindex ++] = "method_addresses";
+		symbols [sindex ++] = "method_amodules";
 	} else {
+		symbols [sindex ++] = NULL;
 		symbols [sindex ++] = NULL;
 		symbols [sindex ++] = NULL;
 		symbols [sindex ++] = NULL;
@@ -10042,6 +10090,32 @@ emit_aot_file_info (MonoAotCompile *acfg, MonoAotFileInfo *info)
 	}
 }
 
+static char *
+get_static_linking_symbol (MonoAotCompile *acfg)
+{
+	if (acfg->aot_opts.static_link && !acfg->static_linking_symbol) {
+		char symbol [MAX_SYMBOL_SIZE];
+		char *p;
+
+		/*
+		 * Emit a global symbol which can be passed by an embedding app to
+		 * mono_aot_register_module (). The symbol points to a pointer to the the file info
+		 * structure.
+		 */
+		sprintf (symbol, "%smono_aot_module_%s_info", acfg->user_symbol_prefix, acfg->image->assembly->aname.name);
+
+		/* Get rid of characters which cannot occur in symbols */
+		p = symbol;
+		for (p = symbol; *p; ++p) {
+			if (!(isalnum (*p) || *p == '_'))
+				*p = '_';
+		}
+		acfg->static_linking_symbol = g_strdup (symbol);
+	}
+
+	return acfg->static_linking_symbol;
+}
+
 /*
  * Emit a structure containing all the information not stored elsewhere.
  */
@@ -10067,25 +10141,7 @@ emit_file_info (MonoAotCompile *acfg)
 	info = g_new0 (MonoAotFileInfo, 1);
 	init_aot_file_info (acfg, info);
 
-	if (acfg->aot_opts.static_link) {
-		char symbol [MAX_SYMBOL_SIZE];
-		char *p;
-
-		/*
-		 * Emit a global symbol which can be passed by an embedding app to
-		 * mono_aot_register_module (). The symbol points to a pointer to the the file info
-		 * structure.
-		 */
-		sprintf (symbol, "%smono_aot_module_%s_info", acfg->user_symbol_prefix, acfg->image->assembly->aname.name);
-
-		/* Get rid of characters which cannot occur in symbols */
-		p = symbol;
-		for (p = symbol; *p; ++p) {
-			if (!(isalnum (*p) || *p == '_'))
-				*p = '_';
-		}
-		acfg->static_linking_symbol = g_strdup (symbol);
-	}
+	get_static_linking_symbol (acfg);
 
 	if (acfg->llvm)
 		mono_llvm_emit_aot_file_info (info, acfg->has_jitted_code);

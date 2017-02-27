@@ -234,6 +234,7 @@ typedef struct MonoAotFileInfo
 	gpointer jit_code_start;
 	gpointer jit_code_end;
 	gpointer method_addresses;
+	gpointer method_amodules;
 	/* Data blob */
 	gpointer blob;
 	gpointer class_name_table;
