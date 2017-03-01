@@ -319,6 +319,8 @@ typedef struct MonoAotCompile {
 	FILE *data_outfile;
 	int datafile_offset;
 	int gc_name_offset;
+	char *jit_code_start_symbol;
+	char *jit_code_end_symbol;
 } MonoAotCompile;
 
 typedef struct {
@@ -8811,7 +8813,24 @@ emit_code (MonoAotCompile *acfg)
 	 */
 	emit_section_change (acfg, ".text", 0);
 	emit_alignment_code (acfg, 8);
-	emit_info_symbol (acfg, "jit_code_start");
+
+	char *dirty = g_strdup_printf ("%s_jit_code_start", acfg->image->assembly->aname.name);
+	acfg->jit_code_start_symbol = sanitize_mangled_string (dirty);
+	g_free (dirty);
+
+	dirty = g_strdup_printf ("%s_jit_code_end", acfg->image->assembly->aname.name);
+	acfg->jit_code_end_symbol = sanitize_mangled_string (dirty);
+	g_free (dirty);
+
+	char *section_name = g_strdup_printf (".text.%s", acfg->jit_code_start_symbol);
+	char *section_attrs = g_strdup_printf ("\"aG\",@progbits,%s,comdat", acfg->jit_code_start_symbol);
+	emit_section_change_attrs (acfg, section_name, section_attrs);
+	g_free (section_name);
+	g_free (section_attrs);
+
+	/*emit_info_symbol (acfg, jit_code_start_symbol);*/
+	emit_weak_symbol (acfg, acfg->jit_code_start_symbol, FALSE);
+	emit_label (acfg, acfg->jit_code_start_symbol);
 
 	/* 
 	 * Emit some padding so the local symbol for the first method doesn't have the
@@ -8874,9 +8893,16 @@ emit_code (MonoAotCompile *acfg)
 			emit_method_code (acfg, cfg);
 	}
 
-	emit_section_change (acfg, ".text", 0);
+	section_name = g_strdup_printf (".text.%s", acfg->jit_code_end_symbol);
+	section_attrs = g_strdup_printf ("\"aG\",@progbits,%s,comdat", acfg->jit_code_end_symbol);
+	emit_section_change_attrs (acfg, section_name, section_attrs);
 	emit_alignment_code (acfg, 8);
-	emit_info_symbol (acfg, "jit_code_end");
+	g_free (section_name);
+	g_free (section_attrs);
+
+	emit_weak_symbol (acfg, acfg->jit_code_end_symbol, FALSE);
+	emit_label (acfg, acfg->jit_code_end_symbol);
+	/*emit_info_symbol (acfg, "jit_code_end");*/
 
 	/* To distinguish it from the next symbol */
 	emit_padding (acfg, 4);
@@ -8933,17 +8959,19 @@ emit_code (MonoAotCompile *acfg)
 	emit_info_symbol (acfg, symbol);
 
 	for (i = 0; i < acfg->nmethods; ++i) {
-		if (!acfg->cfgs [i])
-			continue;
+		if (acfg->cfgs [i]) {
+			MonoMethod *method = acfg->cfgs [i]->orig_method;
+			char *mangled = mono_aot_get_mangled_method_name (method);
+			char *amod = g_strdup_printf ("%s_amodule", mangled);
 
-		MonoMethod *method = acfg->cfgs [i]->orig_method;
-		char *mangled = mono_aot_get_mangled_method_name (method);
-		char *amod = g_strdup_printf ("%s_amodule", mangled);
+			emit_pointer (acfg, amod);
 
-		emit_pointer (acfg, amod);
-
-		g_free (amod);
-		g_free (mangled);
+			g_free (amod);
+			g_free (mangled);
+		} else {
+			// Emit a pointer to the array
+			emit_zero_bytes (acfg, sizeof (gpointer));
+		}
 	}
 	sprintf (symbol, "method_amodules_end");
 	emit_label (acfg, symbol);
@@ -9976,8 +10004,8 @@ emit_aot_file_info (MonoAotCompile *acfg, MonoAotFileInfo *info)
 	/* llvm_get_unbox_tramp */
 	symbols [sindex ++] = NULL;
 	if (!acfg->aot_opts.llvm_only) {
-		symbols [sindex ++] = "jit_code_start";
-		symbols [sindex ++] = "jit_code_end";
+		symbols [sindex ++] = acfg->jit_code_start_symbol;
+		symbols [sindex ++] = acfg->jit_code_end_symbol;
 		symbols [sindex ++] = "method_addresses";
 		symbols [sindex ++] = "method_amodules";
 	} else {
