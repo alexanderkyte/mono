@@ -259,6 +259,20 @@ jit_info_table_find (MonoJitInfoTable *table, MonoThreadHazardPointers *hp, gint
 	return NULL;
 }
 
+MonoJitInfo *
+mono_jit_info_table_find_module (gint8 *addr)
+{
+	MonoThreadHazardPointers *hp = mono_hazard_pointer_get ();
+	MonoJitInfoTable *mod_table = (MonoJitInfoTable *)mono_get_hazardous_pointer ((gpointer volatile*)&mono_get_root_domain ()->aot_modules, hp, JIT_INFO_TABLE_HAZARD_INDEX);
+		// Find the right aot module
+	MonoJitInfo *module_ji = jit_info_table_find (mod_table, hp, addr);
+
+	if (hp)
+		mono_hazard_pointer_clear (hp, JIT_INFO_TABLE_HAZARD_INDEX);
+
+	return module_ji;
+}
+
 /*
  * mono_jit_info_table_find_internal:
  *
@@ -273,7 +287,7 @@ MonoJitInfo*
 mono_jit_info_table_find_internal (MonoDomain *domain, char *addr, gboolean try_aot, gboolean allow_trampolines)
 {
 	MonoJitInfoTable *table;
-	MonoJitInfo *ji, *module_ji;
+	MonoJitInfo *ji;
 	MonoThreadHazardPointers *hp = mono_hazard_pointer_get ();
 
 	++mono_stats.jit_info_table_lookup_count;
@@ -297,14 +311,8 @@ mono_jit_info_table_find_internal (MonoDomain *domain, char *addr, gboolean try_
 		return ji;
 
 	/* Maybe its an AOT module */
-	if (try_aot && mono_get_root_domain () && mono_get_root_domain ()->aot_modules) {
-		table = (MonoJitInfoTable *)mono_get_hazardous_pointer ((gpointer volatile*)&mono_get_root_domain ()->aot_modules, hp, JIT_INFO_TABLE_HAZARD_INDEX);
-		module_ji = jit_info_table_find (table, hp, (gint8*)addr);
-		if (module_ji)
-			ji = jit_info_find_in_aot_func (domain, module_ji->d.image, addr);
-		if (hp)
-			mono_hazard_pointer_clear (hp, JIT_INFO_TABLE_HAZARD_INDEX);
-	}
+	if (try_aot && mono_get_root_domain () && mono_get_root_domain ()->aot_modules)
+		ji = jit_info_find_in_aot_func (domain, addr);
 
 	if (ji && ji->is_trampoline && !allow_trampolines)
 		return NULL;

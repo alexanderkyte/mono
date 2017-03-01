@@ -605,6 +605,12 @@ emit_pointer (MonoAotCompile *acfg, const char *target)
 }
 
 static inline void
+emit_pointer_unaligned (MonoAotCompile *acfg, const char *target) 
+{ 
+	mono_img_writer_emit_pointer_unaligned (acfg->w, target); 
+}
+
+static inline void
 emit_pointer_2 (MonoAotCompile *acfg, const char *prefix, const char *target) 
 { 
 	if (prefix [0] != '\0') {

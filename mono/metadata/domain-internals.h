@@ -539,8 +539,10 @@ mono_jit_info_get_thunk_info (MonoJitInfo *ji);
  * Installs a new function which is used to return a MonoJitInfo for a method inside
  * an AOT module.
  */
-typedef MonoJitInfo *(*MonoJitInfoFindInAot)         (MonoDomain *domain, MonoImage *image, gpointer addr);
+typedef MonoJitInfo *(*MonoJitInfoFindInAot)         (MonoDomain *domain, gpointer addr);
 void          mono_install_jit_info_find_in_aot (MonoJitInfoFindInAot func);
+
+MonoJitInfo   *mono_jit_info_table_find_module (gint8 *addr);
 
 void
 mono_jit_code_hash_init (MonoInternalHashTable *jit_code_hash);

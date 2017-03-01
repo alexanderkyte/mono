@@ -3200,26 +3200,7 @@ decode_exception_debug_info (MonoAotModule *amodule, MonoDomain *domain,
 static gboolean
 amodule_contains_code_addr (MonoAotModule *amodule, guint8 *code)
 {
-	guint32 method_index = (guint32) g_hash_table_lookup (amodule->code_to_idx, (gconstpointer) code);
-
-	if (mono_llvm_only) {
-		gpointer (*get_module) (int) = (gpointer (*)(int))amodule->info.llvm_get_module;
-
-		MonoAotModule **mod = (MonoAotModule **) get_module (method_index);
-
-		if (!mod)
-			return FALSE;
-
-		// Important for the method_index = 0 case
-		gpointer addr = (*mod)->methods [method_index];
-		if (addr != code)
-			return FALSE;
-
-		return *mod == amodule;
-	}
-
-	return (code >= amodule->jit_code_start && code <= amodule->jit_code_end) ||
-	(code >= amodule->llvm_code_start && code <= amodule->llvm_code_end);
+	return amodule == find_aot_module (code);
 }
 
 /*
@@ -3321,13 +3302,13 @@ msort_method_addresses (gpointer *array, int *indexes, int len)
  * FIXME: Large sizes in the lock free allocator
  */
 MonoJitInfo *
-mono_aot_find_jit_info (MonoDomain *domain, MonoImage *image, gpointer addr)
+mono_aot_find_jit_info (MonoDomain *domain, gpointer addr)
 {
 	MonoError error;
 	int pos, left, right, code_len;
 	int method_index, table_len;
 	guint32 token;
-	MonoAotModule *amodule = (MonoAotModule *)image->aot_module;
+	MonoAotModule *amodule = find_aot_module (addr);
 	MonoMethod *method = NULL;
 	MonoJitInfo *jinfo;
 	guint8 *code, *ex_info, *p;
@@ -3340,6 +3321,22 @@ mono_aot_find_jit_info (MonoDomain *domain, MonoImage *image, gpointer addr)
 
 	if (!amodule)
 		return NULL;
+	g_assert (amodule->got_initializing);
+
+	gpointer code_start = amodule->llvm_code_start;
+	gpointer code_end = amodule->llvm_code_end;
+	gboolean llvm = TRUE;
+	if (!code_start) {
+		code_start = amodule->jit_code_start;
+		code_end = amodule->jit_code_end;
+		llvm = FALSE;
+	}
+
+	MonoJitInfo *module_ji = mono_jit_info_table_find_module (code_start);
+	if (!module_ji)
+		return NULL;
+
+	MonoImage *image = module_ji->d.image;
 
 	nmethods = amodule->info.nmethods;
 
@@ -3931,10 +3928,8 @@ resolve_amodule (MonoAotModule *amodule, guint8 *code, MonoAotModule **target_am
 		 * In llvmonly + static mode, method code can be outside the code range of amodule due to
 		 * linkonce. Find the real amodule and method index.
 		 */
-		if (!amodule_contains_code_addr (amodule, code)) {
-			amodule = find_aot_module (code);
-			if (!amodule)
-				g_assert_not_reached ();
+		MonoAotModule *right_amodule = find_aot_module (code);
+		if (right_amodule != amodule) {
 			g_assert (amodule->methods);
 			// FIXME: Add a hash ?
 			for (int i = 0; i < amodule->info.nmethods; ++i) {
@@ -3944,7 +3939,6 @@ resolve_amodule (MonoAotModule *amodule, guint8 *code, MonoAotModule **target_am
 				}
 			}
 		}
-		g_assert (amodule_contains_code_addr (amodule, code));
 		g_assert (amodule->got_initializing);
 	}
 	if (idx != -1) {
@@ -4096,7 +4090,7 @@ load_method (MonoDomain *domain, MonoAotModule *amodule, MonoImage *image, MonoM
 		full_name = mono_method_full_name (method, TRUE);
 
 		if (!jinfo)
-			jinfo = mono_aot_find_jit_info (domain, amodule->assembly->image, code);
+			jinfo = mono_aot_find_jit_info (domain, code);
 
 		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_AOT, "AOT: FOUND method %s [%p - %p %p]", full_name, code, code + jinfo->code_size, info);
 		g_free (full_name);
@@ -4353,7 +4347,7 @@ init_method (MonoAotModule *amodule, guint32 method_index, MonoMethod *method, M
 				/* This cannot be resolved in mono_resolve_patch_target () */
 				if (ji->type == MONO_PATCH_INFO_AOT_JIT_INFO) {
 					// FIXME: Lookup using the index
-					jinfo = mono_aot_find_jit_info (domain, amodule->assembly->image, code);
+					jinfo = mono_aot_find_jit_info (domain, code);
 					ji->type = MONO_PATCH_INFO_ABS;
 					ji->data.target = jinfo;
 				}
@@ -4379,7 +4373,7 @@ init_method (MonoAotModule *amodule, guint32 method_index, MonoMethod *method, M
 	}
 
 	if (mini_get_debug_options ()->load_aot_jit_info_eagerly)
-		jinfo = mono_aot_find_jit_info (domain, amodule->assembly->image, code);
+		jinfo = mono_aot_find_jit_info (domain, code);
 
 	gboolean inited_ok = TRUE;
 	MonoVTable *vt = NULL;
@@ -4833,41 +4827,63 @@ mono_aot_is_got_entry (guint8 *code, guint8 *addr)
 	return user_data.res;
 }
 
-typedef struct {
-	guint8 *addr;
-	MonoAotModule *module;
-} FindAotModuleUserData;
-
-static void
-find_aot_module_cb (gpointer key, gpointer value, gpointer user_data)
+static inline MonoAotModule*
+find_lexically_containing_aot_module (guint8 *code)
 {
-	FindAotModuleUserData *data = (FindAotModuleUserData*)user_data;
-	MonoAotModule *aot_module = (MonoAotModule*)value;
+	if (!aot_modules)
+		return NULL;
 
-	if (amodule_contains_code_addr (aot_module, data->addr))
-		data->module = aot_module;
+	GHashTableIter iter;
+	MonoAotModule *amodule;
+	g_hash_table_iter_init (&iter, aot_modules);
+	while (g_hash_table_iter_next (&iter, NULL, &amodule)) {
+		if (amodule->jit_code_start && amodule->jit_code_start < code && amodule->jit_code_end > code)
+			return amodule;
+		else if (amodule->llvm_code_start && amodule->llvm_code_start < code && amodule->llvm_code_end > code)
+			return amodule;
+	}
 }
 
 static inline MonoAotModule*
 find_aot_module (guint8 *code)
 {
-	FindAotModuleUserData user_data;
-
 	if (!aot_modules)
 		return NULL;
 
-	/* Reading these need no locking */
-	if (((gsize)code < aot_code_low_addr) || ((gsize)code > aot_code_high_addr))
-		return NULL;
+	GHashTableIter iter;
+	MonoAotModule *amodule;
+	g_hash_table_iter_init (&iter, aot_modules);
+	g_hash_table_iter_next (&iter, NULL, &amodule);
 
-	user_data.addr = code;
-	user_data.module = NULL;
-		
-	mono_aot_lock ();
-	g_hash_table_foreach (aot_modules, find_aot_module_cb, &user_data);
-	mono_aot_unlock ();
-	
-	return user_data.module;
+	guint32 method_index = (guint32) g_hash_table_lookup (amodule->code_to_idx, (gconstpointer) code);
+
+	if (mono_llvm_only) {
+		gpointer (*get_module) (int) = (gpointer (*)(int))amodule->info.llvm_get_module;
+
+		MonoAotModule **mod = (MonoAotModule **) get_module (method_index);
+
+		if (!mod)
+			return NULL;
+
+		// Important for the method_index = 0 case
+		gpointer addr = (*mod)->methods [method_index];
+		if (addr != code)
+			return NULL;
+
+		return *mod;
+	} else {
+		gpointer *info = (((gpointer **) amodule->info.method_amodules) [method_index]);
+		if (info == NULL)
+			return NULL;
+
+		MonoAotFileInfo *amod = **((MonoAotFileInfo ***) info);
+		do {
+			if (amod->jit_got == amodule->info.jit_got && amod->llvm_got == amodule->info.llvm_got)
+				return amodule;
+		} while (g_hash_table_iter_next (&iter, NULL, &aot_modules));
+	}
+
+	return NULL;
 }
 
 void
