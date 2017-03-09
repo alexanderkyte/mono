@@ -5646,18 +5646,26 @@ get_debug_sym (MonoMethod *method, const char *prefix, GHashTable *cache)
 static void
 emit_amodule_tag (MonoAotCompile *acfg, char *debug_sym)
 {
-	char *section_name = g_strdup_printf (".text.%s_amodule", debug_sym);
-	char *section_attrs = g_strdup_printf ("\"aG\",@progbits,%s_amodule,comdat", debug_sym);
-	emit_section_change_attrs (acfg, section_name, section_attrs);
-	g_free (section_name);
-	g_free (section_attrs);
+	/*char *section_name = g_strdup_printf (".data.%s_amodule", debug_sym);*/
+	/*char *section_attrs = g_strdup_printf ("\"aG\",@progbits,%s_amodule,comdat", debug_sym);*/
+	/*emit_section_change_attrs (acfg, section_name, section_attrs);*/
+	/*g_free (section_name);*/
+	/*g_free (section_attrs);*/
 
 	char *label_name = g_strdup_printf ("%s_amodule", debug_sym);
-	emit_label (acfg, label_name);
 	emit_weak_symbol (acfg, label_name, TRUE);
-	emit_pointer (acfg, get_static_linking_symbol (acfg));
+	emit_label (acfg, label_name);
 
-	g_free (label_name);
+	char *info_name = get_static_linking_symbol (acfg);
+
+#if defined(TARGET_AMD64)
+
+	fprintf (acfg->fp, "\tmov %s, %%eax\n", info_name);
+	fprintf (acfg->fp, "\tret\n");
+
+#else
+	g_error ("Not implemented");
+#endif
 }
 
 static void
@@ -5677,8 +5685,6 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 
 	method_index = get_method_index (acfg, method);
 	symbol = g_strdup_printf ("%sme_%x", acfg->temp_prefix, method_index);
-
-	emit_amodule_tag (acfg, debug_sym);
 
 	/* Make the labels comdat */
 	char *section_name = g_strdup_printf (".text.%s", debug_sym);
@@ -5729,11 +5735,13 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 			emit_symbol_size (acfg, debug_sym, ".");
 		else
 			emit_symbol_size (acfg, cfg->asm_symbol, ".");
-		g_free (debug_sym);
 	}
 
 	emit_label (acfg, symbol);
 	g_free (symbol);
+
+	emit_amodule_tag (acfg, debug_sym);
+	g_free (debug_sym);
 }
 
 /**

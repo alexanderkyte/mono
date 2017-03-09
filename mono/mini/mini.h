@@ -2522,10 +2522,10 @@ gboolean mono_aot_is_pagefault              (void *ptr);
 void     mono_aot_handle_pagefault          (void *ptr);
 void     mono_aot_register_jit_icall        (const char *name, gpointer addr);
 guint32  mono_aot_find_method_index         (MonoMethod *method);
-void     mono_aot_init_llvm_method          (gpointer aot_module, intptr_t code);
-void     mono_aot_init_gshared_method_this  (gpointer aot_module, intptr_t code, MonoObject *this_ins);
-void     mono_aot_init_gshared_method_mrgctx  (gpointer aot_module, intptr_t code, MonoMethodRuntimeGenericContext *rgctx);
-void     mono_aot_init_gshared_method_vtable  (gpointer aot_module, intptr_t code, MonoVTable *vtable);
+void     mono_aot_init_llvm_method          (gpointer aot_module, gpointer code);
+void     mono_aot_init_gshared_method_this  (gpointer aot_module, gpointer code, MonoObject *this_ins);
+void     mono_aot_init_gshared_method_mrgctx  (gpointer aot_module, gpointer code, MonoMethodRuntimeGenericContext *rgctx);
+void     mono_aot_init_gshared_method_vtable  (gpointer aot_module, gpointer code, MonoVTable *vtable);
 void     mono_aot_poll_amodule_got_init (void);
 
 /* This is an exported function */
