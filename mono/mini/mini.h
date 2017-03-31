@@ -1920,6 +1920,9 @@ typedef struct {
 	int stat_inlineable_methods;
 	int stat_inlined_methods;
 	int stat_code_reallocs;
+
+	/* For deduplication */
+	gboolean skip;
 } MonoCompile;
 
 typedef enum {
