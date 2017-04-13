@@ -11181,31 +11181,37 @@ namespace MonoTests.System.Reflection.Emit
 
 		[Test]
 		public void CircularReferences () {
-			var outer_class = module.DefineType(
-				"outer",
-				TypeAttributes.Class | TypeAttributes.Public,
+			// A: C<D<A>>
+			var a_type = module.DefineType(
+				"A",
+				TypeAttributes.Class,
 				typeof(object));
 
-			var outer_type = outer_class.CreateType ();
+			var cba = a_type.DefineConstructor (MethodAttributes.Public, CallingConventions.Standard, Type.EmptyTypes);
+			cba.GetILGenerator ().Emit (OpCodes.Ret);
 
-			var container = module.DefineType(
-				"container",
-				TypeAttributes.Class | TypeAttributes.Public,
+			var c_type = module.DefineType(
+				"B",
+				TypeAttributes.Class,
 				typeof(object));
+			var cbb = c_type.DefineConstructor (MethodAttributes.Public, CallingConventions.Standard, Type.EmptyTypes);
+			cbb.GetILGenerator ().Emit (OpCodes.Ret);
+			c_type.DefineGenericParameters ("d_a_param");
 
-			container.DefineGenericParameters ("circular_gen");
-			var container_type = container.CreateType ();
-			var ginst_circular_type = container_type.MakeGenericType (outer_class);
-
-			var nested = outer_class.DefineNestedType(
-				"nested",
-				TypeAttributes.Class | TypeAttributes.Public,
+			var d_type = module.DefineType(
+				"D",
+				TypeAttributes.Class,
 				typeof(object));
+			var cbd = d_type.DefineConstructor (MethodAttributes.Public, CallingConventions.Standard, Type.EmptyTypes);
+			cbd.GetILGenerator ().Emit (OpCodes.Ret);
+			d_type.DefineGenericParameters ("a_param");
 
-			nested.SetParent (ginst_circular_type);
 
-			var nested_type = nested.CreateType ();
-			Assert.IsNotNull (nested_type);
+			var d_instantiated = c_type.MakeGenericType (d_type.MakeGenericType (a_type));
+			a_type.SetParent (d_instantiated);
+			a_type.CreateType ();
+
+			Assert.IsNotNull (a_type);
 		}
 
 		// #22059
