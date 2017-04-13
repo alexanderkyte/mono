@@ -11179,6 +11179,35 @@ namespace MonoTests.System.Reflection.Emit
 			Assert.IsNotNull (ins4);
 		}
 
+		[Test]
+		public void CircularReferences () {
+			var outer_class = module.DefineType(
+				"outer",
+				TypeAttributes.Class | TypeAttributes.Public,
+				typeof(object));
+
+			var outer_type = outer_class.CreateType ();
+
+			var container = module.DefineType(
+				"container",
+				TypeAttributes.Class | TypeAttributes.Public,
+				typeof(object));
+
+			container.DefineGenericParameters ("circular_gen");
+			var container_type = container.CreateType ();
+			var ginst_circular_type = container_type.MakeGenericType (outer_class);
+
+			var nested = outer_class.DefineNestedType(
+				"nested",
+				TypeAttributes.Class | TypeAttributes.Public,
+				typeof(object));
+
+			nested.SetParent (ginst_circular_type);
+
+			var nested_type = nested.CreateType ();
+			Assert.IsNotNull (nested_type);
+		}
+
 		// #22059
 		[Test]
 		[ExpectedException (typeof (TypeLoadException))]
