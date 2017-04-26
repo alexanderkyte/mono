@@ -11638,13 +11638,12 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	}
 
 	gboolean is_dedup_dummy = FALSE;
+	if (acfg->aot_opts.dedup)
+		mono_read_method_cache (acfg);
 
 	if (astate) {
 		// fixme: check for leaks here
 		// fills out acfg->dedup_cache
-		if (acfg->aot_opts.dedup)
-			mono_read_method_cache (acfg);
-
 		if (!astate->inflated_assembly && acfg->aot_opts.dedup_include) {
 			gchar **asm_path = g_strsplit (ass->image->name, G_DIR_SEPARATOR_S, 0);
 			gchar *asm_file = NULL;
