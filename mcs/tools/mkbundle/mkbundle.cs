@@ -1091,11 +1091,15 @@ void          mono_register_config_for_assembly (const char* assembly_name, cons
 					debugging = "-ggdb";
 				if (static_link)
 				{
+					string platform_libs;
 					string smonolib;
-					if (style == "osx")
+					if (style == "osx") {
 						smonolib = "`pkg-config --variable=libdir mono-2`/libmono-2.0.a ";
-					else
+						platform_libs = "-liconv -framework Foundation ";
+					} else {
 						smonolib = "-Wl,-Bstatic -lmono-2.0 -Wl,-Bdynamic ";
+						platform_libs = "";
+					}
 
 					var aot_libs = new StringBuilder ("");
 					foreach (var apath in aot_paths) {
@@ -1104,7 +1108,7 @@ void          mono_register_config_for_assembly (const char* assembly_name, cons
 					}
 
 					cmd = String.Format("{4} -o '{2}' -Wall `pkg-config --cflags mono-2` {0} {3} " +
-						"`pkg-config --libs-only-L mono-2` {5} {6} " +
+						"`pkg-config --libs-only-L mono-2` {5} {6} " + platform_libs +
 						"`pkg-config --libs-only-l mono-2 | sed -e \"s/\\-lmono-2.0 //\"` {1} -g ",
 						temp_c, temp_o, output, zlib, cc, smonolib, aot_libs.ToString ());
 				}
