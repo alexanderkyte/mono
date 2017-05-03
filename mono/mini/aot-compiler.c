@@ -11858,8 +11858,6 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	// in this function.
 	if (acfg->aot_opts.dedup_include && is_dedup_dummy) {
 		mono_add_deferred_extra_methods (acfg, astate);
-	} else if (acfg->aot_opts.dedup_include) {
-		return 0;
 	}
 
 	{
@@ -11989,6 +11987,9 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	emit_info (acfg);
 
 	emit_extra_methods (acfg);
+
+	if (acfg->aot_opts.dedup_include && is_dedup_dummy)
+		return 0;
 
 	emit_trampolines (acfg);
 
