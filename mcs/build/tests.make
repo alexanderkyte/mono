@@ -151,7 +151,7 @@ MKBUNDLE_EXE = $(topdir)/class/lib/$(PROFILE)/mkbundle.exe
 BUNDLED_ASSEMBLIES := $(sort $(patsubst .//%,%,$(filter-out %.exe.static %.dll.dll %.exe.dll %bare% %plaincore% %secxml% %Facades% %ilasm%,$(filter %.dll %.exe,$(wildcard $(topdir)/class/lib/$(PROFILE)/*)))))
 
 $(MKBUNDLE_EXE):
-	make -C $(topdir)/mcs/tools/mkbundle
+	make -C $(topdir)/tools/mkbundle
 
 $(TEST_HARNESS_BIN): $(MKBUNDLE_EXE)
 	$(TEST_RUNTIME) $(MKBUNDLE_EXE) -L $(topdir)/class/lib/$(PROFILE) -v --deps $(TEST_HARNESS) $(BUNDLED_ASSEMBLIES) -o $(TEST_HARNESS_BIN) --aot-mode $(STATIC_AOT_BUNDLE) --aot-runtime $(RUNTIME)
