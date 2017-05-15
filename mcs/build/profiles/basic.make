@@ -75,7 +75,7 @@ do-profile-check: $(depsdir)/.stamp
 	$(MAKE) $(MAKE_Q) $(PROFILE_OUT) || ok=false; \
 	if $$ok; then rm -f $(PROFILE_EXE) $(PROFILE_OUT); else \
 	    if test ! -s $(MONOLITE_MSCORLIB); then \
-			$(MAKE) $(MAKE_Q) do-get-monolite ; \
+			$(MAKE) $(MAKE_Q) -C $(mono_build_root)/mcs/build/profiles do-get-monolite ; \
 		fi; \
 	    if test -f $(MONOLITE_MSCORLIB); then \
 		$(MAKE) $(MAKE_Q) do-profile-check-monolite ; \
