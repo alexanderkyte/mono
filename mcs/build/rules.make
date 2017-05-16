@@ -193,6 +193,20 @@ endif
 
 endif #ifneq ("$(wildcard $(topdir)/class/lib/$(PROFILE))","")
 
+MKBUNDLE_TEST_BIN = $(TEST_HARNESS).static
+MKBUNDLE_EXE = $(topdir)/class/lib/$(PROFILE)/mkbundle.exe
+BUNDLED_ASSEMBLIES := $(sort $(patsubst .//%,%,$(filter-out %.exe.static %.dll.dll %.exe.dll %bare% %plaincore% %secxml% %Facades% %ilasm%,$(filter %.dll %.exe,$(wildcard $(topdir)/class/lib/$(PROFILE)/*)))))
+
+$(MKBUNDLE_EXE): $(topdir)/tools/mkbundle/mkbundle.cs
+	make -C $(topdir)/tools/mkbundle
+
+mkbundle-all-tests: $(MKBUNDLE_EXE)
+	$(Q_AOT) $(MAKE) do-test
+	$(Q_AOT) $(MAKE) $(MKBUNDLE_TEST_BIN) # recursive make re-computes variables for BUNDLED_ASSEMBLIES
+
+$(MKBUNDLE_TEST_BIN): $(BUNDLED_ASSEMBLIES) $(TEST_HARNESS)
+	$(Q_AOT) MONO_PATH="$(dir $<)" PKG_CONFIG_PATH="$(topdir)/../data" $(RUNTIME) $(RUNTIME_FLAGS) $(MKBUNDLE_EXE) -L $(topdir)/class/lib/$(PROFILE) -v --deps $(TEST_HARNESS) $(BUNDLED_ASSEMBLIES) -o $(MKBUNDLE_TEST_BIN) --aot-mode $(AOT_MODE) --aot-runtime $(RUNTIME) --aot-args $(AOT_BUILD_ATTRS) --in-tree $(topdir)/.. 
+
 endif # PLATFORM_AOT_SUFFIX
 
 do-run-test:
