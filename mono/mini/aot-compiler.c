@@ -11639,12 +11639,12 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 
 	gboolean is_dedup_dummy = FALSE;
 
-	if (astate) {
-		// fixme: check for leaks here
-		// fills out acfg->dedup_cache
-		if (acfg->aot_opts.dedup)
-			mono_read_method_cache (acfg);
+	// fixme: check for leaks here
+	// fills out acfg->dedup_cache
+	if (acfg->aot_opts.dedup)
+		mono_read_method_cache (acfg);
 
+	if (astate) {
 		if (!astate->inflated_assembly && acfg->aot_opts.dedup_include) {
 			gchar **asm_path = g_strsplit (ass->image->name, G_DIR_SEPARATOR_S, 0);
 			gchar *asm_file = NULL;
@@ -11859,10 +11859,8 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	// in this function.
 	if (acfg->aot_opts.dedup_include && is_dedup_dummy) {
 		mono_add_deferred_extra_methods (acfg, astate);
-	} else if (acfg->aot_opts.dedup_include) {
-		return 0;
 	}
-
+	
 	{
 		GList *l;
 
@@ -11990,6 +11988,9 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	emit_info (acfg);
 
 	emit_extra_methods (acfg);
+
+	if (acfg->aot_opts.dedup_include && !is_dedup_dummy)
+		return 0;
 
 	emit_trampolines (acfg);
 
@@ -12142,7 +12143,7 @@ mono_aot_readonly_field_override (MonoClassField *field)
 }
 
 int
-mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options)
+mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options, gpointer *aot_state)
 {
 	return 0;
 }
