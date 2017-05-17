@@ -204,8 +204,20 @@ mkbundle-all-tests: $(MKBUNDLE_EXE)
 	$(Q_AOT) $(MAKE) do-test
 	$(Q_AOT) $(MAKE) $(MKBUNDLE_TEST_BIN) # recursive make re-computes variables for BUNDLED_ASSEMBLIES
 
-$(MKBUNDLE_TEST_BIN): $(BUNDLED_ASSEMBLIES) $(TEST_HARNESS)
-	$(Q_AOT) MONO_PATH="$(dir $<)" PKG_CONFIG_PATH="$(topdir)/../data" $(RUNTIME) $(RUNTIME_FLAGS) $(MKBUNDLE_EXE) -L $(topdir)/class/lib/$(PROFILE) -v --deps $(TEST_HARNESS) $(BUNDLED_ASSEMBLIES) -o $(MKBUNDLE_TEST_BIN) --aot-mode $(AOT_MODE) --aot-runtime $(RUNTIME) --aot-args $(AOT_BUILD_ATTRS) --in-tree $(topdir)/.. 
+ifdef MKBUNDLE_DEDUP
+
+DEDUP_DUMMY_CS=$(topdir)/class/lib/$(PROFILE)/DummyInflated.cs
+DEDUP_DUMMY=$(topdir)/class/lib/$(PROFILE)/DummyInflated.dll
+DEDUP_ARGS=--aot-dedup $(DEDUP_DUMMY)
+
+$(DEDUP_DUMMY):
+	echo " // Empty Assembly \n\n" > $(DEDUP_DUMMY_CS)
+	$(CSCOMPILE) -t:library -out:$(DEDUP_DUMMY) $(DEDUP_DUMMY_CS) 
+
+endif # MKBUNDLE_DEDUP
+
+$(MKBUNDLE_TEST_BIN): $(BUNDLED_ASSEMBLIES) $(TEST_HARNESS) $(DEDUP_DUMMY)
+	$(Q_AOT) MONO_PATH="$(dir $<)" PKG_CONFIG_PATH="$(topdir)/../data" $(RUNTIME) $(RUNTIME_FLAGS) $(MKBUNDLE_EXE) -L $(topdir)/class/lib/$(PROFILE) -v --deps $(TEST_HARNESS) $(BUNDLED_ASSEMBLIES) -o $(MKBUNDLE_TEST_BIN) --aot-mode $(AOT_MODE) --aot-runtime $(RUNTIME) --aot-args $(AOT_BUILD_ATTRS) --in-tree $(topdir)/..  $(DEDUP_ARGS)
 
 endif # PLATFORM_AOT_SUFFIX
 
