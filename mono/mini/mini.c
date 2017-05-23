@@ -70,7 +70,7 @@
 #include "trace.h"
 #include "version.h"
 #include "ir-emit.h"
-
+#include "aot-compiler.h"
 #include "jit-icalls.h"
 
 #include "mini-gc.h"
@@ -4071,6 +4071,7 @@ mono_jit_compile_method_inner (MonoMethod *method, MonoDomain *target_domain, in
 
 	if ((method->iflags & METHOD_IMPL_ATTRIBUTE_INTERNAL_CALL) ||
 	    (method->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL)) {
+		fprintf (stderr, "Icall/pinvoke");
 		MonoMethod *nm;
 		MonoMethodPInvoke* piinfo = (MonoMethodPInvoke *) method;
 
@@ -4097,6 +4098,7 @@ mono_jit_compile_method_inner (MonoMethod *method, MonoDomain *target_domain, in
 			mono_profiler_method_end_jit (method, jinfo, MONO_PROFILE_OK);
 		return code;
 	} else if ((method->iflags & METHOD_IMPL_ATTRIBUTE_RUNTIME)) {
+		fprintf (stderr, "Method_impl_attribute_runtime");
 		const char *name = method->name;
 		char *full_name, *msg;
 		MonoMethod *nm;
@@ -4147,6 +4149,7 @@ mono_jit_compile_method_inner (MonoMethod *method, MonoDomain *target_domain, in
 	}
 
 	if (method->wrapper_type == MONO_WRAPPER_UNKNOWN) {
+		fprintf (stderr, "MONO_WRAPPER_UNKNOWN");
 		WrapperInfo *info = mono_marshal_get_wrapper_info (method);
 
 		if (info->subtype == WRAPPER_SUBTYPE_GSHAREDVT_IN || info->subtype == WRAPPER_SUBTYPE_GSHAREDVT_OUT) {
@@ -4180,8 +4183,10 @@ mono_jit_compile_method_inner (MonoMethod *method, MonoDomain *target_domain, in
 	}
 
 	if (mono_aot_only) {
-		char *fullname = mono_method_full_name (method, TRUE);
+		/*char *fullname = mono_method_full_name (method, TRUE);*/
+		char *fullname = mono_aot_get_mangled_method_name (method);
 		mono_error_set_execution_engine (error, "Attempting to JIT compile method '%s' while running in aot-only mode. See https://developer.xamarin.com/guides/ios/advanced_topics/limitations/ for more information.\n", fullname);
+		fprintf (stderr, "Attempting to JIT compile method '%s' while running in aot-only mode. See https://developer.xamarin.com/guides/ios/advanced_topics/limitations/ for more information.\n", fullname);
 		g_free (fullname);
 
 		return NULL;

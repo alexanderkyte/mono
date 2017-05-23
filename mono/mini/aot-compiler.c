@@ -907,8 +907,10 @@ emit_code_bytes (MonoAotCompile *acfg, const guint8* buf, int size)
 /* ARCHITECTURE SPECIFIC CODE */
 
 #if defined(TARGET_X86) || defined(TARGET_AMD64) || defined(TARGET_ARM) || defined(TARGET_POWERPC) || defined(TARGET_ARM64)
-#define EMIT_DWARF_INFO 1
+/*#define EMIT_DWARF_INFO 0*/
 #endif
+
+#undef EMIT_DWARF_INFO
 
 #ifdef TARGET_WIN32_MSVC
 #undef EMIT_DWARF_INFO
@@ -3662,18 +3664,26 @@ add_extra_method_with_depth (MonoAotCompile *acfg, MonoMethod *method, int depth
 	if (acfg->aot_opts.log_generics)
 		aot_printf (acfg, "%*sAdding method %s.\n", depth, "", mono_method_get_full_name (method));
 
-	add_method_full (acfg, method, TRUE, depth);
+	gchar *name = mono_aot_get_mangled_method_name (method);
+
+	// Add to dummy MonoAotCompile
+	if (method->is_inflated && acfg->aot_opts.dedup) {
+		fprintf (stderr, "Skipping in extra_method %s\n", name);
+		return;
+	} else if (method->is_inflated && acfg->aot_opts.dedup_include) {
+		fprintf (stderr, "Collecting in extra_method %s\n", name);
+		g_hash_table_insert (acfg->dedup_cache, mono_aot_get_mangled_method_name (method), method);
+	} else {
+		add_method_full (acfg, method, TRUE, depth);
+	}
+
+	g_free (name);
 }
 
 static void
 add_extra_method (MonoAotCompile *acfg, MonoMethod *method)
 {
-	// Add to dummy MonoAotCompile
-	if (method->is_inflated && acfg->aot_opts.dedup_include) {
-		g_hash_table_insert (acfg->dedup_cache, mono_aot_get_mangled_method_name (method), method);
-	} else {
-		add_extra_method_with_depth (acfg, method, 0);
-	}
+	add_extra_method_with_depth (acfg, method, 0);
 }
 
 static void
@@ -5665,6 +5675,9 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 
 	method = cfg->orig_method;
 	code = cfg->native_code;
+
+	if (cfg->orig_method->is_inflated && !cfg->gshared && acfg->aot_opts.dedup)
+		g_assert_not_reached ();
 
 	method_index = get_method_index (acfg, method);
 	symbol = g_strdup_printf ("%sme_%x", acfg->temp_prefix, method_index);
@@ -8861,12 +8874,17 @@ emit_code (MonoAotCompile *acfg)
 		if (!cfg)
 			continue;
 
+		method = cfg->orig_method;
+
 		// cfg->skip is vital for LLVM to work, can't just continue in this loop
 		if (cfg->orig_method->is_inflated && !cfg->gshared) {
-			char *name = mono_aot_get_mangled_method_name (cfg->orig_method);
-			g_assert (name);
-			if (strcmp (cfg->orig_method->name, "wbarrier_conc") && acfg->aot_opts.dedup) {
+			if (!strcmp (cfg->orig_method->name, "wbarrier_conc")) {
+				fprintf (stderr, "wbarrier_conc\n");
+			} else if (acfg->aot_opts.dedup) {
+				char *name = mono_aot_get_mangled_method_name (cfg->orig_method);
+				g_assert (name);
 				g_assert (acfg->dedup_cache);
+
 				if (!g_hash_table_lookup (acfg->dedup_cache, name)) {
 					// This AOTCompile owns this method
 					acfg->dedup_cache_changed = TRUE;
@@ -8875,13 +8893,17 @@ emit_code (MonoAotCompile *acfg)
 				// Don't compile inflated methods if we're in first phase of
 				// dedup
 				cfg->skip = TRUE;
+				fprintf (stderr, "Skipping at top %s\n", name);
+			} else if (acfg->aot_opts.dedup_include) {
+				char *name = mono_aot_get_mangled_method_name (cfg->orig_method);
+				fprintf (stderr, "Moving at top %s\n", name);
+
+				g_hash_table_insert (acfg->dedup_cache, mono_aot_get_mangled_method_name (method), method);
 			}
 		}
 
 		if (ignore_cfg (cfg))
 			continue;
-
-		method = cfg->orig_method;
 
 		/* Emit unbox trampoline */
 		if (mono_aot_mode_is_full (&acfg->aot_opts) && cfg->orig_method->klass->valuetype) {
@@ -11477,7 +11499,7 @@ mono_read_method_cache (MonoAotCompile *acfg)
 	if (acfg->dedup_cache)
 		return;
 
-	acfg->dedup_cache = g_hash_table_new (g_str_hash, g_str_equal);
+	acfg->dedup_cache = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, NULL);
 
 	FILE *cache = fopen (filename, "r");
 	if (!cache) {
@@ -11562,6 +11584,12 @@ mono_add_deferred_extra_methods (MonoAotCompile *acfg, MonoAotState *astate)
 	g_hash_table_iter_init (&iter, astate->cache);
 	while (g_hash_table_iter_next (&iter, (gpointer *) &name, (gpointer *) &method)) {
 		add_extra_method_with_depth (acfg, method, 0);
+
+		g_assert (!strcmp (name, mono_aot_get_mangled_method_name (method)));
+
+		fprintf (stderr, "Keeping %s\n", name);
+		/*if (!method->is_inflated)*/
+			/*g_assert_not_reached ();*/
 		/*int res = fprintf (stderr, "Enriched with %s\n", name);*/
 	}
 	return;

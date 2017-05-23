@@ -42,6 +42,7 @@ class MakeBundle {
 	static List<string> link_paths = new List<string> ();
 	static List<string> aot_paths = new List<string> ();
 	static List<string> aot_names = new List<string> ();
+	static string aot_dedup_name = null;
 	static Dictionary<string,string> libraries = new Dictionary<string,string> ();
 	static bool autodeps = false;
 	static string in_tree = null;
@@ -70,7 +71,7 @@ class MakeBundle {
 	static string aot_args = "static";
 	static string aot_mode = "";
 	static string aot_runtime = null;
-	static int? aot_dedup_assembly = null;
+	static string aot_dedup_assembly = null;
 	static string sdk_path = null;
 	static string lib_path = null;
 	static Dictionary<string,string> environment = new Dictionary<string,string>();
@@ -386,7 +387,7 @@ class MakeBundle {
 				}
 				var dedup_file = args [++i];
 				sources.Add (dedup_file);
-				aot_dedup_assembly = sources.Count () - 1;
+				aot_dedup_assembly = LoadAssembly (dedup_file).CodeBase;
 				aot_compile = true;
 				static_link = true;
 				break;
@@ -943,11 +944,13 @@ void          mono_register_config_for_assembly (const char* assembly_name, cons
 			foreach (string asm in aot_names){
 				tc.WriteLine ("\textern const void *mono_aot_module_{0}_info;", asm);
 			}
+			tc.WriteLine ("\textern const void *mono_aot_module_{0}_info;", aot_dedup_name);
 
 			tc.WriteLine ("\nstatic void install_aot_modules (void) {\n");
 			foreach (string asm in aot_names){
 				tc.WriteLine ("\tmono_aot_register_module (mono_aot_module_{0}_info);\n", asm);
 			}
+			tc.WriteLine ("\tmono_aot_register_module_eager (mono_aot_module_{0}_info);\n", aot_dedup_name);
 
 			string enum_aot_mode;
 			if (aot_mode == "full") {
@@ -1132,7 +1135,7 @@ void          mono_register_config_for_assembly (const char* assembly_name, cons
 						in_tree_include = String.Format (" -I{0} ", in_tree);
 					}
 
-					cmd = String.Format("{4} -o '{2}' -Wall `pkg-config --cflags mono-2` {7} {0} {3} " +
+					cmd = String.Format("{4} -o '{2}' -ggdb -O0 -Wall `pkg-config --cflags mono-2` {7} {0} {3} " +
 						"`pkg-config --libs-only-L mono-2` {5} {6} " + platform_libs +
 						"`pkg-config --libs-only-l mono-2 | sed -e \"s/\\-lmono-2.0 //\"` {1} -g ",
 						temp_c, temp_o, output, zlib, cc, smonolib, aot_libs.ToString (), in_tree_include);
@@ -1470,25 +1473,30 @@ void          mono_register_config_for_assembly (const char* assembly_name, cons
 			string outPath = String.Format ("{0}.aot_out", path);
 			aot_paths.Add (outPath);
 			var name = System.Reflection.Assembly.LoadFrom(path).GetName().Name;
+
+			if (fileName == aot_dedup_assembly) {
+				aot_dedup_name = EncodeAotSymbol (name);
+				continue;
+			}
+
 			aot_names.Add (EncodeAotSymbol (name));
 
-			if (aot_dedup_assembly != null && i != (int) aot_dedup_assembly) {
+			if (aot_dedup_assembly != null) {
 				all_assemblies.Append (path);
 				all_assemblies.Append (" ");
-				Execute (String.Format ("{0} --aot={1},outfile={2}{3}{4} {5}",
-					aot_runtime, aot_args, outPath, aot_mode_string, dedup_mode_string, path));
+				//Execute (String.Format ("{0} -O=gsharedvt --aot={1},outfile={2}{3}{4} {5}",
+					//aot_runtime, aot_args, outPath, aot_mode_string, dedup_mode_string, path));
 			} else {
-				Execute (String.Format ("{0} --aot={1},outfile={2}{3} {4}",
+				Execute (String.Format ("{0} -O=gsharedvt --aot={1},outfile={2}{3} {4}",
 					aot_runtime, aot_args, outPath, aot_mode_string, path));
 			}
 		}
 		if (aot_dedup_assembly != null) {
-			string fileName = files [(int) aot_dedup_assembly];
-			var filePath = new Uri (fileName).LocalPath;
+			var filePath = new Uri (aot_dedup_assembly).LocalPath;
 			string path = LocateFile (filePath);
 			dedup_mode_string = String.Format (",dedup-include={0}", Path.GetFileName(filePath));
 			string outPath = String.Format ("{0}.aot_out", path);
-			Execute (String.Format ("{0} --aot={1},outfile={2}{3}{4} {5} {6}",
+			Execute (String.Format ("{0} -O=gsharedvt --aot={1},outfile={2}{3}{4} {5} {6}",
 				aot_runtime, aot_args, outPath, aot_mode_string, dedup_mode_string, path, all_assemblies.ToString ()));
 		}
 	}

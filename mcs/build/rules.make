@@ -217,7 +217,8 @@ $(DEDUP_DUMMY):
 endif # MKBUNDLE_DEDUP
 
 $(MKBUNDLE_TEST_BIN): $(BUNDLED_ASSEMBLIES) $(TEST_HARNESS) $(DEDUP_DUMMY)
-	$(Q_AOT) MONO_PATH="$(dir $<)" PKG_CONFIG_PATH="$(topdir)/../data" $(RUNTIME) $(RUNTIME_FLAGS) $(MKBUNDLE_EXE) -L $(topdir)/class/lib/$(PROFILE) -v --deps $(TEST_HARNESS) $(BUNDLED_ASSEMBLIES) -o $(MKBUNDLE_TEST_BIN) --aot-mode $(AOT_MODE) --aot-runtime $(RUNTIME) --aot-args $(AOT_BUILD_ATTRS) --in-tree $(topdir)/..  $(DEDUP_ARGS)
+	$(Q_AOT) MONO_PATH="$(dir $<)" PKG_CONFIG_PATH="$(topdir)/../data" $(RUNTIME) $(RUNTIME_FLAGS) $(MKBUNDLE_EXE) -L $(topdir)/class/lib/$(PROFILE) -v --deps $(TEST_HARNESS) $(BUNDLED_ASSEMBLIES) -o $(MKBUNDLE_TEST_BIN) --aot-mode $(AOT_MODE) --aot-runtime $(RUNTIME) --aot-args $(AOT_BUILD_ATTRS) --in-tree $(topdir)/..  $(DEDUP_ARGS) --keeptemp 
+	echo "Add back compression flag (-z) and non-static aot"
 
 endif # PLATFORM_AOT_SUFFIX
 

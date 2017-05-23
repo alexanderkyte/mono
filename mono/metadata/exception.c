@@ -1062,6 +1062,7 @@ mono_error_raise_exception (MonoError *target_error)
 gboolean
 mono_error_set_pending_exception (MonoError *error)
 {
+	fprintf (stderr, "Setting pending exception %d %s\n", mono_error_get_error_code (error), mono_error_get_message (error));
 	MonoException *ex = mono_error_convert_to_exception (error);
 	if (ex) {
 		mono_set_pending_exception (ex);

@@ -1632,6 +1632,8 @@ mono_main (int argc, char* argv[])
 
 	if (g_hasenv ("MONO_NO_SMP"))
 		mono_set_use_smp (FALSE);
+
+	mono_parse_env_options (&argc, &argv);
 	
 	g_log_set_always_fatal (G_LOG_LEVEL_ERROR);
 	g_log_set_fatal_mask (G_LOG_DOMAIN, G_LOG_LEVEL_ERROR);
@@ -2599,6 +2601,7 @@ mono_parse_env_options (int *ref_argc, char **ref_argv [])
 	char *ret;
 	
 	char *env_options = g_getenv ("MONO_ENV_OPTIONS");
+	fprintf (stderr, "Parsing env options %s\n", env_options);
 	if (env_options == NULL)
 		return;
 	ret = mono_parse_options_from (env_options, ref_argc, ref_argv);

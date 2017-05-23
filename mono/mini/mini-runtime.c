@@ -76,6 +76,7 @@
 #include <ctype.h>
 #include "trace.h"
 #include "version.h"
+#include "aot-compiler.h"
 
 #include "jit-icalls.h"
 
@@ -2090,8 +2091,10 @@ lookup_start:
 					return NULL;
 			}
 		}
-		if (!is_ok (error))
+		if (!is_ok (error)) {
+			fprintf (stderr, "Couldn't get method %s\n", mono_aot_get_mangled_method_name (method));
 			return NULL;
+		}
 	}
 #endif
 
