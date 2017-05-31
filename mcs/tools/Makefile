@@ -49,7 +49,7 @@ net_4_5_dirs := \
 	mono-symbolicate	\
 	linker-analyzer
 
-build_SUBDIRS = resgen gacutil security culevel cil-stringreplacer commoncryptogenerator resx2sr linker
+build_SUBDIRS = resgen gacutil security culevel cil-stringreplacer commoncryptogenerator resx2sr linker cil-strip
 monodroid_tools_SUBDIRS = cil-strip mkbundle mdoc mono-symbolicate
 net_4_5_SUBDIRS = gacutil
 net_4_x_SUBDIRS = gacutil
