@@ -47,6 +47,7 @@
 #include <mono/metadata/appdomain.h>
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/assembly.h>
+#include <mono/metadata/assembly-internals.h>
 #include <mono/metadata/metadata-internals.h>
 #include <mono/metadata/marshal.h>
 #include <mono/metadata/gc-internals.h>
@@ -172,6 +173,10 @@ static mono_mutex_t aot_mutex;
  * AOT modules registered by mono_aot_register_module ().
  */
 static GHashTable *static_aot_modules;
+/* 
+ * Same as above, but tracks modules that must be loaded before others are
+ */
+static GHashTable *eager_aot_modules;
 
 /*
  * Maps MonoJitInfo* to the aot module they belong to, this can be different
@@ -1948,10 +1953,35 @@ load_aot_module (MonoAssembly *assembly, gpointer user_data)
 		return;
 
 	mono_aot_lock ();
-	if (static_aot_modules)
+
+	if (eager_aot_modules) {
+		GHashTable *local_ref = eager_aot_modules;
+		eager_aot_modules = NULL;
+
+		GHashTableIter iter;
+		gpointer aname;
+		g_hash_table_iter_init (&iter, local_ref);
+		while (g_hash_table_iter_next (&iter, &aname, NULL)) {
+			MonoImageOpenStatus status = MONO_IMAGE_OK;
+			gchar *dll = g_strdup_printf ("%s.dll", aname);
+			MonoAssembly *ass = mono_assembly_open_predicate (dll, FALSE, FALSE, NULL, NULL, &status);
+			if (!ass) {
+				gchar *exe = g_strdup_printf ("%s.exe", aname);
+				ass = mono_assembly_open_predicate (exe, FALSE, FALSE, NULL, NULL, &status);
+			}
+			g_assert (ass);
+			load_aot_module (ass, NULL);
+		}
+
+	}
+
+	if (static_aot_modules) {
 		info = (MonoAotFileInfo *)g_hash_table_lookup (static_aot_modules, assembly->aname.name);
-	else
+		if (info)
+			fprintf (stderr, "Assembly %s was loaded with aot\n", assembly->aname.name);
+	} else {
 		info = NULL;
+	}
 	mono_aot_unlock ();
 
 	sofile = NULL;
@@ -2311,9 +2341,10 @@ load_aot_module (MonoAssembly *assembly, gpointer user_data)
 /*
  * mono_aot_register_module:
  *
- *   This should be called by embedding code to register AOT modules statically linked
- * into the executable. AOT_INFO should be the value of the 
- * 'mono_aot_module_<ASSEMBLY_NAME>_info' global symbol from the AOT module.
+ * This should be called by embedding code to register normal AOT modules statically linked
+ * into the executable. 
+ *
+ * \param aot_info the value of the 'mono_aot_module_<ASSEMBLY_NAME>_info' global symbol from the AOT module.
  */
 void
 mono_aot_register_module (gpointer *aot_info)
@@ -2339,6 +2370,11 @@ mono_aot_register_module (gpointer *aot_info)
 		static_aot_modules = g_hash_table_new (g_str_hash, g_str_equal);
 
 	g_hash_table_insert (static_aot_modules, aname, info);
+
+	if (info->flags & MONO_AOT_FILE_FLAG_EAGER_LOAD) {
+		g_assert (!container_assm_name);
+		container_assm_name = aname;
+	}
 
 	if (aot_modules)
 		mono_aot_unlock ();
