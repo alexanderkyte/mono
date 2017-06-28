@@ -176,7 +176,8 @@ static GHashTable *static_aot_modules;
 /* 
  * Same as above, but tracks modules that must be loaded before others are
  */
-static GHashTable *eager_aot_modules;
+static char *container_assm_name = NULL;
+static MonoAotModule *container_amodule = NULL;
 
 /*
  * Maps MonoJitInfo* to the aot module they belong to, this can be different
@@ -1957,34 +1958,25 @@ load_aot_module (MonoAssembly *assembly, gpointer user_data)
 
 	mono_aot_lock ();
 
-	if (eager_aot_modules) {
-		GHashTable *local_ref = eager_aot_modules;
-		eager_aot_modules = NULL;
+	if (container_assm_name && !container_amodule) {
+		char *local_ref = container_assm_name;
+		container_assm_name = NULL;
 
-		GHashTableIter iter;
-		gpointer aname;
-		g_hash_table_iter_init (&iter, local_ref);
-		while (g_hash_table_iter_next (&iter, &aname, NULL)) {
-			MonoImageOpenStatus status = MONO_IMAGE_OK;
-			gchar *dll = g_strdup_printf ("%s.dll", aname);
-			MonoAssembly *ass = mono_assembly_open_predicate (dll, FALSE, FALSE, NULL, NULL, &status);
-			if (!ass) {
-				gchar *exe = g_strdup_printf ("%s.exe", aname);
-				ass = mono_assembly_open_predicate (exe, FALSE, FALSE, NULL, NULL, &status);
-			}
-			g_assert (ass);
-			load_aot_module (ass, NULL);
+		MonoImageOpenStatus status = MONO_IMAGE_OK;
+		gchar *dll = g_strdup_printf ("%s.dll", local_ref);
+		MonoAssembly *assm = mono_assembly_open_a_lot (dll, &status, FALSE, FALSE);
+		if (!assm) {
+			gchar *exe = g_strdup_printf ("%s.exe", local_ref);
+			assm = mono_assembly_open_a_lot (exe, &status, FALSE, FALSE);
 		}
-
+		g_assert (assm);
+		load_aot_module (assm, NULL);
+		container_amodule = assm->image->aot_module;
 	}
 
-	if (static_aot_modules) {
+	if (static_aot_modules)
 		info = (MonoAotFileInfo *)g_hash_table_lookup (static_aot_modules, assembly->aname.name);
-		if (info)
-			fprintf (stderr, "Assembly %s was loaded with aot\n", assembly->aname.name);
-	} else {
-		info = NULL;
-	}
+
 	mono_aot_unlock ();
 
 	sofile = NULL;
@@ -2331,6 +2323,7 @@ load_aot_module (MonoAssembly *assembly, gpointer user_data)
 	} else {
 		mono_trace (G_LOG_LEVEL_INFO, MONO_TRACE_AOT, "AOT: image '%s' found.", found_aot_name);
 	}
+
 }
 
 /*
@@ -4143,6 +4136,9 @@ find_aot_method_in_amodule (MonoAotModule *amodule, MonoMethod *method, guint32 
 			break;
 	}
 
+	if (index != 0xffffff)
+		g_assert (index < amodule->info.nmethods);
+
 	return index;
 }
 
@@ -4472,7 +4468,33 @@ mono_aot_get_method_checked (MonoDomain *domain, MonoMethod *method, MonoError *
 
 	/* Find method index */
 	method_index = 0xffffff;
-	if (method->is_inflated && !method->wrapper_type && mono_method_is_generic_sharable_full (method, TRUE, FALSE, FALSE)) {
+
+	gboolean dedupable = mono_aot_can_dedup (method);
+
+	// If an extra method and container, check there first
+	if (container_amodule && dedupable) {
+			g_assert (!container_amodule->out_of_date);
+			amodule_lock (container_amodule);
+			code = (guint8 *)g_hash_table_lookup (container_amodule->method_to_code, method);
+			amodule_unlock (container_amodule);
+			if (code)
+				return code;
+
+			guint32 hash = mono_aot_method_hash (method);
+
+			method_index = find_aot_method_in_amodule (container_amodule, method, hash);
+
+			if (method_index != 0xffffff) {
+				cache_result = TRUE;
+				g_assert (container_amodule->info.nmethods > method_index);
+				amodule = container_amodule;
+				amodule_lock (container_amodule);
+				g_hash_table_insert (container_amodule->extra_methods, GUINT_TO_POINTER (method_index), method);
+				amodule_unlock (container_amodule);
+			}
+	} 
+	
+	if (method_index == 0xffffff && method->is_inflated && !method->wrapper_type && mono_method_is_generic_sharable_full (method, TRUE, FALSE, FALSE)) {
 		MonoMethod *orig_method = method;
 		/* 
 		 * For generic methods, we store the fully shared instance in place of the
@@ -4497,7 +4519,9 @@ mono_aot_get_method_checked (MonoDomain *domain, MonoMethod *method, MonoError *
 			return code;
 
 		cache_result = TRUE;
-		method_index = find_aot_method (method, &amodule);
+		if (method_index == 0xffffff)
+			method_index = find_aot_method (method, &amodule);
+
 		/*
 		 * Special case the ICollection<T> wrappers for arrays, as they cannot
 		 * be statically enumerated, and each wrapper ends up calling the same
