@@ -5714,8 +5714,10 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 
 		// Comment out to force dedup to link these symbols and forbid compiling
 		// in duplicated code. This is an "assert when linking if broken" trick.
-		/*emit_global_inner (acfg, debug_sym, TRUE);*/
-		emit_local_symbol (acfg, debug_sym, symbol, TRUE);
+		if (mono_aot_can_dedup (method) && (acfg->aot_opts.dedup || acfg->aot_opts.dedup_include))
+			emit_global_inner (acfg, debug_sym, TRUE);
+		else
+			emit_local_symbol (acfg, debug_sym, symbol, TRUE);
 
 		emit_label (acfg, debug_sym);
 	}
@@ -11653,8 +11655,45 @@ mono_add_deferred_extra_methods (MonoAotCompile *acfg, MonoAotState *astate)
 	return;
 }
 
+static void
+mono_setup_dedup_state (MonoAotCompile *acfg, MonoAotState **global_aot_state, MonoAssembly *ass, MonoAotState **astate, gboolean *is_dedup_dummy) 
+{
+	// fills out acfg->dedup_cache
+	if (acfg->aot_opts.dedup)
+		mono_read_method_cache (acfg);
+	
+	if (global_aot_state && *global_aot_state && acfg->aot_opts.dedup_include) {
+	// Thread the state through when making the inflate pass
+		astate = (MonoAotState **)global_aot_state;
+		acfg->dedup_cache = (*astate)->cache;
+	}
+
+	if (!*astate) {
+		*astate = (gpointer *) alloc_aot_state ();
+		*global_aot_state = *astate;
+	}
+
+	if (!(*astate)->inflated_assembly && acfg->aot_opts.dedup_include) {
+		gchar **asm_path = g_strsplit (ass->image->name, G_DIR_SEPARATOR_S, 0);
+		gchar *asm_file = NULL;
+
+		// Get the last part of the path, the filename
+		for (int i=0; asm_path [i] != NULL; i++)
+			asm_file = asm_path [i];
+
+		if (!strcmp (acfg->aot_opts.dedup_include, asm_file)) {
+			// Save
+			*is_dedup_dummy = TRUE;
+			(*astate)->inflated_assembly = ass;
+		}
+		g_strfreev (asm_path);
+	} else if ((*astate)->inflated_assembly) {
+		*is_dedup_dummy = (ass == (*astate)->inflated_assembly);
+	}
+}
+
 int 
-mono_compile_deferred_assemblies (guint32 opts, const char *aot_options, gpointer *aot_state)
+mono_compile_deferred_assemblies (guint32 opts, const char *aot_options, gpointer **aot_state)
 {
 	// create assembly, loop and add extra_methods
 	// in add_generic_instances , rip out what's in that for loop
@@ -11684,7 +11723,7 @@ mono_compile_deferred_assemblies (guint32 opts, const char *aot_options, gpointe
 }
 
 int
-mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options, gpointer *aot_state)
+mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options, gpointer **global_aot_state)
 {
 	MonoImage *image = ass->image;
 	int i, res;
@@ -11714,45 +11753,12 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 
 	// start dedup
 	MonoAotState *astate = NULL;
-
-	// Thread the state through when making the inflate pass
-	if (aot_state && acfg->aot_opts.dedup_include) {
-		astate = *(MonoAotState **)aot_state;
-		if (!astate)
-			*aot_state = astate = alloc_aot_state ();
-		acfg->dedup_cache = astate->cache;
-	}
-
 	gboolean is_dedup_dummy = FALSE;
+	mono_setup_dedup_state (acfg, (MonoAotState **) global_aot_state, ass, &astate, &is_dedup_dummy);
 
-	// fixme: check for leaks here
-	// fills out acfg->dedup_cache
-	if (acfg->aot_opts.dedup)
-		mono_read_method_cache (acfg);
-
-	if (astate) {
-		if (!astate->inflated_assembly && acfg->aot_opts.dedup_include) {
-			gchar **asm_path = g_strsplit (ass->image->name, G_DIR_SEPARATOR_S, 0);
-			gchar *asm_file = NULL;
-			for (int i=0; asm_path [i] != NULL; i++)
-				asm_file = asm_path [i];
-
-			if (!strcmp (acfg->aot_opts.dedup_include, asm_file)) {
-				// Save
-				is_dedup_dummy = TRUE;
-				astate->inflated_assembly = ass;
-			}
-			g_strfreev (asm_path);
-		} else if (astate->inflated_assembly) {
-			is_dedup_dummy = (ass == astate->inflated_assembly);
-		}
-
-		
-		// Process later
-		if (is_dedup_dummy && !astate->emit_inflated_methods) {
-			return 0; 
-		}
-	}
+	// Process later
+	if (is_dedup_dummy && astate && !astate->emit_inflated_methods)
+		return 0; 
 
 	// end dedup
 
@@ -11952,10 +11958,9 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	// If we're emitting all of the inflated methods into a dummy
 	// Assembly, then after extra_methods is set up, we're done
 	// in this function.
-	if (acfg->aot_opts.dedup_include && is_dedup_dummy) {
+	if (astate && astate->emit_inflated_methods)
 		mono_add_deferred_extra_methods (acfg, astate);
-	}
-	
+
 	{
 		GList *l;
 
@@ -12264,7 +12269,7 @@ mono_aot_readonly_field_override (MonoClassField *field)
 }
 
 int
-mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options, gpointer *aot_state)
+mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options, gpointer **aot_state)
 {
 	return 0;
 }
