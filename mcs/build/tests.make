@@ -161,7 +161,7 @@ MKBUNDLE_EXE = $(topdir)/class/lib/$(PROFILE)/mkbundle.exe
 # It's easier if you read it backwards.
 # What we do here is get the files in the profile directory that end in "test.dll" or are prefixed with nunit (filter)
 # and then strip out everything that we expect to live outside the top level (filter-out)
-TEST_ASSEMBLIES := $(sort $(patsubst .//%,%,$(filter-out %.exe.static %.dll.dll %.exe.dll %bare% %plaincore% %secxml% %Facades% %ilasm%,$(filter %test.dll nunit%.dll nunit%.exe,$(wildcard $(topdir)/class/lib/$(PROFILE)/*)))))
+TEST_ASSEMBLIES:=$(sort $(patsubst .//%,%,$(filter-out %.exe.static %.dll.dll %.exe.dll %bare% %plaincore% %secxml% %Facades% %ilasm%,$(filter %.dll,$(wildcard $(topdir)/class/lib/$(PROFILE)/tests/*)))))
 
 $(MKBUNDLE_EXE): $(topdir)/tools/mkbundle/mkbundle.cs
 	make -C $(topdir)/tools/mkbundle
