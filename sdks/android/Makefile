@@ -11,6 +11,10 @@ ACTIVITY  = org.mono.android.AndroidActivity
 
 APK_DIR=apk
 
+BCL_RUNNER_EXE = $(APK_DIR)/assets/asm/main.exe
+DEBUGGER_RUNNER_EXE = $(APK_DIR)/assets/asm/dtest-app.exe
+
+
 BCL_CHECKS= \
 	corlib \
 	System \
@@ -152,16 +156,42 @@ package: $(patsubst %,$(APK_DIR)/jni/arm64-v8a/%,$(MONO_LIBS))
 package: $(patsubst %,$(APK_DIR)/jni/x86/%,$(MONO_LIBS))
 package: $(patsubst %,$(APK_DIR)/jni/x86_64/%,$(MONO_LIBS))
 package: $(APK_DIR)/assets/mconfig
-package: $(APK_DIR)/assets/asm/main.exe
 package: $(APK_DIR)/assets/asm/Mono.Android.dll
 package: $(patsubst %,$(APK_DIR)/assets/asm/%,$(BCL_LIBS))
 package: $(patsubst %,$(APK_DIR)/assets/asm/%,$(NUNIT_LIBS))
 package: $(patsubst %,$(APK_DIR)/assets/asm/monodroid_%_test.dll,$(CHECKS))
 
+package-bcl: package
+	rm -rf $(APK_DIR)/bin/AndroidActivity-debug.apk
+	rm -rf $(DEBUGGER_RUNNER_EXE)
+	make $(BCL_RUNNER_EXE)
+
+package-debugger: package
+	rm -rf $(BCL_RUNNER_EXE)
+	rm -rf $(APK_DIR)/bin/AndroidActivity-debug.apk
+	rm -rf $(APK_DIR)/assets/asm/testassembly.txt
+	make $(DEBUGGER_RUNNER_EXE)
+
+.PHONY: $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe
+$(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe:
+	$(MAKE) PROFILE='monodroid' -C $(TOP)/mcs/class/Mono.Debugger.Soft dtest-app.exe
+
+$(APK_DIR)/assets/asm/dtest-app.exe: $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe
+	cp $< $@
+
+make-debugger-test: package-debugger
+	cd $(APK_DIR) && MONO_DEBUGGER_TESTS=1 $(NDK_BUILD)
+	cd $(APK_DIR) && $(ANT) debug
+
+run-debugger-test: make-debugger-test
+	cd $(APK_DIR) && $(ADB) uninstall $(PACKAGE) || true
+	cd $(APK_DIR) && $(ADB) install bin/AndroidActivity-debug.apk
+	cd $(APK_DIR) && $(ADB) shell am instrument -w $(PACKAGE)/$(RUNNER)
+
 .PHONY: build-%
-build-%: package
+build-%: package-bcl
 	printf "monodroid_$*_test.dll" > $(APK_DIR)/assets/asm/testassembly.txt
-	cd $(APK_DIR) && $(NDK_BUILD)
+	cd $(APK_DIR) && MONO_BCL_TESTS=1 $(NDK_BUILD)
 	cd $(APK_DIR) && $(ANT) debug
 
 .PHONY: check-%
@@ -197,10 +227,10 @@ $(APK_DIR)/assets/asm/monodroid_mini_test.dll: $(MINI_TEST_SOURCES)
 define TestAssemblyTemplate
 
 .PHONY: $$(TOP)/mcs/class/$(1)/monodroid_$(1)_test.dll
-$$(TOP)/mcs/class/$(1)/monodroid_$(1)_test.dll:
+$$(TOP)/mcs/class/lib/monodroid/tests/monodroid_$(1)_test.dll:
 	$$(MAKE) PROFILE='monodroid' -C $$(TOP)/mcs/class/$(1) build-test-lib
 
-$(APK_DIR)/assets/asm/monodroid_$(1)_test.dll: $$(TOP)/mcs/class/$(1)/monodroid_$(1)_test.dll
+$(APK_DIR)/assets/asm/monodroid_$(1)_test.dll: $$(TOP)/mcs/class/lib/monodroid/tests/monodroid_$(1)_test.dll
 	cp $$< $$@
 
 endef
