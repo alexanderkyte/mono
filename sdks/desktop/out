@@ -1,0 +1,1161 @@
+/Applications/Xcode92.app/Contents/Developer/usr/bin/make PROFILE='net_4_x' -C /Users/akyte/mono/mcs/class/Mono.Debugger.Soft test
+/Applications/Xcode92.app/Contents/Developer/usr/bin/make test-local
+CSC     [net_4_x-darwin] net_4_x_Mono.Debugger.Soft_test.dll
+skipping 0x7ff18b413630
+cp /Users/akyte/mono/mcs/class/lib/net_4_x/tests/net_4_x_Mono.Debugger.Soft_test.dll /Users/akyte/mono/sdks/desktop/net_4_x_Mono.Debugger.Soft_test.dll
+cp /Users/akyte/mono/mcs/class/lib/net_4_x/nunit* /Users/akyte/mono/sdks/desktop/../out/bcl/net_4_x
+MONO_TESTS_IN_PROGRESS="yes" MONO_PATH="/Users/akyte/mono/sdks/desktop/../out/bcl/net_4_x" /Users/akyte/mono/sdks/out/desktop-x86_64/bin/mono-sgen --debug /Users/akyte/mono/sdks/desktop/../out/bcl/net_4_x/nunit-lite-console.exe /Users/akyte/mono/sdks/desktop/net_4_x_Mono.Debugger.Soft_test.dll -exclude=NotOnMac,MacNotWorking,NotWorking,CAS  -format:nunit2
+mono_debug_domain_create 0x7fcadb207340
+NUnitLite 1.0.0 (.NET 4.5 Debug)
+Copyright 2013, Charlie Poole
+
+Runtime Environment -
+    OS Version: Unix 17.2.0.0
+  Mono Version: 4.0.30319.42000
+
+...Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: arg1 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: arg2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: arg3 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Before O2
+foo 1
+foo 2
+foo 3
+X: o2 4 4
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+After O2
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: single_stepping 27 27
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: assembly_load 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: bp1 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: invoke1 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: line_numbers 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: single_stepping 27 27
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: user 4 4
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: user 4 4
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: invoke_ex 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: Main 74 74
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: domains 13 13
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: dyn_call 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: evaluate_method_2 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: exceptions 45 45
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: exception_filter 7 7
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: exceptions 45 45
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: Main 74 74
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: ti2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: locals2 16 16
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: locals6_1 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: locals6_2 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: locals6_3 23 23
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: locals6_4 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: locals6_5 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: locals6_6 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: gc_suspend_1 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: arg2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: arg2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: Main 74 74
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: user 4 4
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: user 4 4
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: locals4 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: locals5 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: wait_one 4 4
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: invoke1 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: invoke_abort 2 2
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: invoke1 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: invoke1 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: invoke_single_threaded_2 2 2
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: invoke1 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: Main 74 74
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: line_numbers 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: locals1 11 11
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: locals2 16 16
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: locals7 4 4
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: locals2 16 16
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: bp1 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: domains_print_across 2 2
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: single_stepping 27 27
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: locals2 16 16
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: Main 74 74
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: exceptions 45 45
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: o1 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: o1 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: o1 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: objrefs1 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: objrefs2 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: ti2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: ref_emit_call 2 2
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: set_ip_1 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: set_ip_2 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: set_ip_1 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: single_stepping 27 27
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss5 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss6 6 6
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss7_2 8 8
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss7_2_1 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss7_2 8 8
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss7_2_1 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss7_3 7 7
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss7_2_1 2 2
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.StepEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_nested_2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_step_through 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_non_user_code 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_recursive 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_recursive2 11 11
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_recursive2 11 11
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_recursive_chaotic 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_fp_clobber 4 4
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_await 27 27
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: ss_no_frames_2 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: ss_no_frames_3 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: ss_regress_654694 7 7
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: regress_2755 10 10
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: regress_2755_3 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: frames_in_native 7 7
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: step_filters 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: arg2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: arg2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: suspend 6 6
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: threadpool_io 2 2
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: o1 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: o1 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: o1 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: o1 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: ti2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: type_load 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: type_load 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: unhandled_exception 4 4
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: unhandled_exception_endinvoke 6 6
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: unhandled_exception_user 4 4
+e is Mono.Debugger.Soft.ExceptionEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+e is Mono.Debugger.Soft.VMDeathEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+F.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: o1 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+.Listening on 0.0.0.0:6100...
+/Users/akyte/Library/Developer/Xamarin/android-sdk-macosx/platform-tools/adb shell am instrument org.mono.android.AndroidTestRunner/org.mono.android.AndroidRunner
+foo 1
+foo 2
+foo 3
+X: vtypes1 5 5
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: vtypes2 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: vtypes3 3 3
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+foo 1
+foo 2
+foo 3
+X: vtypes4_2 2 2
+e is Mono.Debugger.Soft.BreakpointEvent, Mono.Debugger.Soft, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756
+
+Tests run: 89, Passed: 70, Errors: 17, Failures: 2, Inconclusive: 0
+  Not run: 0, Invalid: 0, Ignored: 0, Skipped: 0
+Elapsed time: 00:24:27.0420000
+
+Errors and Failures:
+
+1) ClassLocalReflection (MonoTests.DebuggerTests.ClassLocalReflection)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.ClassLocalReflection () [0x000bd] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+2) Dispose (MonoTests.DebuggerTests.Dispose)
+   System.InvalidOperationException : Process instance not available
+TearDown : Mono.Debugger.Soft.VMNotSuspendedException : The vm is not suspended.
+  at Mono.Debugger.Soft.VirtualMachine.get_Process () [0x00019] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:46 
+  at MonoTests.DebuggerTests.Dispose () [0x0002e] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.VirtualMachine.ErrorHandler (System.Object sender, Mono.Debugger.Soft.ErrorHandlerEventArgs args) [0x00044] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:342 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000bd] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1558 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+3) Domains (MonoTests.DebuggerTests.Domains)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.Domains () [0x00049] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+4) ExceptionFilter2 (MonoTests.DebuggerTests.ExceptionFilter2)
+     Expected: not null
+  But was:  null
+
+  at MonoTests.DebuggerTests.ExceptionFilter2 () [0x00035] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+5) Exit (MonoTests.DebuggerTests.Exit)
+   System.InvalidOperationException : Process instance not available
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.VirtualMachine.get_Process () [0x00019] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:46 
+  at MonoTests.DebuggerTests.Exit () [0x00040] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+6) InspectThreadSuspenedOnWaitOne (MonoTests.DebuggerTests.InspectThreadSuspenedOnWaitOne)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.InspectThreadSuspenedOnWaitOne () [0x00029] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+7) InvokeAbort (MonoTests.DebuggerTests.InvokeAbort)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.InvokeAbort () [0x0002d] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+8) InvokeSingleThreaded (MonoTests.DebuggerTests.InvokeSingleThreaded)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.InvokeSingleThreaded () [0x00027] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+9) MakeGenericMethod (MonoTests.DebuggerTests.MakeGenericMethod)
+     Expected: True
+  But was:  False
+
+  at MonoTests.DebuggerTests.AssertThrows[ExType] (System.Action del) [0x0000f] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.MakeGenericMethod () [0x000e1] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+10) MemberInOtherDomain (MonoTests.DebuggerTests.MemberInOtherDomain)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.MemberInOtherDomain () [0x00043] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+11) RefEmit (MonoTests.DebuggerTests.RefEmit)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.RefEmit () [0x00027] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+12) StackTraceInNative (MonoTests.DebuggerTests.StackTraceInNative)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.StackTraceInNative () [0x0002d] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+13) Suspend (MonoTests.DebuggerTests.Suspend)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.Suspend () [0x00027] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+14) ThreadpoolIOsinglestep (MonoTests.DebuggerTests.ThreadpoolIOsinglestep)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.ThreadpoolIOsinglestep () [0x00022] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+15) TypeLoadSourceFileFilter (MonoTests.DebuggerTests.TypeLoadSourceFileFilter)
+     Expected: True
+  But was:  False
+
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at MonoTests.DebuggerTests.TypeLoadSourceFileFilter () [0x00094] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+16) TypeLoadTypeNameFilter (MonoTests.DebuggerTests.TypeLoadTypeNameFilter)
+     Expected: True
+  But was:  False
+
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at MonoTests.DebuggerTests.TypeLoadTypeNameFilter () [0x00044] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+17) UnhandledException (MonoTests.DebuggerTests.UnhandledException)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.UnhandledException () [0x0003b] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+18) UnhandledException_2 (MonoTests.DebuggerTests.UnhandledException_2)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.UnhandledException_2 () [0x00071] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+19) UnhandledExceptionUserCode (MonoTests.DebuggerTests.UnhandledExceptionUserCode)
+   Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+TearDown : Mono.Debugger.Soft.VMDisconnectedException : Exception of type 'Mono.Debugger.Soft.VMDisconnectedException' was thrown.
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x000f4] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1565 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.run_until (System.String name) [0x000a4] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at MonoTests.DebuggerTests.UnhandledExceptionUserCode () [0x0005b] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+--TearDown
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command, Mono.Debugger.Soft.Connection+PacketWriter packet) [0x00117] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1570 
+  at Mono.Debugger.Soft.Connection.SendReceive (Mono.Debugger.Soft.Connection+CommandSet command_set, System.Int32 command) [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1573 
+  at Mono.Debugger.Soft.Connection.VM_Resume () [0x00000] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/Connection.cs:1670 
+  at Mono.Debugger.Soft.VirtualMachine.Resume () [0x00006] in /Users/akyte/mono/mcs/class/Mono.Debugger.Soft/Mono.Debugger.Soft/VirtualMachine.cs:125 
+  at MonoTests.DebuggerTests.TearDown () [0x0001c] in <c7bcf43c6c2541128e693ea31486b672>:0 
+  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
+  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in /Users/akyte/mono/mcs/class/corlib/System.Reflection/MonoMethod.cs:305 
+
+
+Results saved as TestResult.xml.
+Unloading 0x7fcadb207340 from data table hash
+Destroying data table hash
+make: *** [run] Error 1

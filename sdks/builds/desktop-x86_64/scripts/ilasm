@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /Users/akyte/mono/sdks/out/desktop-x86_64/bin/mono $MONO_OPTIONS /Users/akyte/mono/sdks/out/desktop-x86_64/lib/mono/4.5/ilasm.exe "$@"

@@ -1,0 +1,2 @@
+set solib-search-path ./obj/local/x86
+directory /Users/akyte/Library/Developer/Xamarin/android-ndk/android-ndk-r14b/platforms/android-14/arch-x86 jni /Users/akyte/Library/Developer/Xamarin/android-ndk/android-ndk-r14b/sources/cxx-stl/system

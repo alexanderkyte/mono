@@ -1,10 +1,10 @@
 TOP=$(realpath $(CURDIR)/../..)
 include $(TOP)/sdks/paths.mk
 ADB       = $(SDK_DIR)/platform-tools/adb
+
 ANDROID   = $(SDK_DIR)/tools/android
 ANT       = ant
 NDK_BUILD = $(NDK_DIR)/ndk-build
-
 PACKAGE   = org.mono.android.AndroidTestRunner
 RUNNER    = org.mono.android.AndroidRunner
 ACTIVITY  = org.mono.android.AndroidActivity
@@ -13,6 +13,7 @@ APK_DIR=apk
 
 BCL_RUNNER_EXE = $(APK_DIR)/assets/asm/main.exe
 DEBUGGER_RUNNER_EXE = $(APK_DIR)/assets/asm/dtest-app.exe
+DEBUGGER_RUNNER_PDB = $(APK_DIR)/assets/asm/dtest-app.pdb
 
 
 BCL_CHECKS= \
@@ -90,6 +91,26 @@ BCL_LIBS= \
 	Mono.Data.Tds.dll \
 	Mono.Security.dll
 
+BCL_PDBS= \
+	mscorlib.pdb \
+	System.pdb \
+	System.Core.pdb \
+	System.Xml.pdb \
+	System.Data.pdb \
+	System.IO.Compression.FileSystem.pdb \
+	System.IO.Compression.pdb \
+	System.Json.pdb \
+	System.Net.Http.pdb \
+	System.Numerics.pdb \
+	System.Runtime.Serialization.pdb \
+	System.ServiceModel.Web.pdb \
+	System.Transactions.pdb \
+	System.Xml.Linq.pdb \
+	Mono.CSharp.pdb \
+	Mono.Data.Sqlite.pdb \
+	Mono.Data.Tds.pdb \
+	Mono.Security.pdb
+
 BCL_REFERENCES=$(patsubst %,-r:$(TOP)/sdks/out/bcl/monodroid/%,$(BCL_LIBS))
 
 NUNIT_LIBS= \
@@ -141,6 +162,9 @@ $(APK_DIR)/assets/asm/Mono.Android.dll: managed/fake-monodroid.cs | $(APK_DIR)/a
 $(patsubst %,$(APK_DIR)/assets/asm/%,$(BCL_LIBS)) $(patsubst %,$(APK_DIR)/assets/asm/%,$(NUNIT_LIBS)): $(APK_DIR)/assets/asm/%: $(TOP)/sdks/out/bcl/monodroid/% | $(APK_DIR)/assets/asm
 	cp $< $@
 
+$(patsubst %,$(APK_DIR)/assets/asm/%,$(BCL_PDBS)): $(APK_DIR)/assets/asm/%: $(TOP)/sdks/out/bcl/monodroid/% | $(APK_DIR)/assets/asm
+	cp $< $@
+
 .PHONY: package
 package: $(APK_DIR)/AndroidManifest.xml
 package: $(APK_DIR)/build.xml
@@ -158,6 +182,7 @@ package: $(patsubst %,$(APK_DIR)/jni/x86_64/%,$(MONO_LIBS))
 package: $(APK_DIR)/assets/mconfig
 package: $(APK_DIR)/assets/asm/Mono.Android.dll
 package: $(patsubst %,$(APK_DIR)/assets/asm/%,$(BCL_LIBS))
+package: $(patsubst %,$(APK_DIR)/assets/asm/%,$(BCL_PDBS))
 package: $(patsubst %,$(APK_DIR)/assets/asm/%,$(NUNIT_LIBS))
 package: $(patsubst %,$(APK_DIR)/assets/asm/monodroid_%_test.dll,$(CHECKS))
 
@@ -171,22 +196,43 @@ package-debugger: package
 	rm -rf $(APK_DIR)/bin/AndroidActivity-debug.apk
 	rm -rf $(APK_DIR)/assets/asm/testassembly.txt
 	make $(DEBUGGER_RUNNER_EXE)
+	make $(DEBUGGER_RUNNER_PDB)
 
-.PHONY: $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe
-$(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe:
+.PHONY: $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.pdb
+$(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.pdb:
 	$(MAKE) PROFILE='monodroid' -C $(TOP)/mcs/class/Mono.Debugger.Soft dtest-app.exe
 
 $(APK_DIR)/assets/asm/dtest-app.exe: $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe
+	cp $< $@
+
+$(APK_DIR)/assets/asm/dtest-app.pdb: $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.pdb
 	cp $< $@
 
 make-debugger-test: package-debugger
 	cd $(APK_DIR) && MONO_DEBUGGER_TESTS=1 $(NDK_BUILD)
 	cd $(APK_DIR) && $(ANT) debug
 
+# fixme:
+# eventual api:
+# MONO_EXE=foo.exe make run-debug-managed-droid
+# MONO_EXE=foo.exe make run-debug-unmanaged-droid
+#
+# mono.debugger tests can just run those targets in the setup function
 run-debugger-test: make-debugger-test
 	cd $(APK_DIR) && $(ADB) uninstall $(PACKAGE) || true
 	cd $(APK_DIR) && $(ADB) install bin/AndroidActivity-debug.apk
-	cd $(APK_DIR) && $(ADB) shell am instrument -w $(PACKAGE)/$(RUNNER)
+	$(ADB) reverse tcp:6100 tcp:6100
+	cd $(APK_DIR) && $(ADB) shell am instrument $(PACKAGE)/$(RUNNER)
+
+# Skip rerunning build steps / cleanup steps
+# And run unattended
+.PHONY: dirty-run-debugger-test
+dirty-run-debugger-test:
+	$(ADB) shell am instrument $(PACKAGE)/$(RUNNER)
+
+.PHONY: run-debugger-test-cleanup
+run-debugger-test-cleanup:
+	$(ADB) reverse --remove-all
 
 .PHONY: build-%
 build-%: package-bcl

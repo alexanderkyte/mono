@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/akyte/mono/sdks/builds/desktop-x86_64/mono/btls/build-shared/boringssl/crypto/bn/rsaz-avx2.S
+
+/Users/akyte/mono/sdks/builds/desktop-x86_64/mono/btls/build-shared/boringssl/crypto/bn/rsaz-x86_64.S
+
+/Users/akyte/mono/sdks/builds/desktop-x86_64/mono/btls/build-shared/boringssl/crypto/bn/x86_64-mont.S
+
+/Users/akyte/mono/sdks/builds/desktop-x86_64/mono/btls/build-shared/boringssl/crypto/bn/x86_64-mont5.S
+

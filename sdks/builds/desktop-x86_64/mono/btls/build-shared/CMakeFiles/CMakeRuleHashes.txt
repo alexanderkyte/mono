@@ -1,0 +1,19 @@
+# Hashes of file build rules.
+1ed9e3c7ec4de675a3b8a4968bc8f9a2 boringssl/crypto/aes/aes-x86_64.S
+4970bb03d6b14db1447d0e8afe9b27f3 boringssl/crypto/aes/aesni-x86_64.S
+b7270957c564fc1350673a50f4ed3d10 boringssl/crypto/aes/bsaes-x86_64.S
+25d1d2e8629bed29fe0b672aebe2d294 boringssl/crypto/aes/vpaes-x86_64.S
+3b8a201de2b4cde09c387ed256c06c16 boringssl/crypto/bn/rsaz-avx2.S
+bb7dc696b6cdf24ed44941b9931d7640 boringssl/crypto/bn/rsaz-x86_64.S
+bfdc2f301d8dca3d0c4d0f7034771c25 boringssl/crypto/bn/x86_64-mont.S
+f089cad701b93b3390e344cc77569131 boringssl/crypto/bn/x86_64-mont5.S
+98b89fcd28693e138cf3d4ca880e00d4 boringssl/crypto/chacha/chacha-x86_64.S
+ec4032ba55ccfa94dfc21505c2955ed8 boringssl/crypto/ec/p256-x86_64-asm.S
+19421abcd5830e491276f16f1aca5bf5 boringssl/crypto/md5/md5-x86_64.S
+e6cba0d6c04a80ea8274212c71464b9f boringssl/crypto/modes/aesni-gcm-x86_64.S
+44abc31eb986d737c94a7cdf2c6d3c98 boringssl/crypto/modes/ghash-x86_64.S
+a06b4ae218be61407268ecdb99dba422 boringssl/crypto/rand/rdrand-x86_64.S
+47b19eb97ba2559aa4515f8a54eae41f boringssl/crypto/rc4/rc4-x86_64.S
+dc6b9c4c6e7a373f16c5eaf3fdd85e97 boringssl/crypto/sha/sha1-x86_64.S
+377aae4e42295ebc81ec4277c34d96ce boringssl/crypto/sha/sha256-x86_64.S
+5c2f7bb579154d034cbf3e80e0daba25 boringssl/crypto/sha/sha512-x86_64.S

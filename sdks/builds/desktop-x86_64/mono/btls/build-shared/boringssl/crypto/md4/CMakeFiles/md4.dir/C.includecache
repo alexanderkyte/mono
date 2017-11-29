@@ -1,0 +1,42 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/akyte/mono/external/boringssl/crypto/../include/openssl/base.h
+stddef.h
+-
+stdint.h
+-
+sys/types.h
+-
+openssl/opensslconf.h
+-
+boringssl_prefix_symbols.h
+-
+
+/Users/akyte/mono/external/boringssl/crypto/../include/openssl/md4.h
+openssl/base.h
+-
+
+/Users/akyte/mono/external/boringssl/crypto/../include/openssl/opensslconf.h
+
+/Users/akyte/mono/external/boringssl/crypto/digest/md32_common.h
+openssl/base.h
+-
+assert.h
+-
+
+/Users/akyte/mono/external/boringssl/crypto/md4/md4.c
+openssl/md4.h
+-
+stdlib.h
+-
+string.h
+-
+../digest/md32_common.h
+/Users/akyte/mono/external/boringssl/crypto/digest/md32_common.h
+

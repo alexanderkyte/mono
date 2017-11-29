@@ -27,6 +27,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 
 #include <jni.h>
@@ -34,6 +35,8 @@
 #include <linux/prctl.h>
 #include <android/log.h>
 #include <sys/system_properties.h>
+
+#include <fcntl.h>
 
 #define DEFAULT_DIRECTORY_MODE S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH
 
@@ -44,6 +47,13 @@ typedef enum {
         MONO_IMAGE_MISSING_ASSEMBLYREF,
         MONO_IMAGE_IMAGE_INVALID
 } MonoImageOpenStatus;
+
+typedef enum {
+	MONO_DEBUG_FORMAT_NONE,
+	MONO_DEBUG_FORMAT_MONO,
+	/* Deprecated, the mdb debugger is not longer supported. */
+	MONO_DEBUG_FORMAT_DEBUGGER
+} MonoDebugFormat;
 
 enum {
         MONO_DL_EAGER = 0,
@@ -57,6 +67,7 @@ typedef struct MonoAssembly_ MonoAssembly;
 typedef struct MonoMethod_ MonoMethod;
 typedef struct MonoException_ MonoException;
 typedef struct MonoString_ MonoString;
+typedef struct MonoArray_ MonoArray;
 typedef struct MonoClass_ MonoClass;
 typedef struct MonoImage_ MonoImage;
 typedef struct MonoObject_ MonoObject;
@@ -93,6 +104,12 @@ typedef void (*mono_domain_set_config_fn) (MonoDomain *, const char *, const cha
 typedef int (*mono_runtime_set_main_args_fn) (int argc, char* argv[]);
 typedef MonoMethod* (*mono_class_get_methods_fn) (MonoClass* klass, void **iter);
 typedef const char* (*mono_method_get_name_fn) (MonoMethod *method);
+typedef void (*mono_jit_parse_options_fn) (int argc, char * argv[]);
+typedef void (*mono_debug_init_fn) (MonoDebugFormat format);
+
+typedef MonoArray *(*mono_array_new_fn) (MonoDomain *domain, MonoClass *eclass, uintptr_t n);
+typedef MonoClass *(*mono_get_string_class_fn) (void);
+typedef void *(*mono_runtime_quit_fn) (void);
 
 static JavaVM *jvm;
 
@@ -119,6 +136,11 @@ static mono_domain_set_config_fn mono_domain_set_config;
 static mono_runtime_set_main_args_fn mono_runtime_set_main_args;
 static mono_class_get_methods_fn mono_class_get_methods;
 static mono_method_get_name_fn mono_method_get_name;
+static mono_jit_parse_options_fn mono_jit_parse_options;
+static mono_debug_init_fn mono_debug_init;
+static mono_array_new_fn mono_array_new;
+static mono_get_string_class_fn mono_get_string_class;
+static mono_runtime_quit_fn mono_runtime_quit;
 
 static MonoAssembly *main_assembly;
 static void *runtime_bootstrap_dso;
@@ -226,10 +248,68 @@ create_and_set (const char *home, const char *relativePath, const char *envvar)
 	free (dir);
 }
 
+static volatile int wait_for_lldb = 1;
+static volatile int lldb_wait = 1;
+
+void
+monodroid_clear_gdb_wait (void)
+{
+	lldb_wait = 0;
+}
+
+static void
+wait_for_managed_debugger (char *host, int port)
+{
+	int sock = 0;
+
+	while (1) {
+		int sock = socket (PF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+		if (sock < 0) { 
+			_log ("Error making TCP socket for managed debugger");
+			exit (-1);
+		}
+
+		struct sockaddr_in addr;
+		memset(&addr, 0, sizeof (addr));
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons (port);
+
+		int r = r = inet_pton (AF_INET, host, &addr.sin_addr);
+		if (r != 1) {
+			_log ("Could not setup a socket for stdout and stderr: %s",
+				r == -1 ? strerror (errno) : "address not parseable in the specified address family");
+			exit (-1);
+		}
+
+		int error = connect (sock, (struct sockaddr *) &addr, sizeof (addr));
+
+		if (!error) {
+			_log ("Established tcp test connection with managed debugger");
+			break;
+		} else {
+			_log ("Waiting for managed debugger to become available at %s %d ... (%s)", host, port, strerror (errno));
+			sleep (10);
+		}
+	}
+	// error = 0, so tcp socket connected
+	close (sock);
+}
+
+static void
+wait_for_unmanaged_debugger ()
+{
+	if (wait_for_lldb) {
+		while (lldb_wait) {
+			_log ("Waiting for lldb to attach...");
+			sleep (1);
+		}
+	}
+}
+
 void
 Java_org_mono_android_AndroidRunner_runTests (JNIEnv* env, jobject thiz, jstring j_files_dir, jstring j_cache_dir, jstring j_data_dir, jstring j_assembly_dir)
 {
-	MonoClass *driver_class;
 	MonoDomain *root_domain;
 	MonoMethod *run_tests_method;
 	void **params;
@@ -249,6 +329,8 @@ Java_org_mono_android_AndroidRunner_runTests (JNIEnv* env, jobject thiz, jstring
 	_log ("-- assembly dir %s\n", assemblies_dir);
 	prctl (PR_SET_DUMPABLE, 1);
 
+	_log ("%s - %d\n", __FILE__, __LINE__);
+
 	snprintf (buff, sizeof(buff), "%s/libmonosgen-2.0.so", data_dir);
 	void *libmono = dlopen (buff, RTLD_LAZY);
 	if (!libmono) {
@@ -256,58 +338,115 @@ Java_org_mono_android_AndroidRunner_runTests (JNIEnv* env, jobject thiz, jstring
 		_exit (1);
 	}
 
+	_log ("%s - %d\n", __FILE__, __LINE__);
+
 	mono_jit_init_version = dlsym (libmono, "mono_jit_init_version");
 	mono_jit_cleanup = dlsym (libmono, "mono_jit_cleanup");
 	mono_assembly_open = dlsym (libmono, "mono_assembly_open");
 	mono_domain_get = dlsym (libmono, "mono_domain_get");
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	mono_jit_exec = dlsym (libmono, "mono_jit_exec");
 	mono_set_assemblies_path = dlsym (libmono, "mono_set_assemblies_path");
 	mono_string_new = dlsym (libmono, "mono_string_new");
 	mono_class_from_name_case = dlsym (libmono, "mono_class_from_name_case");
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	mono_assembly_get_image = dlsym (libmono, "mono_assembly_get_image");
 	mono_class_from_name = dlsym (libmono, "mono_class_from_name");
 	mono_class_get_method_from_name = dlsym (libmono, "mono_class_get_method_from_name");
 	mono_object_to_string = dlsym (libmono, "mono_object_to_string");
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	mono_string_to_utf8 = dlsym (libmono, "mono_string_to_utf8");
 	mono_runtime_invoke = dlsym (libmono, "mono_runtime_invoke");
 	mono_free = dlsym (libmono, "mono_free");
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	mono_set_crash_chaining = dlsym (libmono, "mono_set_crash_chaining");
 	mono_set_signal_chaining = dlsym (libmono, "mono_set_signal_chaining");
 	mono_dl_fallback_register = dlsym (libmono, "mono_dl_fallback_register"); 
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	mono_thread_attach = dlsym (libmono, "mono_thread_attach"); 
 	mono_domain_set_config = dlsym (libmono, "mono_domain_set_config");
+	mono_debug_init = dlsym (libmono, "mono_debug_init");
+	mono_array_new = dlsym (libmono, "mono_array_new");
+	mono_get_string_class = dlsym (libmono, "mono_get_string_class");
+	mono_runtime_quit = dlsym (libmono, "mono_runtime_quit");
+	mono_jit_parse_options = dlsym (libmono, "mono_jit_parse_options");
 	mono_runtime_set_main_args = dlsym (libmono, "mono_runtime_set_main_args");
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	mono_class_get_methods = dlsym (libmono, "mono_class_get_methods");
 	mono_method_get_name = dlsym (libmono, "mono_method_get_name");
 
+	/*wait_for_unmanaged_debugger ();*/
+
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	//MUST HAVE envs
 	setenv ("TMPDIR", cache_dir, 1);
 	setenv ("MONO_CFG_DIR", file_dir, 1);
+	_log ("%s - %d\n", __FILE__, __LINE__);
 
 	create_and_set (file_dir, "home", "HOME");
 	create_and_set (file_dir, "home/.local/share", "XDG_DATA_HOME");
 	create_and_set (file_dir, "home/.local/share", "XDG_DATA_HOME");
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	create_and_set (file_dir, "home/.config", "XDG_CONFIG_HOME");
 
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	//Debug flags
 	// setenv ("MONO_LOG_LEVEL", "debug", 1);
 	// setenv ("MONO_VERBOSE_METHOD", "GetCallingAssembly", 1);
 
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	mono_set_assemblies_path (assemblies_dir);
 	mono_set_crash_chaining (1);
 	mono_set_signal_chaining (1);
+	_log ("%s - %d\n", __FILE__, __LINE__);
 	mono_dl_fallback_register (my_dlopen, my_dlsym, NULL, NULL);
-	root_domain = mono_jit_init_version ("TEST RUNNER", "mobile");
-	mono_domain_set_config (root_domain, assemblies_dir, file_dir);
-
-	mono_thread_attach (root_domain);
 
 	sprintf (buff, "%s/libruntime-bootstrap.so", data_dir);
 	runtime_bootstrap_dso = dlopen (buff, RTLD_LAZY);
+	_log ("%s - %d\n", __FILE__, __LINE__);
 
 	sprintf (buff, "%s/libMonoPosixHelper.so", data_dir);
 	mono_posix_helper_dso = dlopen (buff, RTLD_LAZY);
+	_log ("%s - %d\n", __FILE__, __LINE__);
 
+	int debug = 1;
+	if (debug) {
+		// Using adb reverse
+		char *host = "127.0.0.1";
+
+		// emulator magic ip
+		/*char *host = "10.0.2.2";*/
+
+		int sdb_port = 6100;
+
+		// Loop until the debugger is up
+		/*wait_for_managed_debugger (host, sdb_port);*/
+
+		// Connect to debugger, find the arguments to pass to dtest-app.exe
+		char *debug_arg = m_strdup_printf ("--debugger-agent=transport=dt_socket,loglevel=0,address=%s:%d,embedding=1", host, sdb_port);
+/*,server=y*/
+		char *debug_options [2];
+		debug_options[0] = debug_arg;
+		debug_options[1] = "--soft-breakpoints";
+
+		_log ("Trying to initialize the debugger with options: %s", debug_arg);
+
+		mono_jit_parse_options (1, debug_options);
+		_log ("before");
+		mono_debug_init (MONO_DEBUG_FORMAT_MONO);
+		_log ("after");
+	}
+
+	// Note: sets up domains. If the debugger is configured after this line is run, 
+	// then lookup_data_table will fail.
+	root_domain = mono_jit_init_version ("TEST RUNNER", "mobile");
+	_log ("%s - %d\n", __FILE__, __LINE__);
+	mono_domain_set_config (root_domain, assemblies_dir, file_dir);
+
+	_log ("%s - %d\n", __FILE__, __LINE__);
+	mono_thread_attach (root_domain);
+
+#ifdef MONO_BCL_TESTS
 	main_assembly_name = "main.exe";
 
 	argc = 1;
@@ -322,7 +461,7 @@ Java_org_mono_android_AndroidRunner_runTests (JNIEnv* env, jobject thiz, jstring
 		_exit (1);
 	}
 
-	driver_class = mono_class_from_name (mono_assembly_get_image (main_assembly), "", "Driver");
+	MonoClass *driver_class = mono_class_from_name (mono_assembly_get_image (main_assembly), "", "Driver");
 	if (!driver_class) {
 		_log ("Unknown \"Driver\" class");
 		_exit (1);
@@ -335,6 +474,54 @@ Java_org_mono_android_AndroidRunner_runTests (JNIEnv* env, jobject thiz, jstring
 	}
 
 	mono_runtime_invoke (run_tests_method, NULL, NULL, NULL);
+
+	bcl not debugger 
+
+#elif MONO_DEBUGGER_TESTS
+	// FIXME: take arbitrary exe
+	main_assembly_name = "dtest-app.exe";
+
+	argc = 1;
+	argv = calloc (sizeof (char*), argc);
+	argv[0] = main_assembly_name;
+	mono_runtime_set_main_args (argc, argv);
+
+	sprintf (buff, "%s/%s", assemblies_dir, main_assembly_name);
+	_log ("%s - %d\n", __FILE__, __LINE__);
+	main_assembly = mono_assembly_open (buff, NULL);
+	_log ("%s - %d\n", __FILE__, __LINE__);
+	if (!main_assembly) {
+		_log ("Unknown \"%s\" assembly", main_assembly_name);
+		_exit (1);
+	}
+
+	_log ("%s - %d\n", __FILE__, __LINE__);
+	MonoClass *tests_class = mono_class_from_name (mono_assembly_get_image (main_assembly), "", "Tests");
+	if (!tests_class) {
+		_log ("Unknown \"Tests\" class");
+		_exit (1);
+	}
+
+	_log ("%s - %d\n", __FILE__, __LINE__);
+	run_tests_method = mono_class_get_method_from_name (tests_class, "Main", 1);
+	if (!run_tests_method) {
+		_log ("Unknown \"Main\" method");
+		_exit (1);
+	}
+
+	/*// attached debugger sets the options the main class uses*/
+	void *args [1];
+
+	args [0] = mono_array_new (root_domain, mono_get_string_class (), 0);
+
+	/*_log ("%s - %d - %s\n", __FILE__, __LINE__, "Running run_tests_method");*/
+
+	mono_runtime_invoke (run_tests_method, NULL, args, NULL);
+	/*_log ("%s - %d\n", __FILE__, __LINE__);*/
+	mono_runtime_quit ();
+#else
+	neither bcl nor debugger
+#endif
 }
 
 static int

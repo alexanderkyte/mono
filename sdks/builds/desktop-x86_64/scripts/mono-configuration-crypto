@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /Users/akyte/mono/sdks/out/desktop-x86_64/bin/mono $MONO_OPTIONS /Users/akyte/mono/sdks/out/desktop-x86_64/lib/mono/mono-configuration-crypto/4.5/mono-configuration-crypto.exe "$@"

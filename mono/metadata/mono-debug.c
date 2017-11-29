@@ -104,10 +104,11 @@ lookup_data_table (MonoDomain *domain)
 {
 	MonoDebugDataTable *table;
 
+	g_assert (mono_debug_initialized);
+
 	table = (MonoDebugDataTable *)g_hash_table_lookup (data_table_hash, domain);
 	if (!table) {
 		g_error ("lookup_data_table () failed for %p\n", domain);
-		g_assert (table);
 	}
 	return table;
 }
@@ -173,6 +174,7 @@ mono_debug_cleanup (void)
 	mono_debug_handles = NULL;
 
 	if (data_table_hash) {
+		fprintf (stderr, "Destroying data table hash\n");
 		g_hash_table_destroy (data_table_hash);
 		data_table_hash = NULL;
 	}
@@ -184,10 +186,14 @@ mono_debug_cleanup (void)
 void
 mono_debug_domain_create (MonoDomain *domain)
 {
-	if (!mono_debug_initialized)
+	if (!mono_debug_initialized) {
+		fprintf (stderr, "skipping %p\n", domain);
 		return;
+	}
 
 	mono_debugger_lock ();
+
+	fprintf (stderr, "mono_debug_domain_create %p\n", domain);
 
 	create_data_table (domain);
 
@@ -204,6 +210,7 @@ mono_debug_domain_unload (MonoDomain *domain)
 
 	mono_debugger_lock ();
 
+	fprintf (stderr, "Unloading %p from data table hash\n", domain);
 	table = (MonoDebugDataTable *)g_hash_table_lookup (data_table_hash, domain);
 	if (!table) {
 		g_warning (G_STRLOC ": unloading unknown domain %p / %d",

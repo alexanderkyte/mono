@@ -82,13 +82,23 @@ public class DebuggerTests
 		return pi;
 	}
 
+	void Launch (Diag.ProcessStartInfo pi, LaunchOptions options) {
+	
+	}
+
 	void Start (bool forceExit, params string[] args) {
 		this.forceExit = forceExit;
 
 		if (!listening) {
 			var pi = CreateStartInfo (args);
+			throw new ExecutionEngineException ("not listening");
 			vm = VirtualMachineManager.Launch (pi, new LaunchOptions { AgentArgs = agent_args });
 		} else {
+//#if MONODROID_TEST
+			System.Diagnostics.Process.Start("/usr/bin/make", "-C ../../../sdks/android run-debugger-test");
+//#else
+			//throw new ExecutionEngineException ("not reached");
+//#endif
 			var ep = new IPEndPoint (IPAddress.Any, 10000);
 			Console.WriteLine ("Listening on " + ep + "...");
 			vm = VirtualMachineManager.Listen (ep);
