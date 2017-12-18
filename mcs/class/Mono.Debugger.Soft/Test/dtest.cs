@@ -38,7 +38,11 @@ public class DebuggerTests
 	}
 
 	// No other way to pass arguments to the tests ?
+#if MONODROID_TEST
+	public static bool listening = true;
+#else
 	public static bool listening = Environment.GetEnvironmentVariable ("DBG_SUSPEND") != null;
+#endif
 	public static string runtime = Environment.GetEnvironmentVariable ("DBG_RUNTIME");
 	public static string agent_args = Environment.GetEnvironmentVariable ("DBG_AGENT_ARGS");
 
@@ -91,15 +95,14 @@ public class DebuggerTests
 
 		if (!listening) {
 			var pi = CreateStartInfo (args);
-			throw new ExecutionEngineException ("not listening");
-			vm = VirtualMachineManager.Launch (pi, new LaunchOptions { AgentArgs = agent_args });
+			var ep = new IPEndPoint (IPAddress.Loopback, 6697);
+			Console.WriteLine ("Waiting to connect to {0}", ep);
+			vm = VirtualMachineManager.Connect (ep);
 		} else {
-//#if MONODROID_TEST
-			System.Diagnostics.Process.Start("/usr/bin/make", "-C ../../../sdks/android run-debugger-test");
-//#else
-			//throw new ExecutionEngineException ("not reached");
-//#endif
-			var ep = new IPEndPoint (IPAddress.Any, 10000);
+#if MONODROID_TEST
+			System.Diagnostics.Process.Start("/usr/bin/make", "-C ../android dirty-run-debugger-test");
+#endif
+			var ep = new IPEndPoint (IPAddress.Any, 6100);
 			Console.WriteLine ("Listening on " + ep + "...");
 			vm = VirtualMachineManager.Listen (ep);
 		}
@@ -3072,6 +3075,7 @@ public class DebuggerTests
 		vm.GetThreads ();
 	}
 
+#if !MONODROID_TEST
 	[Test]
 	public void Threads () {
 		Event e = run_until ("threads");
@@ -3097,6 +3101,7 @@ public class DebuggerTests
 		Assert.IsInstanceOfType (typeof (ThreadDeathEvent), e);
 		Assert.AreEqual (ThreadState.Stopped, e.Thread.ThreadState);
 	}
+#endif
 
 	[Test]
 	public void Frame_SetValue () {
