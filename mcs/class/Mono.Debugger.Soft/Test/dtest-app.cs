@@ -13,7 +13,9 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
+#if !MOBILE
 using MonoTests.Helpers;
+#endif
 
 public class TestsBase
 {
@@ -1560,12 +1562,14 @@ public class Tests : TestsBase, ITest2
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	static void type_load_2 () {
+#if !MOBILE
 		var c1 = new Dictionary<int, int> ();
 		c1.ToString ();
 		var c = new TypeLoadClass ();
 		c.ToString ();
 		var c2 = new TypeLoadClass2 ();
 		c2.ToString ();
+#endif
 	}
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
@@ -1685,6 +1689,7 @@ public class Tests : TestsBase, ITest2
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void threadpool_io () {
+#if !MOBILE
 		// Start a threadpool task that blocks on I/O.
 		// Regression test for #42625
 		const int nbytes = 16;
@@ -1721,6 +1726,7 @@ public class Tests : TestsBase, ITest2
 		streamOut.Write (bsOut, nbytesFirst, nbytesRest);
 		streamOut.Close ();
 		var bsIn = t.Result;
+#endif
 	}
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
