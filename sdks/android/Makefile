@@ -96,25 +96,7 @@ BCL_LIBS= \
 	Mono.Data.Tds.dll \
 	Mono.Security.dll
 
-BCL_PDBS= \
-	mscorlib.pdb \
-	System.pdb \
-	System.Core.pdb \
-	System.Xml.pdb \
-	System.Data.pdb \
-	System.IO.Compression.FileSystem.pdb \
-	System.IO.Compression.pdb \
-	System.Json.pdb \
-	System.Net.Http.pdb \
-	System.Numerics.pdb \
-	System.Runtime.Serialization.pdb \
-	System.ServiceModel.Web.pdb \
-	System.Transactions.pdb \
-	System.Xml.Linq.pdb \
-	Mono.CSharp.pdb \
-	Mono.Data.Sqlite.pdb \
-	Mono.Data.Tds.pdb \
-	Mono.Security.pdb
+BCL_PDBS=$(patsubst %.dll,%.pdb,$(BCL_LIBS))
 
 BCL_REFERENCES=$(patsubst %,-r:$(TOP)/sdks/out/bcl/monodroid/%,$(BCL_LIBS))
 
