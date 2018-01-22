@@ -10,26 +10,6 @@
 #  desktop_$(1)_LDFLAGS
 define DesktopTemplate
 
-#_desktop_$(1)_AC_VARS= \
-	#mono_cv_uscore=yes \
-	#ac_cv_func_sched_getaffinity=no \
-	#ac_cv_func_sched_setaffinity=no
-
-#_desktop_$(1)_CFLAGS= \
-	#-fno-omit-frame-pointer -Wl,-z,now -Wl,-z,relro -Wl,-z,noexecstack -fstack-protector $(if $(filter $(IS_RELEASE),true),-O2,-O0 -ggdb3) \
-	#-DMONODROID=1 \
-	#$$(desktop_$(1)_CFLAGS)
-
-#_desktop_$(1)_CXXFLAGS= \
-	#-fno-omit-frame-pointer -Wl,-z,now -Wl,-z,relro -Wl,-z,noexecstack -fstack-protector $(if $(filter $(IS_RELEASE),true),-O2,-O0 -ggdb3) \
-	#-DMONODROID=1 \
-	#$$(desktop_$(1)_CXXFLAGS)
-
-#_desktop_$(1)_LDFLAGS= \
-	#-ldl -lm -lc \
-	#-Wl,-dynamic-linker=/system/bin/linker \
-	#$$(desktop_$(1)_LDFLAGS)
-
 _desktop_$(1)_CONFIGURE_ENVIRONMENT = \
 	CFLAGS="$$(_desktop_$(1)_CFLAGS)" \
 	CXXFLAGS="$$(_desktop_$(1)_CXXFLAGS) " \
