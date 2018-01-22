@@ -847,18 +847,18 @@ parse_address (char *address, char **host, int *port)
 static void
 print_usage (void)
 {
-	g_print ("Usage: mono --debugger-agent=[<option>=<value>,...] ...\n");
-	g_print ("Available options:\n");
-	g_print ("  transport=<transport>\t\tTransport to use for connecting to the debugger (mandatory, possible values: 'dt_socket')\n");
-	g_print ("  address=<hostname>:<port>\tAddress to connect to (mandatory)\n");
-	g_print ("  loglevel=<n>\t\t\tLog level (defaults to 0)\n");
-	g_print ("  logfile=<file>\t\tFile to log to (defaults to stdout)\n");
-	g_print ("  suspend=y/n\t\t\tWhether to suspend after startup.\n");
-	g_print ("  timeout=<n>\t\t\tTimeout for connecting in milliseconds.\n");
-	g_print ("  server=y/n\t\t\tWhether to listen for a client connection.\n");
-	g_print ("  keepalive=<n>\t\t\tSend keepalive events every n milliseconds.\n");
-	g_print ("  setpgid=y/n\t\t\tWhether to call setpid(0, 0) after startup.\n");
-	g_print ("  help\t\t\t\tPrint this help.\n");
+	g_printerr ("Usage: mono --debugger-agent=[<option>=<value>,...] ...\n");
+	g_printerr ("Available options:\n");
+	g_printerr ("  transport=<transport>\t\tTransport to use for connecting to the debugger (mandatory, possible values: 'dt_socket')\n");
+	g_printerr ("  address=<hostname>:<port>\tAddress to connect to (mandatory)\n");
+	g_printerr ("  loglevel=<n>\t\t\tLog level (defaults to 0)\n");
+	g_printerr ("  logfile=<file>\t\tFile to log to (defaults to stdout)\n");
+	g_printerr ("  suspend=y/n\t\t\tWhether to suspend after startup.\n");
+	g_printerr ("  timeout=<n>\t\t\tTimeout for connecting in milliseconds.\n");
+	g_printerr ("  server=y/n\t\t\tWhether to listen for a client connection.\n");
+	g_printerr ("  keepalive=<n>\t\t\tSend keepalive events every n milliseconds.\n");
+	g_printerr ("  setpgid=y/n\t\t\tWhether to call setpid(0, 0) after startup.\n");
+	g_printerr ("  help\t\t\t\tPrint this help.\n");
 }
 
 static gboolean
@@ -869,7 +869,7 @@ parse_flag (const char *option, char *flag)
 	else if (!strcmp (flag, "n"))
 		return FALSE;
 	else {
-		g_warning ("debugger-agent: The valid values for the '%s' option are 'y' and 'n'.\n", option);
+		g_printerr ("debugger-agent: The valid values for the '%s' option are 'y' and 'n'.\n", option);
 		exit (1);
 		return FALSE;
 	}
@@ -884,7 +884,7 @@ mono_debugger_agent_parse_options (char *options)
 	char *extra;
 
 #ifndef MONO_ARCH_SOFT_DEBUG_SUPPORTED
-	g_warning ("--debugger-agent is not supported on this platform.\n");
+	g_printerr ("--debugger-agent is not supported on this platform.\n");
 	exit (1);
 #endif
 
@@ -955,19 +955,19 @@ mono_debugger_agent_parse_options (char *options)
 	//agent_config.log_level = 0;
 
 	if (agent_config.transport == NULL) {
-		g_warning ("debugger-agent: The 'transport' option is mandatory.\n");
+		g_printerr ("debugger-agent: The 'transport' option is mandatory.\n");
 		exit (1);
 	}
 
 	if (agent_config.address == NULL && !agent_config.server) {
-		g_warning ("debugger-agent: The 'address' option is mandatory.\n");
+		g_printerr ("debugger-agent: The 'address' option is mandatory.\n");
 		exit (1);
 	}
 
 	// FIXME:
 	if (!strcmp (agent_config.transport, "dt_socket")) {
 		if (agent_config.address && parse_address (agent_config.address, &host, &port)) {
-			g_warning ("debugger-agent: The format of the 'address' options is '<host>:<port>'\n");
+			g_printerr ("debugger-agent: The format of the 'address' options is '<host>:<port>'\n");
 			exit (1);
 		}
 	}
@@ -1026,7 +1026,7 @@ mono_debugger_agent_init (void)
 	if (agent_config.log_file) {
 		log_file = fopen (agent_config.log_file, "w+");
 		if (!log_file) {
-			g_warning ("Unable to create log file '%s': %s.\n", agent_config.log_file, strerror (errno));
+			g_printerr ("Unable to create log file '%s': %s.\n", agent_config.log_file, strerror (errno));
 			exit (1);
 		}
 	} else {
@@ -1094,7 +1094,7 @@ finish_agent_init (gboolean on_startup)
 
 		res = g_spawn_async_with_pipes (NULL, argv, NULL, (GSpawnFlags)0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 		if (!res) {
-			g_warning ("Failed to execute '%s'.\n", agent_config.launch);
+			g_printerr ("Failed to execute '%s'.\n", agent_config.launch);
 			exit (1);
 		}
 	}
@@ -1197,7 +1197,7 @@ socket_transport_accept (int socket_fd)
 	MONO_EXIT_GC_SAFE;
 
 	if (conn_fd == -1) {
-		g_warning ("debugger-agent: Unable to listen on %d\n", socket_fd);
+		g_printerr ("debugger-agent: Unable to listen on %d\n", socket_fd);
 	} else {
 		DEBUG_PRINTF (1, "Accepted connection from client, connection fd=%d.\n", conn_fd);
 	}
@@ -1256,7 +1256,7 @@ socket_transport_connect (const char *address)
 		/* Obtain address(es) matching host/port */
 		s = mono_get_address_info (host, port, MONO_HINT_UNSPECIFIED, &result);
 		if (s != 0) {
-			g_warning ("debugger-agent: Unable to resolve %s:%d: %d\n", host, port, s); // FIXME add portable error conversion functions
+			g_printerr ("debugger-agent: Unable to resolve %s:%d: %d\n", host, port, s); // FIXME add portable error conversion functions
 			exit (1);
 		}
 	}
@@ -1274,7 +1274,7 @@ socket_transport_connect (const char *address)
 			/* This will bind the socket to a random port */
 			res = listen (sfd, 16);
 			if (res == -1) {
-				g_warning ("debugger-agent: Unable to setup listening socket: %s\n", strerror (get_last_sock_error ()));
+				g_printerr ("debugger-agent: Unable to setup listening socket: %s\n", strerror (get_last_sock_error ()));
 				exit (1);
 			}
 			listen_fd = sfd;
@@ -1340,7 +1340,7 @@ socket_transport_connect (const char *address)
 			MONO_EXIT_GC_SAFE;
 
 			if (res == 0) {
-				g_warning ("debugger-agent: Timed out waiting to connect.\n");
+				g_printerr ("debugger-agent: Timed out waiting to connect.\n");
 				exit (1);
 			}
 		}
@@ -1377,7 +1377,7 @@ socket_transport_connect (const char *address)
 		}
 
 		if (rp == 0) {
-			g_warning ("debugger-agent: Unable to connect to %s:%d\n", host, port);
+			g_printerr ("debugger-agent: Unable to connect to %s:%d\n", host, port);
 			exit (1);
 		}
 
@@ -1446,7 +1446,7 @@ socket_fd_transport_connect (const char *address)
 
 	res = sscanf (address, "%d", &conn_fd);
 	if (res != 1) {
-		g_warning ("debugger-agent: socket-fd transport address is invalid: '%s'\n", address);
+		g_printerr ("debugger-agent: socket-fd transport address is invalid: '%s'\n", address);
 		exit (1);
 	}
 
@@ -1516,10 +1516,10 @@ transport_init (void)
 			break;
 	}
 	if (i == ntransports) {
-		g_warning ("debugger-agent: The supported values for the 'transport' option are: ");
+		g_printerr ("debugger-agent: The supported values for the 'transport' option are: ");
 		for (i = 0; i < ntransports; ++i)
-			g_warning ("%s'%s'", i > 0 ? ", " : "", transports [i].name);
-		g_warning ("\n");
+			g_printerr ("%s'%s'", i > 0 ? ", " : "", transports [i].name);
+		g_printerr ("\n");
 		exit (1);
 	}
 	transport = &transports [i];
@@ -1582,7 +1582,7 @@ transport_handshake (void)
 	/* Read answer */
 	res = transport_recv (buf, strlen (handshake_msg));
 	if ((res != strlen (handshake_msg)) || (memcmp (buf, handshake_msg, strlen (handshake_msg)) != 0)) {
-		g_warning ("debugger-agent: DWP handshake failed.\n");
+		g_printerr ("debugger-agent: DWP handshake failed.\n");
 		return FALSE;
 	}
 
@@ -5141,7 +5141,7 @@ resume_from_signal_handler (void *sigctx, void *func)
 	// FIXME: This might not work on an altstack ?
 	tls = (DebuggerTlsData *)mono_native_tls_get_value (debugger_tls_id);
 	if (!tls)
-		g_warning ("Thread %p is not attached to the JIT.\n", (gpointer) (gsize) mono_native_thread_id_get ());
+		g_printerr ("Thread %p is not attached to the JIT.\n", (gpointer) (gsize) mono_native_thread_id_get ());
 	g_assert (tls);
 
 	// FIXME: MonoContext usually doesn't include the fp registers, so these are 
