@@ -322,7 +322,11 @@ public class Tests : TestsBase, ITest2
 			return 0;
 		}
 		if (args.Length >0 && args [0] == "threadpool-io") {
+#if !MOBILE
 			threadpool_io ();
+#else
+			throw new Exception ("Can't run threadpool-io test on mobile");
+#endif
 			return 0;
 		}
 		if (args.Length > 0 && args [0] == "attach") {
@@ -345,7 +349,9 @@ public class Tests : TestsBase, ITest2
 		threads ();
 		dynamic_methods ();
 		user ();
+#if !MOBILE
 		type_load ();
+#endif
 		regress ();
 		gc_suspend ();
 		set_ip ();
@@ -1555,6 +1561,7 @@ public class Tests : TestsBase, ITest2
 		Debugger.Log (5, Debugger.IsLogging () ? "A" : "", "B");
 	}
 
+#if !MOBILE
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void type_load () {
 		type_load_2 ();
@@ -1562,15 +1569,14 @@ public class Tests : TestsBase, ITest2
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	static void type_load_2 () {
-#if !MOBILE
 		var c1 = new Dictionary<int, int> ();
 		c1.ToString ();
 		var c = new TypeLoadClass ();
 		c.ToString ();
 		var c2 = new TypeLoadClass2 ();
 		c2.ToString ();
-#endif
 	}
+#endif
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void regress () {
@@ -1687,9 +1693,9 @@ public class Tests : TestsBase, ITest2
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void threadpool_bp () { }
 
+#if !MOBILE
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void threadpool_io () {
-#if !MOBILE
 		// Start a threadpool task that blocks on I/O.
 		// Regression test for #42625
 		const int nbytes = 16;
@@ -1726,8 +1732,8 @@ public class Tests : TestsBase, ITest2
 		streamOut.Write (bsOut, nbytesFirst, nbytesRest);
 		streamOut.Close ();
 		var bsIn = t.Result;
-#endif
 	}
+#endif
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public void attach_break () {
