@@ -180,14 +180,14 @@ package: $(patsubst %,$(APK_DIR)/assets/asm/monodroid_%_test.dll,$(CHECKS))
 package-bcl: package
 	rm -rf $(APK_DIR)/bin/AndroidActivity-debug.apk
 	rm -rf $(DEBUGGER_RUNNER_EXE)
-	make $(BCL_RUNNER_EXE)
+	$(MAKE) $(BCL_RUNNER_EXE)
 
 package-debugger: package
 	rm -rf $(BCL_RUNNER_EXE)
 	rm -rf $(APK_DIR)/bin/AndroidActivity-debug.apk
 	rm -rf $(APK_DIR)/assets/asm/testassembly.txt
-	make $(DEBUGGER_RUNNER_EXE)
-	make $(DEBUGGER_RUNNER_PDB)
+	$(MAKE) $(DEBUGGER_RUNNER_EXE)
+	$(MAKE) $(DEBUGGER_RUNNER_PDB)
 
 .PHONY: $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.pdb
 $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.exe $(TOP)/mcs/class/Mono.Debugger.Soft/dtest-app.pdb:
