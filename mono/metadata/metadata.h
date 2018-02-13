@@ -301,6 +301,7 @@ typedef struct _MonoGenericContainer MonoGenericContainer;
 typedef struct _MonoGenericParam MonoGenericParam;
 typedef struct _MonoArrayType MonoArrayType;
 typedef struct _MonoMethodSignature MonoMethodSignature;
+typedef struct _MonoCustomModInternal MonoCustomModInternal;
 
 /* FIXME: Keeping this name alive for now, since it is part of the exposed API, even though no entrypoint uses it.  */
 typedef struct invalid_name MonoGenericMethod;

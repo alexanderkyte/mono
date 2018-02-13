@@ -19,6 +19,11 @@
 #include <mono/utils/mono-error.h>
 #include "mono/utils/mono-conc-hashtable.h"
 
+struct _MonoCustomModInternal {
+	MonoCustomMod exported;
+	void *image;
+};
+
 struct _MonoType {
 	union {
 		MonoClass *klass; /* for VALUETYPE and CLASS */
@@ -33,7 +38,7 @@ struct _MonoType {
 	unsigned int num_mods : 6;  /* max 64 modifiers follow at the end */
 	unsigned int byref    : 1;
 	unsigned int pinned   : 1;  /* valid when included in a local var signature */
-	MonoCustomMod modifiers [MONO_ZERO_LEN_ARRAY]; /* this may grow */
+	MonoCustomModInternal modifiers [MONO_ZERO_LEN_ARRAY]; /* this may grow */
 };
 
 #define MONO_SIZEOF_TYPE (offsetof (struct _MonoType, modifiers))
@@ -969,6 +974,9 @@ mono_signature_get_managed_fmt_string (MonoMethodSignature *sig);
 
 gboolean
 mono_type_in_image (MonoType *type, MonoImage *image);
+
+int
+mono_metadata_parse_custom_mod_internal (MonoImage *m, MonoCustomModInternal *dest, const char *ptr, const char **rptr);
 
 #endif /* __MONO_METADATA_INTERNALS_H__ */
 
