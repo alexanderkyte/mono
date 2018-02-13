@@ -7648,7 +7648,7 @@ type_array_from_modifiers (MonoImage *image, MonoType *type, int optional, MonoE
 
 	error_init (error);
 	for (i = 0; i < type->num_mods; ++i) {
-		if ((optional && !type->modifiers [i].required) || (!optional && type->modifiers [i].required))
+		if ((optional && !type->modifiers [i].exported.required) || (!optional && type->modifiers [i].exported.required))
 			count++;
 	}
 	if (!count)
@@ -7658,8 +7658,8 @@ type_array_from_modifiers (MonoImage *image, MonoType *type, int optional, MonoE
 	goto_if_nok (error, fail);
 	count = 0;
 	for (i = 0; i < type->num_mods; ++i) {
-		if ((optional && !type->modifiers [i].required) || (!optional && type->modifiers [i].required)) {
-			if (!add_modifier_to_array (domain, image, &type->modifiers[i], res, count , error))
+		if ((optional && !type->modifiers [i].exported.required) || (!optional && type->modifiers [i].exported.required)) {
+			if (!add_modifier_to_array (domain, image, &type->modifiers [i].exported, res, count , error))
 				goto fail;
 			count++;
 		}

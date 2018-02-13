@@ -310,6 +310,11 @@ typedef struct {
 	unsigned int token    : 31;
 } MonoCustomMod;
 
+typedef struct {
+	MonoCustomMod exported;
+	void *image;
+} MonoCustomModInternal;
+
 struct _MonoArrayType {
 	MonoClass *eklass;
 	// Number of dimensions of the array

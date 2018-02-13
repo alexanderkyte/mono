@@ -1373,6 +1373,21 @@ mono_metadata_parse_typedef_or_ref (MonoImage *m, const char *ptr, const char **
 	return mono_metadata_token_from_dor (token);
 }
 
+int
+mono_metadata_parse_custom_mod_internal (MonoImage *m, MonoCustomModInternal *dest, const char *ptr, const char **rptr)
+{
+	MonoCustomModInternal local;
+	if (!dest)
+		dest = &local;
+
+	if (mono_metadata_parse_custom_mod (m, &(dest->exported), ptr, rptr))
+		dest->image = m;
+	else
+		return FALSE;
+
+	return TRUE;
+}
+
 /**
  * mono_metadata_parse_custom_mod:
  * \param m a metadata context.
@@ -1744,7 +1759,7 @@ mono_metadata_parse_type_internal (MonoImage *m, MonoGenericContainer *container
 		case MONO_TYPE_CMOD_REQD:
 		case MONO_TYPE_CMOD_OPT:
 			count ++;
-			mono_metadata_parse_custom_mod (m, NULL, tmp_ptr, &tmp_ptr);
+			mono_metadata_parse_custom_mod_internal (m, NULL, tmp_ptr, &tmp_ptr);
 			break;
 		default:
 			found = FALSE;
@@ -1754,7 +1769,7 @@ mono_metadata_parse_type_internal (MonoImage *m, MonoGenericContainer *container
 	if (count) { // There are mods, so the MonoType will be of nonstandard size.
 		int size;
 
-		size = MONO_SIZEOF_TYPE + ((gint32)count) * sizeof (MonoCustomMod);
+		size = MONO_SIZEOF_TYPE + ((gint32)count) * sizeof (MonoCustomModInternal);
 		type = transient ? (MonoType *)g_malloc0 (size) : (MonoType *)mono_image_alloc0 (m, size);
 		type->num_mods = count;
 		if (count > 64) {
@@ -1781,7 +1796,7 @@ mono_metadata_parse_type_internal (MonoImage *m, MonoGenericContainer *container
 			break;
 		case MONO_TYPE_CMOD_REQD:
 		case MONO_TYPE_CMOD_OPT:
-			mono_metadata_parse_custom_mod (m, &(type->modifiers [count]), ptr, &ptr);
+			mono_metadata_parse_custom_mod_internal (m, &(type->modifiers [count]), ptr, &ptr);
 			count ++;
 			break;
 		default:
@@ -5336,6 +5351,21 @@ do_mono_metadata_type_equal (MonoType *t1, MonoType *t2, gboolean signature_only
 	if (t1->type != t2->type || t1->byref != t2->byref)
 		return FALSE;
 
+	if (t1->num_mods != t2->num_mods)
+		return FALSE;
+
+	for (int i=0; i < t1->num_mods; i++) {
+		ERROR_DECL (error);
+		MonoClass *c1 = mono_class_get_checked (t1->modifiers [i].image, t1->modifiers->exported.token, &error);
+		mono_error_assert_ok (&error);
+		MonoClass *c2 = mono_class_get_checked (t2->modifiers [i].image, t2->modifiers->exported.token, &error);
+		mono_error_assert_ok (&error);
+
+		if (c1 != c2)
+			return FALSE;
+	}
+
+
 	switch (t1->type) {
 	case MONO_TYPE_VOID:
 	case MONO_TYPE_BOOLEAN:
@@ -5468,7 +5498,7 @@ mono_metadata_type_dup (MonoImage *image, const MonoType *o)
 	MonoType *r = NULL;
 	int sizeof_o = MONO_SIZEOF_TYPE;
 	if (o->num_mods)
-		sizeof_o += o->num_mods  * sizeof (MonoCustomMod);
+		sizeof_o += o->num_mods  * sizeof (MonoCustomModInternal);
 
 	r = image ? (MonoType *)mono_image_alloc0 (image, sizeof_o) : (MonoType *)g_malloc (sizeof_o);
 
