@@ -5336,6 +5336,21 @@ mono_metadata_fnptr_equal (MonoMethodSignature *s1, MonoMethodSignature *s2, gbo
 	}
 }
 
+static int
+ptr_compare (const void *arg1, const void *arg2)
+{
+	const intptr_t *class1 = arg1;
+	const intptr_t *class2 = arg2;
+	const size_t diff = class1 - class2;
+
+	if (diff > 0)
+		return 1;
+	else if (diff == 0)
+		return 0;
+	else 
+		return -1;
+}
+
 /*
  * mono_metadata_type_equal:
  * @t1: a type
@@ -5354,15 +5369,31 @@ do_mono_metadata_type_equal (MonoType *t1, MonoType *t2, gboolean signature_only
 	if (t1->num_mods != t2->num_mods)
 		return FALSE;
 
-	for (int i=0; i < t1->num_mods; i++) {
+	if (t1->num_mods) {
 		ERROR_DECL (error);
-		MonoClass *c1 = mono_class_get_checked (t1->modifiers [i].image, t1->modifiers->exported.token, &error);
-		mono_error_assert_ok (&error);
-		MonoClass *c2 = mono_class_get_checked (t2->modifiers [i].image, t2->modifiers->exported.token, &error);
-		mono_error_assert_ok (&error);
 
-		if (c1 != c2)
-			return FALSE;
+		// We need to sort all of the MonoClass pointers to do a proper set equality
+		// between the set of custom mods on each type
+		GPtrArray *first_mods = g_ptr_array_sized_new (t1->num_mods);
+		GPtrArray *second_mods = g_array_sized_new (t2->num_mods);
+		for (int i=0; i < t1->num_mods; i++) {
+			MonoClass *c1 = mono_class_get_checked (t1->modifiers [i].image, t1->modifiers->exported.token, error);
+			mono_error_assert_ok (error);
+			g_array_add (first_mods, c1);
+
+			MonoClass *c2 = mono_class_get_checked (t2->modifiers [i].image, t2->modifiers->exported.token, error);
+			mono_error_assert_ok (error);
+			g_array_add (first_mods, c2);
+		}
+		g_ptr_array_sort (first_mods, ptr_compare);
+		g_ptr_array_sort (second_mods, ptr_compare);
+
+		for (int i=0; i < t1->num_mods; i++) {
+			MonoClass *c1 = g_ptr_array_index (first_mods, MonoClass *, i);
+			MonoClass *c2 = g_ptr_array_index (second_mods, MonoClass *, i);
+			if (c1 != c2)
+				return FALSE;
+		}
 	}
 
 
