@@ -8856,8 +8856,8 @@ mono_marshal_set_callconv_from_modopt (MonoMethod *method, MonoMethodSignature *
 	if (sig->ret && sig->ret->num_mods) {
 		for (i = 0; i < sig->ret->num_mods; ++i) {
 			ERROR_DECL (error);
-			MonoClass *cmod_class = mono_class_get_checked (sig->ret->modifiers [i].image, sig->ret->modifiers [i].exported.token, &error);
-			g_assert (mono_error_ok (&error));
+			MonoClass *cmod_class = mono_class_get_checked (sig->ret->modifiers [i].image, sig->ret->modifiers [i].exported.token, error);
+			g_assert (mono_error_ok (error));
 			if ((cmod_class->image == mono_defaults.corlib) && !strcmp (cmod_class->name_space, "System.Runtime.CompilerServices")) {
 				if (!strcmp (cmod_class->name, "CallConvCdecl"))
 					csig->call_convention = MONO_CALL_C;

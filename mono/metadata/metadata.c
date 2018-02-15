@@ -5356,13 +5356,15 @@ do_mono_metadata_type_equal (MonoType *t1, MonoType *t2, gboolean signature_only
 
 	for (int i=0; i < t1->num_mods; i++) {
 		ERROR_DECL (error);
-		MonoClass *c1 = mono_class_get_checked (t1->modifiers [i].image, t1->modifiers->exported.token, &error);
-		mono_error_assert_ok (&error);
-		MonoClass *c2 = mono_class_get_checked (t2->modifiers [i].image, t2->modifiers->exported.token, &error);
-		mono_error_assert_ok (&error);
+		MonoClass *c1 = mono_class_get_checked (t1->modifiers [i].image, t1->modifiers->exported.token, error);
+		mono_error_assert_ok (error);
+		MonoClass *c2 = mono_class_get_checked (t2->modifiers [i].image, t2->modifiers->exported.token, error);
+		mono_error_assert_ok (error);
 
-		if (c1 != c2)
+		if (c1 != c2) {
+			g_assert_not_reached ();
 			return FALSE;
+		}
 	}
 
 
