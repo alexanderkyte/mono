@@ -376,14 +376,14 @@ remove_signal_handler (int signo)
 	}
 }
 
+#ifdef TARGET_OSX
 void
 mini_register_sigterm_handler (void)
 {
-#ifdef TARGET_OSX
 	/* always catch SIGTERM, conditionals inside of handler */
 	add_signal_handler (SIGTERM, sigterm_signal_handler, 0);
-#endif
 }
+#endif
 
 void
 mono_runtime_posix_install_handlers (void)
