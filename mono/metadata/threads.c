@@ -3866,6 +3866,27 @@ mono_threads_perform_thread_dump (void)
 	thread_dump_requested = FALSE;
 }
 
+// Returns the number of frames
+// Caller owns memory of stackframes
+int
+mono_threads_get_thread_stacktrace (MonoThread *state, MonoStackFrameInfo **out;)
+{
+	ThreadDumpUserData ud;
+	ud.thread = thread;
+	ud.nframes = 0;
+
+	/* Collect frames for the current thread */
+	if (thread == mono_thread_internal_current ()) {
+		get_thread_dump (mono_thread_info_current (), &ud);
+	} else {
+		mono_thread_info_safe_suspend_and_run (native_thread_id, FALSE, get_thread_dump, &ud);
+	}
+
+	*out = ud.frames;
+
+	return ud.nframes;
+}
+
 /* Obtain the thread dump of all threads */
 static gboolean
 mono_threads_get_thread_dump (MonoArray **out_threads, MonoArray **out_stack_frames, MonoError *error)
