@@ -347,4 +347,7 @@ mono_threads_summarize (MonoInternalThread *thread, MonoThreadSummary *out);
 int
 mono_threads_summarize_all (MonoThreadSummary **out);
 
+int
+mono_threads_get_thread_stacktrace (MonoInternalThread *thread, MonoStackFrameInfo **out);
+
 #endif /* _MONO_METADATA_THREADS_TYPES_H_ */

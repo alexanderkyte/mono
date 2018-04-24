@@ -3876,6 +3876,8 @@ mono_threads_get_thread_stacktrace (MonoInternalThread *thread, MonoStackFrameIn
 	ThreadDumpUserData ud;
 	ud.thread = thread;
 	ud.nframes = 0;
+	ud.frames = g_new0 (MonoStackFrameInfo, 256);
+	ud.max_frames = 256;
 
 	/* Collect frames for the current thread */
 	if (thread == mono_thread_internal_current ()) {
@@ -5869,7 +5871,7 @@ mono_threads_summarize (MonoInternalThread *thread, MonoThreadSummary *out)
 	state->native_thread_id = (intptr_t) thread_get_tid (thread);
 
 	// Caller owns memory for state->frames
-	state->nframes = mono_threads_get_thread_stacktrace (thread, state->frames);
+	state->nframes = mono_threads_get_thread_stacktrace (thread, &state->frames);
 
 	return TRUE;
 }

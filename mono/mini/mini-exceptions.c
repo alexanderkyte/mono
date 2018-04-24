@@ -2772,6 +2772,13 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 	char **names;
 	int i, size;
 
+	{
+		MonoContext mctx;
+		mono_sigctx_to_monoctx (ctx, &mctx);
+		MonoNativeState *snapshot = mono_native_state_new_with_ctx (&mctx);
+		mono_runtime_printf_err ("Dump: %s\n", mono_native_state_emit (snapshot));
+	}
+
 	mono_runtime_printf_err ("\nNative stacktrace:\n");
 
 	size = backtrace (array, 256);
@@ -2816,6 +2823,13 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 #endif
 
 #if defined(TARGET_OSX)
+		{
+		MonoContext mctx;
+		mono_sigctx_to_monoctx (ctx, &mctx);
+		MonoNativeState *snapshot = mono_native_state_new_with_ctx (&mctx);
+		fprintf (stderr, "Dump: %s\n", mono_native_state_emit (snapshot));
+		}
+
 		if (mono_merp_enabled ()) {
 			if (pid == 0) {
 				MonoContext mctx;
