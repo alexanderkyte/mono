@@ -69,6 +69,7 @@
 #include <mono/utils/mono-logger-internals.h>
 #include <mono/utils/mono-error.h>
 #include <mono/utils/mono-error-internals.h>
+#include <mono/utils/mono-state.h>
 
 #include "mini.h"
 #include "trace.h"
@@ -2825,9 +2826,12 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 
 				mono_sigctx_to_monoctx (ctx, &mctx);
 
-				intptr_t thread_pointer = (intptr_t) MONO_CONTEXT_GET_SP (&mctx);
+				MonoNativeState *snapshot = mono_native_state_new_with_ctx (&mctx);
+				fprintf (stderr, "Dump: %s\n", mono_native_state_emit (snapshot));
 
-				mono_merp_invoke (crashed_pid, thread_pointer, signal);
+				/*intptr_t thread_pointer = (intptr_t) MONO_CONTEXT_GET_SP (&mctx);*/
+
+				/*mono_merp_invoke (crashed_pid, thread_pointer, signal);*/
 
 				exit (1);
 			}

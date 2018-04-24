@@ -63,6 +63,8 @@
 #if defined(HOST_WIN32)
 #include <objbase.h>
 
+#include <mono/utils/mono-state.h>
+
 extern gboolean
 mono_native_thread_join_handle (HANDLE thread_handle, gboolean close_handle);
 #endif
@@ -3869,7 +3871,7 @@ mono_threads_perform_thread_dump (void)
 // Returns the number of frames
 // Caller owns memory of stackframes
 int
-mono_threads_get_thread_stacktrace (MonoThread *state, MonoStackFrameInfo **out;)
+mono_threads_get_thread_stacktrace (MonoInternalThread *thread, MonoStackFrameInfo **out)
 {
 	ThreadDumpUserData ud;
 	ud.thread = thread;
@@ -3879,7 +3881,7 @@ mono_threads_get_thread_stacktrace (MonoThread *state, MonoStackFrameInfo **out;
 	if (thread == mono_thread_internal_current ()) {
 		get_thread_dump (mono_thread_info_current (), &ud);
 	} else {
-		mono_thread_info_safe_suspend_and_run (native_thread_id, FALSE, get_thread_dump, &ud);
+		mono_thread_info_safe_suspend_and_run (thread_get_tid (thread), FALSE, get_thread_dump, &ud);
 	}
 
 	*out = ud.frames;
@@ -5854,3 +5856,40 @@ mono_thread_internal_is_current (MonoInternalThread *internal)
 	g_assert (internal);
 	return mono_native_thread_id_equals (mono_native_thread_id_get (), MONO_UINT_TO_NATIVE_THREAD_ID (internal->tid));
 }
+
+
+gboolean
+mono_threads_summarize (MonoInternalThread *thread, MonoThreadSummary *out)
+{
+	MonoDomain *obj_domain = thread->obj.vtable->domain;
+
+	MonoThreadSummary *state = g_malloc0(sizeof (MonoThreadSummary));
+	state->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (obj_domain, thread);
+	state->info_addr = (intptr_t) thread->thread_info;
+	state->native_thread_id = (intptr_t) thread_get_tid (thread);
+
+	// Caller owns memory for state->frames
+	state->nframes = mono_threads_get_thread_stacktrace (thread, state->frames);
+
+	return TRUE;
+}
+
+int
+mono_threads_summarize_all (MonoThreadSummary **out)
+{
+	MonoInternalThread *thread_array [128];
+
+	int nthreads = collect_threads (thread_array, 128);
+	MonoThreadSummary *ret = g_malloc0(sizeof (MonoThreadSummary) * nthreads);
+
+	for (int tindex = 0; tindex < nthreads; ++tindex) {
+		MonoInternalThread *thread = thread_array [tindex];
+		if (!mono_threads_summarize (thread, &ret [tindex]))
+			g_error ("Error getting thread info for %p\n", thread);
+	}
+
+	*out = ret;
+
+	return nthreads;
+}
+

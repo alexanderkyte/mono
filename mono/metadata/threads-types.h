@@ -330,4 +330,21 @@ mono_threads_enter_gc_safe_region_unbalanced_internal (MonoStackData *stackdata)
 void
 mono_threads_exit_gc_safe_region_unbalanced_internal (gpointer cookie, MonoStackData *stackdata);
 
+typedef struct {
+	gboolean is_managed;
+
+	intptr_t managed_thread_ptr;
+	intptr_t info_addr;
+	intptr_t native_thread_id;
+
+	int nframes;
+	MonoStackFrameInfo *frames;
+} MonoThreadSummary;
+
+gboolean
+mono_threads_summarize (MonoInternalThread *thread, MonoThreadSummary *out);
+
+int
+mono_threads_summarize_all (MonoThreadSummary **out);
+
 #endif /* _MONO_METADATA_THREADS_TYPES_H_ */
