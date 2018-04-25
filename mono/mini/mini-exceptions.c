@@ -1291,7 +1291,7 @@ mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames)
 
 	for (int i=0; i < nframes; i++) {
 		MonoFrameSummary *dest = &frames [i];
-		intptr_t *ip = &frame_ips [i];
+		intptr_t ip = frame_ips [i];
 
 		fprintf (stderr, "Before jinfo find\n");
 		/*MonoJitInfo *ji = mono_jit_info_table_find_internal (domain, ip, TRUE, TRUE);*/
