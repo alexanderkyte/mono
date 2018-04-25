@@ -122,6 +122,8 @@ static gboolean mono_current_thread_has_handle_block_guard (void);
 static gboolean mono_install_handler_block_guard (MonoThreadUnwindState *ctx);
 static void mono_uninstall_current_handler_block_guard (void);
 
+static int mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames);
+
 static gboolean
 first_managed (MonoStackFrameInfo *frame, MonoContext *ctx, gpointer addr)
 {
@@ -225,6 +227,8 @@ mono_exceptions_init (void)
 
 	cbs.mono_walk_stack_with_ctx = mono_runtime_walk_stack_with_ctx;
 	cbs.mono_walk_stack_with_state = mono_walk_stack_with_state;
+
+	cbs.mono_summarize_stack = mono_summarize_stack;
 
 	if (mono_llvm_only) {
 		cbs.mono_raise_exception = mono_llvm_raise_exception;
@@ -367,10 +371,52 @@ get_unwind_backtrace (void)
 	return g_slist_reverse (ips);
 }
 
+typedef struct {
+	intptr_t *ips;
+	int max_frames;
+	int filled_frames;
+} UnwindBacktraceUserData;
+
+static _Unwind_Reason_Code
+build_native_backtrace (struct _Unwind_Context *frame_ctx, void *state)
+{
+	intptr_t ip = _Unwind_GetIP (frame_ctx);
+	UnwindBacktraceUserData *ud = (UnwindBacktraceUserData *) state;
+
+	g_assert (ud->filled_frames + 1 < ud->max_frames);
+	ud->ips [ud->filled_frames] = ip;
+	fprintf (stderr, "frames[%d] = %lx \n", ud->filled_frames, (intptr_t) ip);
+
+	ud->filled_frames++;
+
+	return _URC_NO_REASON;
+}
+
+static int
+get_full_unwind_backtrace (intptr_t *ips, int max_frames)
+{
+	memset (ips, 0x0, sizeof (gpointer) * max_frames);
+
+	UnwindBacktraceUserData ud;
+	ud.ips = ips;
+	ud.max_frames = max_frames;
+	ud.filled_frames = 0;
+
+	_Unwind_Backtrace (build_native_backtrace, &ud);
+
+	return ud.filled_frames;
+}
+
 #else
 
 static GSList*
 get_unwind_backtrace (void)
+{
+	return NULL;
+}
+
+static int
+get_full_unwind_backtrace (intptr_t *ips, int max_frames)
 {
 	return NULL;
 }
@@ -1233,6 +1279,54 @@ next:
 		ctx = new_ctx;
 	}
 }
+
+static int
+mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames)
+{
+	// FIXME: make another function here that uses Unwind_Backtrace to print the register
+	// values at each frame (we have the ctx)
+	intptr_t frame_ips [MONO_MAX_SUMMARY_FRAMES];
+
+	int nframes = get_full_unwind_backtrace (frame_ips, MONO_MAX_SUMMARY_FRAMES);
+
+	for (int i=0; i < nframes; i++) {
+		MonoFrameSummary *dest = &frames [i];
+		intptr_t *ip = &frame_ips [i];
+
+		fprintf (stderr, "Before jinfo find\n");
+		/*MonoJitInfo *ji = mono_jit_info_table_find_internal (domain, ip, TRUE, TRUE);*/
+		/*fprintf (stderr, "After jinfo find\n");*/
+
+		/*dest->is_managed = (ji != NULL);*/
+		/*// FIXME: Unfold trampolines?*/
+		/*dest->unmanaged_data.is_trampoline = ji && ji->is_trampoline;*/
+		dest->unmanaged_data.ip = (intptr_t) ip;
+
+		fprintf (stderr, "%s %d :: %lx -- UNMANAGED_IP\n", __FILE__, __LINE__, (intptr_t) ip);
+
+		/*if (dest->is_managed && !dest->unmanaged_data.is_trampoline) {*/
+			/*MonoMethod *method = mono_jit_info_get_method (ji);*/
+			/*strncpy (dest->managed_data.assembly, method->klass->image->assembly_name, MONO_MAX_SUMMARY_NAME_LEN);*/
+			/*dest->managed_data.native_offset = ip - (guint8*)ji->code_start;*/
+
+			/*MonoDebugSourceLocation *source = mono_debug_lookup_source_location (method, dest->managed_data.native_offset, domain);*/
+			/*if (source) {*/
+				/*dest->managed_data.il_offset = source->il_offset;*/
+			/*} else {*/
+				/*SeqPoint sp;*/
+				/*if (mono_find_prev_seq_point_for_native_offset (domain, method, dest->managed_data.native_offset, NULL, &sp))*/
+					/*dest->managed_data.il_offset = sp.il_offset;*/
+				/*else*/
+					/*dest->managed_data.il_offset = -1;*/
+			/*}*/
+			/*mono_debug_free_source_location (source);*/
+		/*}*/
+	}
+	fprintf (stderr, "Done walking, %d frames\n", nframes);
+
+	return nframes;
+}
+
 
 MonoBoolean
 ves_icall_get_frame_info (gint32 skip, MonoBoolean need_file_info, 
@@ -2775,8 +2869,7 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 	{
 		MonoContext mctx;
 		mono_sigctx_to_monoctx (ctx, &mctx);
-		MonoNativeState *snapshot = mono_native_state_new_with_ctx (&mctx);
-		mono_runtime_printf_err ("Dump: %s\n", mono_native_state_emit (snapshot));
+		mono_runtime_printf_err ("Dump: %s\n", mono_summarize_native_state (&mctx));
 	}
 
 	mono_runtime_printf_err ("\nNative stacktrace:\n");
@@ -2823,13 +2916,6 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 #endif
 
 #if defined(TARGET_OSX)
-		{
-		MonoContext mctx;
-		mono_sigctx_to_monoctx (ctx, &mctx);
-		MonoNativeState *snapshot = mono_native_state_new_with_ctx (&mctx);
-		fprintf (stderr, "Dump: %s\n", mono_native_state_emit (snapshot));
-		}
-
 		if (mono_merp_enabled ()) {
 			if (pid == 0) {
 				MonoContext mctx;
@@ -2839,9 +2925,6 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 				}
 
 				mono_sigctx_to_monoctx (ctx, &mctx);
-
-				MonoNativeState *snapshot = mono_native_state_new_with_ctx (&mctx);
-				fprintf (stderr, "Dump: %s\n", mono_native_state_emit (snapshot));
 
 				/*intptr_t thread_pointer = (intptr_t) MONO_CONTEXT_GET_SP (&mctx);*/
 

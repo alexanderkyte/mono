@@ -330,6 +330,24 @@ mono_threads_enter_gc_safe_region_unbalanced_internal (MonoStackData *stackdata)
 void
 mono_threads_exit_gc_safe_region_unbalanced_internal (gpointer cookie, MonoStackData *stackdata);
 
+#define MONO_MAX_SUMMARY_NAME_LEN 40
+#define MONO_MAX_SUMMARY_THREADS 32
+#define MONO_MAX_SUMMARY_FRAMES 40
+
+typedef struct {
+	gboolean is_managed;
+	struct {
+		char assembly [MONO_MAX_SUMMARY_NAME_LEN];
+		int token;
+		int il_offset;
+		int native_offset;
+	} managed_data;
+	struct {
+		intptr_t ip;
+		gboolean is_trampoline;
+	} unmanaged_data;
+} MonoFrameSummary;
+
 typedef struct {
 	gboolean is_managed;
 
@@ -337,17 +355,20 @@ typedef struct {
 	intptr_t info_addr;
 	intptr_t native_thread_id;
 
-	int nframes;
-	MonoStackFrameInfo *frames;
+	int num_frames;
+	MonoFrameSummary frames [MONO_MAX_SUMMARY_FRAMES];
 } MonoThreadSummary;
 
+typedef struct {
+	int tindex;
+	int nthreads;
+	MonoInternalThread *thread_array [MONO_MAX_SUMMARY_THREADS];
+} MonoThreadSummaryIter;
+
 gboolean
-mono_threads_summarize (MonoInternalThread *thread, MonoThreadSummary *out);
+mono_threads_summarize_next (MonoThreadSummaryIter *iter, MonoThreadSummary *out);
 
-int
-mono_threads_summarize_all (MonoThreadSummary **out);
-
-int
-mono_threads_get_thread_stacktrace (MonoInternalThread *thread, MonoStackFrameInfo **out);
+gboolean
+mono_threads_summarize_init (MonoThreadSummaryIter *iter, int max_threads);
 
 #endif /* _MONO_METADATA_THREADS_TYPES_H_ */

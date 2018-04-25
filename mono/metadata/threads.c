@@ -3731,13 +3731,6 @@ get_thread_dump (MonoThreadInfo *info, gpointer ud)
 	ThreadDumpUserData *user_data = (ThreadDumpUserData *)ud;
 	MonoInternalThread *thread = user_data->thread;
 
-#if 0
-/* This no longer works with remote unwinding */
-	g_string_append_printf (text, " tid=0x%p this=0x%p ", (gpointer)(gsize)thread->tid, thread);
-	mono_thread_internal_describe (thread, text);
-	g_string_append (text, "\n");
-#endif
-
 	if (thread == mono_thread_internal_current ())
 		mono_get_eh_callbacks ()->mono_walk_stack_with_ctx (collect_frame, NULL, MONO_UNWIND_SIGNAL_SAFE, ud);
 	else
@@ -3866,29 +3859,6 @@ mono_threads_perform_thread_dump (void)
 	g_free (ud.frames);
 
 	thread_dump_requested = FALSE;
-}
-
-// Returns the number of frames
-// Caller owns memory of stackframes
-int
-mono_threads_get_thread_stacktrace (MonoInternalThread *thread, MonoStackFrameInfo **out)
-{
-	ThreadDumpUserData ud;
-	ud.thread = thread;
-	ud.nframes = 0;
-	ud.frames = g_new0 (MonoStackFrameInfo, 256);
-	ud.max_frames = 256;
-
-	/* Collect frames for the current thread */
-	if (thread == mono_thread_internal_current ()) {
-		get_thread_dump (mono_thread_info_current (), &ud);
-	} else {
-		mono_thread_info_safe_suspend_and_run (thread_get_tid (thread), FALSE, get_thread_dump, &ud);
-	}
-
-	*out = ud.frames;
-
-	return ud.nframes;
 }
 
 /* Obtain the thread dump of all threads */
@@ -5860,38 +5830,55 @@ mono_thread_internal_is_current (MonoInternalThread *internal)
 }
 
 
-gboolean
-mono_threads_summarize (MonoInternalThread *thread, MonoThreadSummary *out)
+typedef struct {
+	MonoInternalThread *thread;
+	MonoThreadSummary *out;
+} ThreadSummaryUserData;
+
+static SuspendThreadResult
+mono_threads_summarize_one (MonoThreadInfo *info, gpointer ud)
 {
-	MonoDomain *obj_domain = thread->obj.vtable->domain;
+	ThreadSummaryUserData *ts = (ThreadSummaryUserData *)ud;
+	MonoDomain *obj_domain = ts->thread->obj.vtable->domain;
 
-	MonoThreadSummary *state = g_malloc0(sizeof (MonoThreadSummary));
-	state->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (obj_domain, thread);
-	state->info_addr = (intptr_t) thread->thread_info;
-	state->native_thread_id = (intptr_t) thread_get_tid (thread);
+	ts->out->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (obj_domain, ts->thread);
+	ts->out->info_addr = (intptr_t) info;
+	ts->out->native_thread_id = (intptr_t) thread_get_tid (ts->thread);
+	ts->out->num_frames = mono_get_eh_callbacks ()->mono_summarize_stack (obj_domain, (MonoFrameSummary **) &ts->out->frames);
 
-	// Caller owns memory for state->frames
-	state->nframes = mono_threads_get_thread_stacktrace (thread, &state->frames);
+	fprintf (stderr, "num frames in threads.c is %d\n", ts->out->num_frames);
+
+	return MonoResumeThread;
+}
+
+gboolean
+mono_threads_summarize_next (MonoThreadSummaryIter *iter, MonoThreadSummary *out)
+{
+	if (iter->tindex >= iter->nthreads)
+		return FALSE;
+
+	MonoInternalThread *thread = iter->thread_array [iter->tindex++];
+
+	ThreadSummaryUserData ts;
+	ts.thread = thread;
+	ts.out = out;
+	memset (out, 0x0, sizeof (MonoThreadSummary));
+
+	if (thread == mono_thread_internal_current ()) {
+		mono_threads_summarize_one (mono_thread_info_current (), &ts);
+	} else {
+		mono_thread_info_safe_suspend_and_run (thread_get_tid (thread), FALSE, mono_threads_summarize_one, &ts);
+	}
 
 	return TRUE;
 }
 
-int
-mono_threads_summarize_all (MonoThreadSummary **out)
+gboolean
+mono_threads_summarize_init (MonoThreadSummaryIter *iter, int max_threads)
 {
-	MonoInternalThread *thread_array [128];
+	memset (iter->thread_array, 0x0, sizeof (MonoInternalThread *) * max_threads);
+	iter->nthreads = collect_threads (iter->thread_array, max_threads);
 
-	int nthreads = collect_threads (thread_array, 128);
-	MonoThreadSummary *ret = g_malloc0(sizeof (MonoThreadSummary) * nthreads);
-
-	for (int tindex = 0; tindex < nthreads; ++tindex) {
-		MonoInternalThread *thread = thread_array [tindex];
-		if (!mono_threads_summarize (thread, &ret [tindex]))
-			g_error ("Error getting thread info for %p\n", thread);
-	}
-
-	*out = ret;
-
-	return nthreads;
+	return iter->nthreads > 0;
 }
 

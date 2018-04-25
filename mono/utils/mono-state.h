@@ -17,39 +17,12 @@
 #include "mono-context.h"
 #include <mono/metadata/threads-types.h>
 
-#define MONO_NATIVE_STATE_PROTOCOL_VERSION "0.0.1";
-
-typedef struct {
-	const char *protocol_version;
-
-	int nthreads;
-	MonoThreadSummary *threads;
-
-	MonoContext *ctx;
-} MonoNativeState;
+#define MONO_NATIVE_STATE_PROTOCOL_VERSION "0.0.1"
 
 /**
- * Emit the MonoNativeState state to output_path in a chosen json format
  * 
- * \arg state the state to serialize and write
- * \arg output_path the location
  */
-//void
-//mono_native_state_write (MonoNativeState *state, char *output_path);
-
-/**
- * Emit the MonoNativeState state to output_path in a chosen json format
- * 
- * \arg state the state to serialize and write
- * \arg output_path the location
- */
-gchar *
-mono_native_state_emit (MonoNativeState *state);
-
-/**
- * Create the VMState from the memory of the calling process
- */
-MonoNativeState *
-mono_native_state_new_with_ctx (MonoContext *ctx);
+char *
+mono_summarize_native_state (MonoContext *ctx);
 
 #endif // MONO_UTILS_NATIVE_STATE
