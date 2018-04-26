@@ -5833,21 +5833,27 @@ mono_thread_internal_is_current (MonoInternalThread *internal)
 typedef struct {
 	MonoInternalThread *thread;
 	MonoThreadSummary *out;
+	gboolean failed;
+	gboolean done;
+	MonoDomain *domain;
+	gboolean async;
 } ThreadSummaryUserData;
 
-static SuspendThreadResult
-mono_threads_summarize_one (MonoThreadInfo *info, gpointer ud)
+static void
+mono_threads_summarize_cb (gpointer ud)
 {
 	ThreadSummaryUserData *ts = (ThreadSummaryUserData *)ud;
-	MonoDomain *obj_domain = ts->thread->obj.vtable->domain;
+	ts->out->num_frames = mono_get_eh_callbacks ()->mono_summarize_stack (ts->domain, ts->out->frames);
+	ts->done = TRUE;
+	mono_memory_barrier ();
+}
 
-	ts->out->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (obj_domain, ts->thread);
+static SuspendThreadResult
+mono_threads_summarize_async (MonoThreadInfo *info, gpointer ud)
+{
+	ThreadSummaryUserData *ts = (ThreadSummaryUserData *)ud;
 	ts->out->info_addr = (intptr_t) info;
-	ts->out->native_thread_id = (intptr_t) thread_get_tid (ts->thread);
-	ts->out->num_frames = mono_get_eh_callbacks ()->mono_summarize_stack (obj_domain, (MonoFrameSummary **) &ts->out->frames);
-
-	fprintf (stderr, "num frames in threads.c is %d\n", ts->out->num_frames);
-
+	mono_thread_info_setup_async_call (info, mono_threads_summarize_cb, ud);
 	return MonoResumeThread;
 }
 
@@ -5862,13 +5868,40 @@ mono_threads_summarize_next (MonoThreadSummaryIter *iter, MonoThreadSummary *out
 	ThreadSummaryUserData ts;
 	ts.thread = thread;
 	ts.out = out;
-	memset (out, 0x0, sizeof (MonoThreadSummary));
+	ts.async = (thread != mono_thread_internal_current ());
+	ts.done = FALSE;
+	ts.failed = FALSE;
+	ts.domain = ts.thread->obj.vtable->domain;
 
-	if (thread == mono_thread_internal_current ()) {
-		mono_threads_summarize_one (mono_thread_info_current (), &ts);
+	memset (out, 0x0, sizeof (MonoThreadSummary));
+	out->num_frames = -1;
+	out->native_thread_id = (intptr_t) thread_get_tid (ts.thread);
+	out->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (ts.domain, ts.thread);
+
+	if (ts.async) {
+		mono_thread_info_safe_suspend_and_run (thread_get_tid (ts.thread), FALSE, mono_threads_summarize_async, &ts);
+
+		// 200 rounds of g_usleep (100) should sum to 20 seconds of max wait per thread
+		int count = 200;
+		mono_memory_barrier ();
+		while (!ts.done && count > 0) {
+			sleep (10);
+			count--;
+			mono_memory_barrier ();
+		}
 	} else {
-		mono_thread_info_safe_suspend_and_run (thread_get_tid (thread), FALSE, mono_threads_summarize_one, &ts);
+		out->info_addr = (intptr_t) mono_thread_info_current ();
+		mono_threads_summarize_cb (&ts);
 	}
+
+	mono_memory_barrier ();
+	if (!ts.done)
+		ts.failed = TRUE;
+	mono_memory_barrier ();
+
+	g_assert (!ts.failed);
+	// if one fails, there's an async thread waiting that might try to write into
+	// the static memory. Proceeding would run the risk of two thread dumps racing.
 
 	return TRUE;
 }
