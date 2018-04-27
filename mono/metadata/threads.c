@@ -55,6 +55,7 @@
 #include <mono/utils/w32api.h>
 #include <mono/utils/mono-os-wait.h>
 #include <mono/metadata/exception-internals.h>
+#include <mono/utils/mono-state.h>
 
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
@@ -62,8 +63,6 @@
 
 #if defined(HOST_WIN32)
 #include <objbase.h>
-
-#include <mono/utils/mono-state.h>
 
 extern gboolean
 mono_native_thread_join_handle (HANDLE thread_handle, gboolean close_handle);
@@ -5829,89 +5828,86 @@ mono_thread_internal_is_current (MonoInternalThread *internal)
 	return mono_native_thread_id_equals (mono_native_thread_id_get (), MONO_UINT_TO_NATIVE_THREAD_ID (internal->tid));
 }
 
+#ifdef TARGET_OSX
 
-typedef struct {
-	MonoInternalThread *thread;
-	MonoThreadSummary *out;
-	gboolean failed;
-	gboolean done;
-	MonoDomain *domain;
-	gboolean async;
-} ThreadSummaryUserData;
+static size_t num_threads_summarized = 0;
 
-static void
-mono_threads_summarize_cb (gpointer ud)
+static gboolean
+mono_threads_summarize_one (MonoThreadSummary *out)
 {
-	ThreadSummaryUserData *ts = (ThreadSummaryUserData *)ud;
-	ts->out->num_frames = mono_get_eh_callbacks ()->mono_summarize_stack (ts->domain, ts->out->frames);
-	ts->done = TRUE;
-	mono_memory_barrier ();
-}
+	MonoInternalThread *thread = mono_thread_internal_current ();
+	MonoDomain *domain = thread->obj.vtable->domain;
 
-static SuspendThreadResult
-mono_threads_summarize_async (MonoThreadInfo *info, gpointer ud)
-{
-	ThreadSummaryUserData *ts = (ThreadSummaryUserData *)ud;
-	ts->out->info_addr = (intptr_t) info;
-	mono_thread_info_setup_async_call (info, mono_threads_summarize_cb, ud);
-	return MonoResumeThread;
-}
-
-gboolean
-mono_threads_summarize_next (MonoThreadSummaryIter *iter, MonoThreadSummary *out)
-{
-	if (iter->tindex >= iter->nthreads)
-		return FALSE;
-
-	MonoInternalThread *thread = iter->thread_array [iter->tindex++];
-
-	ThreadSummaryUserData ts;
-	ts.thread = thread;
-	ts.out = out;
-	ts.async = (thread != mono_thread_internal_current ());
-	ts.done = FALSE;
-	ts.failed = FALSE;
-	ts.domain = ts.thread->obj.vtable->domain;
+	MonoInternalThread *current = mono_thread_internal_current ();
+	MOSTLY_ASYNC_SAFE_PRINTF ("Summarize one run from %p\n", current);
 
 	memset (out, 0x0, sizeof (MonoThreadSummary));
 	out->num_frames = -1;
-	out->native_thread_id = (intptr_t) thread_get_tid (ts.thread);
-	out->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (ts.domain, ts.thread);
+	out->native_thread_id = (intptr_t) thread_get_tid (thread);
+	out->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (domain, thread);
+	out->info_addr = (intptr_t) mono_thread_info_current ();
 
-	if (ts.async) {
-		mono_thread_info_safe_suspend_and_run (thread_get_tid (ts.thread), FALSE, mono_threads_summarize_async, &ts);
+	out->num_frames = mono_get_eh_callbacks ()->mono_summarize_stack (domain, out->frames);
 
-		// 200 rounds of g_usleep (100) should sum to 20 seconds of max wait per thread
-		int count = 200;
-		mono_memory_barrier ();
-		while (!ts.done && count > 0) {
-			sleep (10);
-			count--;
-			mono_memory_barrier ();
-		}
-	} else {
-		out->info_addr = (intptr_t) mono_thread_info_current ();
-		mono_threads_summarize_cb (&ts);
-	}
+	// FIXME: handle failure gracefully
+	g_assert (out->num_frames > 0);
 
 	mono_memory_barrier ();
-	if (!ts.done)
-		ts.failed = TRUE;
+	num_threads_summarized++;
 	mono_memory_barrier ();
-
-	g_assert (!ts.failed);
-	// if one fails, there's an async thread waiting that might try to write into
-	// the static memory. Proceeding would run the risk of two thread dumps racing.
 
 	return TRUE;
 }
 
-gboolean
-mono_threads_summarize_init (MonoThreadSummaryIter *iter, int max_threads)
-{
-	memset (iter->thread_array, 0x0, sizeof (MonoInternalThread *) * max_threads);
-	iter->nthreads = collect_threads (iter->thread_array, max_threads);
+static gint32 summary_started = 0;
 
-	return iter->nthreads > 0;
+gboolean
+mono_threads_summarize (MonoContext *ctx, gchar **out)
+{
+	gboolean already_started = ves_icall_System_Threading_Interlocked_CompareExchange_Int(&summary_started, 0x1, 0x0) != 0x0;
+	if (!already_started) {
+		// Setup state
+		mono_summarize_native_state_begin ();
+
+		MonoInternalThread *current = mono_thread_internal_current ();
+		MOSTLY_ASYNC_SAFE_PRINTF ("Supervisor pid is %p\n", current);
+
+		MonoInternalThread *thread_array [128];
+		int nthreads = collect_threads (thread_array, 128);
+
+		for (int i=0; i < nthreads; i++) {
+			if (current == thread_array [i])
+				continue;
+
+			// Request every other thread dumps themselves before us
+			MonoThreadInfo *info = (MonoThreadInfo*) thread_array [i]->thread_info;
+
+			mono_memory_barrier ();
+			size_t old_num_summarized = num_threads_summarized;
+			mono_threads_pthread_kill (info, SIGTERM);
+
+			while (old_num_summarized == num_threads_summarized) {
+				sleep (1);
+				mono_memory_barrier ();
+			}
+		}
+	}
+
+	// Dump ourselves
+	MonoThreadSummary this_thread;
+	mono_threads_summarize_one (&this_thread);
+	mono_summarize_native_state_add_thread (&this_thread, ctx);
+
+	if (!already_started) {
+		*out = mono_summarize_native_state_end ();
+		return TRUE;
+	} else {
+		goto wait_to_exit;
+	}
+
+wait_to_exit:
+	while (1)
+		sleep (10);
 }
+#endif
 

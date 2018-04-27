@@ -2869,7 +2869,9 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 	{
 		MonoContext mctx;
 		mono_sigctx_to_monoctx (ctx, &mctx);
-		mono_runtime_printf_err ("Dump: %s\n", mono_summarize_native_state (&mctx));
+		gchar *out = NULL;
+		g_assert (mono_threads_summarize (&mctx, &out));
+		mono_runtime_printf_err ("Dump: %s\n", &out);
 	}
 
 	mono_runtime_printf_err ("\nNative stacktrace:\n");

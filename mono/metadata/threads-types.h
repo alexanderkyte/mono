@@ -330,6 +330,7 @@ mono_threads_enter_gc_safe_region_unbalanced_internal (MonoStackData *stackdata)
 void
 mono_threads_exit_gc_safe_region_unbalanced_internal (gpointer cookie, MonoStackData *stackdata);
 
+#ifdef TARGET_OSX
 #define MONO_MAX_SUMMARY_NAME_LEN 40
 #define MONO_MAX_SUMMARY_THREADS 32
 #define MONO_MAX_SUMMARY_FRAMES 40
@@ -359,16 +360,8 @@ typedef struct {
 	MonoFrameSummary frames [MONO_MAX_SUMMARY_FRAMES];
 } MonoThreadSummary;
 
-typedef struct {
-	int tindex;
-	int nthreads;
-	MonoInternalThread *thread_array [MONO_MAX_SUMMARY_THREADS];
-} MonoThreadSummaryIter;
-
 gboolean
-mono_threads_summarize_next (MonoThreadSummaryIter *iter, MonoThreadSummary *out);
-
-gboolean
-mono_threads_summarize_init (MonoThreadSummaryIter *iter, int max_threads);
+mono_threads_summarize (MonoContext *ctx, gchar **out);
+#endif
 
 #endif /* _MONO_METADATA_THREADS_TYPES_H_ */

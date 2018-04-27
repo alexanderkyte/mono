@@ -2360,7 +2360,7 @@ mono_object_is_alive (MonoObject* o)
 int
 mono_gc_get_generation (MonoObject *obj)
 {
-	g_assert_not_reached ();
+	/*g_assert_not_reached ();*/
 	if (sgen_ptr_in_nursery (obj))
 		return 0;
 	return 1;
