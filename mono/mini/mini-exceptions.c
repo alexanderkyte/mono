@@ -1287,7 +1287,12 @@ mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames)
 	// values at each frame (we have the ctx)
 	intptr_t frame_ips [MONO_MAX_SUMMARY_FRAMES];
 
-	int nframes = get_full_unwind_backtrace (frame_ips, MONO_MAX_SUMMARY_FRAMES);
+	int nframes = backtrace (frame_ips, MONO_MAX_SUMMARY_FRAMES);
+
+	char **names = backtrace_symbols (frame_ips, nframes);
+	for (int i =0; i < nframes; ++i) {
+		mono_runtime_printf_err ("\t%s", names [i]);
+	}
 
 	for (int i=0; i < nframes; i++) {
 		MonoFrameSummary *dest = &frames [i];
@@ -2871,7 +2876,7 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 		mono_sigctx_to_monoctx (ctx, &mctx);
 		gchar *out = NULL;
 		g_assert (mono_threads_summarize (&mctx, &out));
-		mono_runtime_printf_err ("Dump: %s\n", &out);
+		mono_runtime_printf_err ("Dump: %s\n", out);
 	}
 
 	mono_runtime_printf_err ("\nNative stacktrace:\n");
