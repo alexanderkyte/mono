@@ -196,24 +196,27 @@ MONO_SIG_HANDLER_SIGNATURE (mono_chain_signal)
 	return FALSE;
 }
 
+#include <mono/utils/mono-threads-debug.h>
+
 MONO_SIG_HANDLER_FUNC (static, sigabrt_signal_handler)
 {
 	MonoJitInfo *ji = NULL;
 	MONO_SIG_HANDLER_INFO_TYPE *info = MONO_SIG_HANDLER_GET_INFO ();
 	MONO_SIG_HANDLER_GET_CONTEXT;
 
+	MonoInternalThread *current = mono_thread_internal_current ();
+	MOSTLY_ASYNC_SAFE_PRINTF("In %s %d handler of %p\n", __FILE__, __LINE__, current);
+
 	if (mono_thread_internal_current ())
 		ji = mono_jit_info_table_find_internal (mono_domain_get (), mono_arch_ip_from_context (ctx), TRUE, TRUE);
 	if (!ji) {
-        if (mono_chain_signal (MONO_SIG_HANDLER_PARAMS))
-			return;
+        /*if (mono_chain_signal (MONO_SIG_HANDLER_PARAMS))*/
+			/*return;*/
 		mono_handle_native_crash ("SIGABRT", ctx, info);
 	}
 }
 
 #ifdef TARGET_OSX
-
-#include <mono/utils/mono-threads-debug.h>
 
 MONO_SIG_HANDLER_FUNC (static, sigterm_signal_handler)
 {
@@ -221,7 +224,7 @@ MONO_SIG_HANDLER_FUNC (static, sigterm_signal_handler)
 	MONO_SIG_HANDLER_GET_CONTEXT;
 
 	MonoInternalThread *current = mono_thread_internal_current ();
-	MOSTLY_ASYNC_SAFE_PRINTF ("In sigterm handler of %p\n", current);
+	MOSTLY_ASYNC_SAFE_PRINTF("In sigterm handler in %p\n", current);
 
 	// Note: this function only returns for a single thread
 	// When it's invoked on other threads once the dump begins,
@@ -307,6 +310,8 @@ MONO_SIG_HANDLER_FUNC (static, profiler_signal_handler)
 MONO_SIG_HANDLER_FUNC (static, sigquit_signal_handler)
 {
 	gboolean res;
+	MonoInternalThread *current = mono_thread_internal_current ();
+	MOSTLY_ASYNC_SAFE_PRINTF("In %s %d handler of %p\n", __FILE__, __LINE__, current);
 
 	/* We use this signal to start the attach agent too */
 	res = mono_attach_start ();

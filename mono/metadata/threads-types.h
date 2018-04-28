@@ -337,8 +337,8 @@ mono_threads_exit_gc_safe_region_unbalanced_internal (gpointer cookie, MonoStack
 
 typedef struct {
 	gboolean is_managed;
+	char str_descr [MONO_MAX_SUMMARY_NAME_LEN];
 	struct {
-		char assembly [MONO_MAX_SUMMARY_NAME_LEN];
 		int token;
 		int il_offset;
 		int native_offset;
@@ -346,6 +346,7 @@ typedef struct {
 	struct {
 		intptr_t ip;
 		gboolean is_trampoline;
+		gboolean has_name;
 	} unmanaged_data;
 } MonoFrameSummary;
 

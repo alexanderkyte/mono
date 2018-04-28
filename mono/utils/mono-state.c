@@ -65,30 +65,36 @@ mono_native_state_add_frame (JsonWriter *writer, MonoFrameSummary *frame)
 	mono_json_writer_printf (writer, "\"%s\",\n", frame->is_managed ? "true" : "false");
 
 	if (frame->is_managed) {
-		/*mono_json_writer_indent (writer);*/
-		/*mono_json_writer_object_key(writer, "assembly");*/
-		/*mono_json_writer_printf (writer, "\"%s\",\n", frame->managed_data.assembly);*/
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "assembly");
+		mono_json_writer_printf (writer, "\"%s\",\n", frame->str_descr);
 
-		/*mono_json_writer_indent (writer);*/
-		/*mono_json_writer_object_key(writer, "token");*/
-		/*mono_json_writer_printf (writer, "\"%d\",\n", frame->managed_data.token);*/
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "token");
+		mono_json_writer_printf (writer, "\"0x%05x\",\n", frame->managed_data.token);
 
-		/*mono_json_writer_indent (writer);*/
-		/*mono_json_writer_object_key(writer, "native_offset");*/
-		/*mono_json_writer_printf (writer, "\"%d\",\n", frame->managed_data.native_offset);*/
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "native_offset");
+		mono_json_writer_printf (writer, "\"%x\",\n", frame->managed_data.native_offset);
 
-		/*mono_json_writer_indent (writer);*/
-		/*mono_json_writer_object_key(writer, "il_offset");*/
-		/*mono_json_writer_printf (writer, "\"%d\",\n", frame->managed_data.il_offset);*/
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "il_offset");
+		mono_json_writer_printf (writer, "\"0x%05x\",\n", frame->managed_data.il_offset);
 
 	} else {
 		mono_json_writer_indent (writer);
 		mono_json_writer_object_key(writer, "native_address");
-		mono_json_writer_printf (writer, "\"%lx\",\n", (intptr_t) frame->unmanaged_data.ip);
+		mono_json_writer_printf (writer, "\"%0xlx\",\n", (intptr_t) frame->unmanaged_data.ip);
 
-		/*mono_json_writer_indent (writer);*/
-		/*mono_json_writer_object_key(writer, "is_trampoline");*/
-		/*mono_json_writer_printf (writer, "\"%s\",\n", frame->unmanaged_data.is_trampoline ? "true" : "false");*/
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "is_trampoline");
+		mono_json_writer_printf (writer, "\"%s\",\n", frame->unmanaged_data.is_trampoline ? "true" : "false");
+
+		if (frame->unmanaged_data.has_name) {
+			mono_json_writer_indent (writer);
+			mono_json_writer_object_key(writer, "unmanaged_name");
+			mono_json_writer_printf (writer, "\"%s\",\n", frame->str_descr);
+		}
 	}
 
 	mono_json_writer_indent_pop (writer);

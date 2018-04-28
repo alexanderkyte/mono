@@ -93,6 +93,9 @@
 #define MONO_ARCH_CONTEXT_DEF
 #endif
 
+static gboolean
+print_stack_frame_to_stderr (StackFrameInfo *frame, MonoContext *ctx, gpointer data);
+
 /*
  * Raw frame information is stored in MonoException.trace_ips as an IntPtr[].
  * This structure represents one entry.
@@ -122,7 +125,7 @@ static gboolean mono_current_thread_has_handle_block_guard (void);
 static gboolean mono_install_handler_block_guard (MonoThreadUnwindState *ctx);
 static void mono_uninstall_current_handler_block_guard (void);
 
-static int mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames);
+static int mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames, MonoContext *ctx);
 
 static gboolean
 first_managed (MonoStackFrameInfo *frame, MonoContext *ctx, gpointer addr)
@@ -1280,56 +1283,129 @@ next:
 	}
 }
 
+typedef struct {
+	MonoFrameSummary *frames;
+	int num_frames;
+	int max_frames;
+} MonoSummarizeUserData;
+
+static gboolean
+summarize_frame (StackFrameInfo *frame, MonoContext *ctx, gpointer data)
+{
+	fprintf (stderr, "Before Summarize frame init ran\n");
+	MonoMethod *method = NULL;
+	MonoSummarizeUserData *ud = (MonoSummarizeUserData *) data;
+	g_assert (ud->num_frames + 1 < ud->max_frames);
+	MonoFrameSummary *dest = &ud->frames [ud->num_frames];
+	ud->num_frames++;
+
+	fprintf (stderr, "After Summarize frame init ran\n");
+
+	dest->unmanaged_data.ip = (intptr_t) MONO_CONTEXT_GET_IP (ctx);
+	dest->unmanaged_data.is_trampoline = frame->ji && frame->ji->is_trampoline;
+
+	if (frame->ji && frame->type != FRAME_TYPE_TRAMPOLINE)
+		method = jinfo_get_method (frame->ji);
+
+	dest->is_managed = (method != NULL);
+	if (method->wrapper_type != MONO_WRAPPER_NONE) {
+		dest->is_managed = FALSE;
+		dest->unmanaged_data.has_name = TRUE;
+		strncpy (dest->str_descr, method->name, MONO_MAX_SUMMARY_NAME_LEN);
+	}
+
+	MonoDebugSourceLocation *location = NULL;
+
+	if (dest->is_managed) {
+		dest->managed_data.native_offset = frame->native_offset;
+		/*strncpy (dest->str_descr, method->klass->image->name, MONO_MAX_SUMMARY_NAME_LEN);*/
+		strncpy (dest->str_descr, mono_method_full_name (method, TRUE), MONO_MAX_SUMMARY_NAME_LEN);
+		dest->managed_data.token = method->token;
+		location = mono_debug_lookup_source_location (method, frame->native_offset, mono_domain_get ());
+	} else {
+		dest->managed_data.token = -1;
+	}
+
+	if (location) {
+		dest->managed_data.il_offset = location->il_offset;
+
+		mono_debug_free_source_location (location);
+	}
+
+	return FALSE;
+}
+
 static int
-mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames)
+mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames, MonoContext *crash_ctx)
 {
 	// FIXME: make another function here that uses Unwind_Backtrace to print the register
 	// values at each frame (we have the ctx)
 	intptr_t frame_ips [MONO_MAX_SUMMARY_FRAMES];
 
-	int nframes = backtrace (frame_ips, MONO_MAX_SUMMARY_FRAMES);
+	MonoJitTlsData *jit_tls = (MonoJitTlsData *)mono_tls_get_jit_tls ();
 
-	char **names = backtrace_symbols (frame_ips, nframes);
-	for (int i =0; i < nframes; ++i) {
-		mono_runtime_printf_err ("\t%s", names [i]);
-	}
+	MonoSummarizeUserData out;
+	out.max_frames = MONO_MAX_SUMMARY_FRAMES;
+	out.num_frames = 0;
+	out.frames = frames;
 
-	for (int i=0; i < nframes; i++) {
-		MonoFrameSummary *dest = &frames [i];
-		intptr_t ip = frame_ips [i];
+	/*// Don't make managed dump of threads spawned by pinvoke*/
+	/*if (jit_tls && mono_thread_internal_current ()) {*/
+		/*mono_runtime_printf_err ("Stacktrace:\n");*/
 
-		fprintf (stderr, "Before jinfo find\n");
-		/*MonoJitInfo *ji = mono_jit_info_table_find_internal (domain, ip, TRUE, TRUE);*/
-		/*fprintf (stderr, "After jinfo find\n");*/
+		fprintf (stderr, "Before walk stack");
+		mono_walk_stack_with_ctx (print_stack_frame_to_stderr, crash_ctx, MONO_UNWIND_LOOKUP_IL_OFFSET, &out);
+		mono_walk_stack_with_ctx (summarize_frame, crash_ctx, MONO_UNWIND_LOOKUP_IL_OFFSET, &out);
+		fprintf (stderr, "After walk stack");
+	/*}*/
 
-		/*dest->is_managed = (ji != NULL);*/
-		/*// FIXME: Unfold trampolines?*/
-		/*dest->unmanaged_data.is_trampoline = ji && ji->is_trampoline;*/
-		dest->unmanaged_data.ip = (intptr_t) ip;
+	return out.num_frames;
 
-		fprintf (stderr, "%s %d :: %lx -- UNMANAGED_IP\n", __FILE__, __LINE__, (intptr_t) ip);
+	// FIXME: show both native and managed stack trace
 
-		/*if (dest->is_managed && !dest->unmanaged_data.is_trampoline) {*/
-			/*MonoMethod *method = mono_jit_info_get_method (ji);*/
-			/*strncpy (dest->managed_data.assembly, method->klass->image->assembly_name, MONO_MAX_SUMMARY_NAME_LEN);*/
-			/*dest->managed_data.native_offset = ip - (guint8*)ji->code_start;*/
+	/*int nframes = backtrace (frame_ips, MONO_MAX_SUMMARY_FRAMES);*/
 
-			/*MonoDebugSourceLocation *source = mono_debug_lookup_source_location (method, dest->managed_data.native_offset, domain);*/
-			/*if (source) {*/
-				/*dest->managed_data.il_offset = source->il_offset;*/
-			/*} else {*/
-				/*SeqPoint sp;*/
-				/*if (mono_find_prev_seq_point_for_native_offset (domain, method, dest->managed_data.native_offset, NULL, &sp))*/
-					/*dest->managed_data.il_offset = sp.il_offset;*/
-				/*else*/
-					/*dest->managed_data.il_offset = -1;*/
-			/*}*/
-			/*mono_debug_free_source_location (source);*/
-		/*}*/
-	}
-	fprintf (stderr, "Done walking, %d frames\n", nframes);
+	/*char **names = backtrace_symbols (frame_ips, nframes);*/
+	/*for (int i =0; i < nframes; ++i) {*/
+		/*mono_runtime_printf_err ("\t%s", names [i]);*/
+	/*}*/
 
-	return nframes;
+	/*for (int i=0; i < nframes; i++) {*/
+		/*MonoFrameSummary *dest = &frames [i];*/
+		/*intptr_t ip = frame_ips [i];*/
+
+		/*fprintf (stderr, "Before jinfo find\n");*/
+		/*[>MonoJitInfo *ji = mono_jit_info_table_find_internal (domain, ip, TRUE, TRUE);<]*/
+		/*[>fprintf (stderr, "After jinfo find\n");<]*/
+
+		/*[>dest->is_managed = (ji != NULL);<]*/
+		/*[>// FIXME: Unfold trampolines?<]*/
+		/*[>dest->unmanaged_data.is_trampoline = ji && ji->is_trampoline;<]*/
+		/*dest->unmanaged_data.ip = (intptr_t) ip;*/
+
+		/*fprintf (stderr, "%s %d :: %lx -- UNMANAGED_IP\n", __FILE__, __LINE__, (intptr_t) ip);*/
+
+		/*[>if (dest->is_managed && !dest->unmanaged_data.is_trampoline) {<]*/
+			/*[>MonoMethod *method = mono_jit_info_get_method (ji);<]*/
+			/*[>strncpy (dest->managed_data.assembly, method->klass->image->assembly_name, MONO_MAX_SUMMARY_NAME_LEN);<]*/
+			/*[>dest->managed_data.native_offset = ip - (guint8*)ji->code_start;<]*/
+
+			/*[>MonoDebugSourceLocation *source = mono_debug_lookup_source_location (method, dest->managed_data.native_offset, domain);<]*/
+			/*[>if (source) {<]*/
+				/*[>dest->managed_data.il_offset = source->il_offset;<]*/
+			/*[>} else {<]*/
+				/*[>SeqPoint sp;<]*/
+				/*[>if (mono_find_prev_seq_point_for_native_offset (domain, method, dest->managed_data.native_offset, NULL, &sp))<]*/
+					/*[>dest->managed_data.il_offset = sp.il_offset;<]*/
+				/*[>else<]*/
+					/*[>dest->managed_data.il_offset = -1;<]*/
+			/*[>}<]*/
+			/*[>mono_debug_free_source_location (source);<]*/
+		/*[>}<]*/
+	/*}*/
+	/*fprintf (stderr, "Done walking, %d frames\n", nframes);*/
+
+	/*return nframes;*/
 }
 
 
@@ -2832,6 +2908,16 @@ static gboolean handle_crash_loop = FALSE;
 void
 mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_TYPE *info)
 {
+	{
+		MonoContext mctx;
+		mono_sigctx_to_monoctx (ctx, &mctx);
+		gchar *out = NULL;
+		g_assert (mono_threads_summarize (&mctx, &out));
+		mono_runtime_printf_err ("Dump: %s\n", out);
+		exit (1);
+	}
+
+
 #ifdef MONO_ARCH_USE_SIGACTION
 	struct sigaction sa;
 #endif
@@ -2872,11 +2958,16 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 	int i, size;
 
 	{
+		/*MonoInternalThread *current = mono_thread_internal_current ();*/
+		/*MonoThreadInfo *info = (MonoThreadInfo*) current->thread_info;*/
+		/*mono_threads_pthread_kill (info, SIGTERM);*/
+
 		MonoContext mctx;
 		mono_sigctx_to_monoctx (ctx, &mctx);
 		gchar *out = NULL;
 		g_assert (mono_threads_summarize (&mctx, &out));
 		mono_runtime_printf_err ("Dump: %s\n", out);
+		exit (1);
 	}
 
 	mono_runtime_printf_err ("\nNative stacktrace:\n");

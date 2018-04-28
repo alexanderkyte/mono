@@ -57,6 +57,8 @@
 #include <mono/metadata/exception-internals.h>
 #include <mono/utils/mono-state.h>
 
+#include <signal.h>
+
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
 #endif
@@ -5832,29 +5834,55 @@ mono_thread_internal_is_current (MonoInternalThread *internal)
 
 static size_t num_threads_summarized = 0;
 
+static MonoInternalThread *
+find_missing_thread (MonoNativeThreadId id)
+{
+	MonoInternalThread *thread_array [128];
+	int nthreads = collect_threads (thread_array, 128);
+
+	for (int i=0; i < nthreads; i++) {
+		MonoNativeThreadId tid = thread_get_tid (thread_array [i]);
+		if (tid == id)
+			return thread_array [i];
+	}
+	return NULL;
+}
+
 static gboolean
-mono_threads_summarize_one (MonoThreadSummary *out)
+mono_threads_summarize_one (MonoThreadSummary *out, MonoContext *ctx)
 {
 	MonoInternalThread *thread = mono_thread_internal_current ();
-	MonoDomain *domain = thread->obj.vtable->domain;
+	MonoDomain *domain;
 
-	MonoInternalThread *current = mono_thread_internal_current ();
-	MOSTLY_ASYNC_SAFE_PRINTF ("Summarize one run from %p\n", current);
+	if (!thread) {
+		// The thread didn't have its object put in memory yet
+		// Example: finalizer thread usually doesn't. 
+		// Most of the time we can recover it by looping through
+		// the threads to find the right one.
+		MonoNativeThreadId current = mono_native_thread_id_get();
+		thread = find_missing_thread (current);
+
+		// Not one of ours
+		if (!thread) {
+			MOSTLY_ASYNC_SAFE_PRINTF ("Can't find managed thread for tid 0x%x", current);
+			return FALSE;
+		}
+	}
 
 	memset (out, 0x0, sizeof (MonoThreadSummary));
+	domain = thread->obj.vtable->domain;
 	out->num_frames = -1;
 	out->native_thread_id = (intptr_t) thread_get_tid (thread);
 	out->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (domain, thread);
-	out->info_addr = (intptr_t) mono_thread_info_current ();
+	out->info_addr = (intptr_t) thread->thread_info;
 
-	out->num_frames = mono_get_eh_callbacks ()->mono_summarize_stack (domain, out->frames);
+	out->num_frames = mono_get_eh_callbacks ()->mono_summarize_stack (domain, out->frames, ctx);
 
 	// FIXME: handle failure gracefully
-	g_assert (out->num_frames > 0);
-
-	mono_memory_barrier ();
-	num_threads_summarized++;
-	mono_memory_barrier ();
+	// Enable when doing unmanaged
+	/*g_assert (out->num_frames > 0);*/
+	if (out->num_frames == 0)
+		return FALSE;
 
 	return TRUE;
 }
@@ -5869,14 +5897,29 @@ mono_threads_summarize (MonoContext *ctx, gchar **out)
 		// Setup state
 		mono_summarize_native_state_begin ();
 
-		MonoInternalThread *current = mono_thread_internal_current ();
-		MOSTLY_ASYNC_SAFE_PRINTF ("Supervisor pid is %p\n", current);
+		/*MonoInternalThread *current = mono_thread_internal_current ();*/
+		/*MOSTLY_ASYNC_SAFE_PRINTF ("Supervisor pid is %p\n", mono_thread_info_get_tid (mono_thread_info_current ()));*/
+		MonoNativeThreadId current = mono_native_thread_id_get();
+
+		if (!current)
+			g_error ("Can't get native thread ID");
 
 		MonoInternalThread *thread_array [128];
 		int nthreads = collect_threads (thread_array, 128);
 
 		for (int i=0; i < nthreads; i++) {
-			if (current == thread_array [i])
+			MonoThreadInfo *info = (MonoThreadInfo*) thread_array [i]->thread_info;
+			MOSTLY_ASYNC_SAFE_PRINTF ("A TID is %p\n", mono_thread_info_get_tid (info));
+		}
+
+		sigset_t sigset, old_sigset;
+		sigemptyset(&sigset);
+		sigaddset(&sigset, SIGTERM);
+
+
+		for (int i=0; i < nthreads; i++) {
+			MonoNativeThreadId tid = thread_get_tid (thread_array [i]);
+			if (current == tid)
 				continue;
 
 			// Request every other thread dumps themselves before us
@@ -5889,14 +5932,28 @@ mono_threads_summarize (MonoContext *ctx, gchar **out)
 			while (old_num_summarized == num_threads_summarized) {
 				sleep (1);
 				mono_memory_barrier ();
+				mono_threads_pthread_kill (info, SIGTERM);
+
+				// Pause this handler so other handlers can run
+				/*int signum;*/
+				fprintf (stderr, "Waiting");
+				sigprocmask (SIG_UNBLOCK, &sigset, &old_sigset);
+				/*sigsuspend (&sigset);*/
+				mono_threads_pthread_kill (info, SIGTERM);
+				/*sigprocmask (SIG_UNBLOCK, &old_sigset, NULL);*/
+				/*g_assert (success == 0);*/
 			}
 		}
 	}
 
 	// Dump ourselves
 	MonoThreadSummary this_thread;
-	mono_threads_summarize_one (&this_thread);
-	mono_summarize_native_state_add_thread (&this_thread, ctx);
+	if (mono_threads_summarize_one (&this_thread, ctx))
+		mono_summarize_native_state_add_thread (&this_thread, ctx);
+
+	mono_memory_barrier ();
+	num_threads_summarized++;
+	mono_memory_barrier ();
 
 	if (!already_started) {
 		*out = mono_summarize_native_state_end ();

@@ -156,6 +156,8 @@ mono_threads_pthread_kill (MonoThreadInfo *info, int signum)
 	}
 #elif defined (HAVE_PTHREAD_KILL)
 	result = pthread_kill (mono_thread_info_get_tid (info), signum);
+	fprintf (stderr, "Sent pthread_kill to %p\n", mono_thread_info_get_tid (info));
+	g_assert (result == 0);
 #else
 	result = -1;
 	g_error ("pthread_kill () is not supported by this platform");
