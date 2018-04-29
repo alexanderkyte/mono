@@ -93,6 +93,10 @@
 #define MONO_ARCH_CONTEXT_DEF
 #endif
 
+#ifdef TARGET_OSX
+#include <dlfcn.h>
+#endif
+
 static gboolean
 print_stack_frame_to_stderr (StackFrameInfo *frame, MonoContext *ctx, gpointer data);
 
@@ -125,7 +129,7 @@ static gboolean mono_current_thread_has_handle_block_guard (void);
 static gboolean mono_install_handler_block_guard (MonoThreadUnwindState *ctx);
 static void mono_uninstall_current_handler_block_guard (void);
 
-static int mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames, MonoContext *ctx);
+static void mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx);
 
 static gboolean
 first_managed (MonoStackFrameInfo *frame, MonoContext *ctx, gpointer addr)
@@ -1311,7 +1315,6 @@ summarize_frame (StackFrameInfo *frame, MonoContext *ctx, gpointer data)
 	if (method && method->wrapper_type != MONO_WRAPPER_NONE) {
 		dest->is_managed = FALSE;
 		dest->unmanaged_data.has_name = TRUE;
-		/*strncpy (dest->str_descr, method->name, MONO_MAX_SUMMARY_NAME_LEN);*/
 		strncpy (dest->str_descr, mono_method_full_name (method, TRUE), MONO_MAX_SUMMARY_NAME_LEN);
 	}
 
@@ -1319,8 +1322,7 @@ summarize_frame (StackFrameInfo *frame, MonoContext *ctx, gpointer data)
 
 	if (dest->is_managed) {
 		dest->managed_data.native_offset = frame->native_offset;
-		/*strncpy (dest->str_descr, method->klass->image->name, MONO_MAX_SUMMARY_NAME_LEN);*/
-		strncpy (dest->str_descr, mono_method_full_name (method, TRUE), MONO_MAX_SUMMARY_NAME_LEN);
+		strncpy (dest->str_descr, method->klass->image->assembly_name, MONO_MAX_SUMMARY_NAME_LEN);
 		dest->managed_data.token = method->token;
 		location = mono_debug_lookup_source_location (method, frame->native_offset, mono_domain_get ());
 	} else {
@@ -1336,8 +1338,8 @@ summarize_frame (StackFrameInfo *frame, MonoContext *ctx, gpointer data)
 	return FALSE;
 }
 
-static int
-mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames, MonoContext *crash_ctx)
+static void 
+mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx)
 {
 	// FIXME: make another function here that uses Unwind_Backtrace to print the register
 	// values at each frame (we have the ctx)
@@ -1345,22 +1347,54 @@ mono_summarize_stack (MonoDomain *domain, MonoFrameSummary *frames, MonoContext 
 
 	MonoJitTlsData *jit_tls = (MonoJitTlsData *)mono_tls_get_jit_tls ();
 
-	MonoSummarizeUserData out;
-	out.max_frames = MONO_MAX_SUMMARY_FRAMES;
-	out.num_frames = 0;
-	out.frames = frames;
+	MonoSummarizeUserData data;
+	data.max_frames = MONO_MAX_SUMMARY_FRAMES;
+	data.num_frames = 0;
+	data.frames = out->managed_frames;
 
-	/*// Don't make managed dump of threads spawned by pinvoke*/
-	/*if (jit_tls && mono_thread_internal_current ()) {*/
-		/*mono_runtime_printf_err ("Stacktrace:\n");*/
+	// FIXME: collect stack pointer for both and sort frames by SP
+	// so people can see relative ordering of both managed and unmanaged frames.
+
+	// 
+	// Summarize managed stack
+	// 
 
 		fprintf (stderr, "Before walk stack");
-		mono_walk_stack_with_ctx (print_stack_frame_to_stderr, crash_ctx, MONO_UNWIND_LOOKUP_IL_OFFSET, &out);
-		mono_walk_stack_with_ctx (summarize_frame, crash_ctx, MONO_UNWIND_LOOKUP_IL_OFFSET, &out);
+		mono_walk_stack_with_ctx (print_stack_frame_to_stderr, crash_ctx, MONO_UNWIND_LOOKUP_IL_OFFSET, &data);
+		mono_walk_stack_with_ctx (summarize_frame, crash_ctx, MONO_UNWIND_LOOKUP_IL_OFFSET, &data);
 		fprintf (stderr, "After walk stack");
 	/*}*/
 
-	return out.num_frames;
+	out->num_managed_frames = data.num_frames;
+
+
+	// 
+	// Summarize unmanaged stack
+	// 
+
+	// dladdr support
+#ifdef TARGET_OSX
+
+	out->num_unmanaged_frames = backtrace (frame_ips, MONO_MAX_SUMMARY_FRAMES);
+	for (int i =0; i < out->num_unmanaged_frames; ++i) {
+		Dl_info info;
+		gpointer ip = frame_ips [i];
+		out->unmanaged_frames [i].unmanaged_data.ip = ip;
+
+		int success = dladdr ((void*)ip, &info);
+		if (!success)
+			continue;
+
+		fprintf (stderr, "NAME UNMANAGED \t%s\n", info.dli_sname);
+#ifndef MONO_PRIVATE_CRASHES
+		strncpy (&out->unmanaged_frames [i].str_descr, info.dli_sname, MONO_MAX_SUMMARY_NAME_LEN);
+		out->unmanaged_frames [i].unmanaged_data.has_name = TRUE;
+#endif
+	}
+
+#endif
+
+	return;
 
 	// FIXME: show both native and managed stack trace
 

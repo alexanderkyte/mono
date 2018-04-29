@@ -5870,7 +5870,6 @@ mono_threads_summarize_one (MonoThreadSummary *out, MonoContext *ctx)
 
 	memset (out, 0x0, sizeof (MonoThreadSummary));
 	domain = thread->obj.vtable->domain;
-	out->num_frames = -1;
 	out->native_thread_id = (intptr_t) thread_get_tid (thread);
 	out->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (domain, thread);
 	out->info_addr = (intptr_t) thread->thread_info;
@@ -5879,8 +5878,7 @@ mono_threads_summarize_one (MonoThreadSummary *out, MonoContext *ctx)
 		MOSTLY_ASYNC_SAFE_PRINTF ("Thread name is %s\n", name);
 		out->name = name;
 	}
-
-	out->num_frames = mono_get_eh_callbacks ()->mono_summarize_stack (domain, out->frames, ctx);
+	mono_get_eh_callbacks ()->mono_summarize_stack (domain, out, ctx);
 
 	// FIXME: handle failure gracefully
 	// Enable when doing unmanaged

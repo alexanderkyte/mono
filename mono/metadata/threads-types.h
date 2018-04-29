@@ -358,8 +358,11 @@ typedef struct {
 	intptr_t info_addr;
 	intptr_t native_thread_id;
 
-	int num_frames;
-	MonoFrameSummary frames [MONO_MAX_SUMMARY_FRAMES];
+	int num_managed_frames;
+	MonoFrameSummary managed_frames [MONO_MAX_SUMMARY_FRAMES];
+
+	int num_unmanaged_frames;
+	MonoFrameSummary unmanaged_frames [MONO_MAX_SUMMARY_FRAMES];
 } MonoThreadSummary;
 
 gboolean
