@@ -1308,10 +1308,11 @@ summarize_frame (StackFrameInfo *frame, MonoContext *ctx, gpointer data)
 		method = jinfo_get_method (frame->ji);
 
 	dest->is_managed = (method != NULL);
-	if (method->wrapper_type != MONO_WRAPPER_NONE) {
+	if (method && method->wrapper_type != MONO_WRAPPER_NONE) {
 		dest->is_managed = FALSE;
 		dest->unmanaged_data.has_name = TRUE;
-		strncpy (dest->str_descr, method->name, MONO_MAX_SUMMARY_NAME_LEN);
+		/*strncpy (dest->str_descr, method->name, MONO_MAX_SUMMARY_NAME_LEN);*/
+		strncpy (dest->str_descr, mono_method_full_name (method, TRUE), MONO_MAX_SUMMARY_NAME_LEN);
 	}
 
 	MonoDebugSourceLocation *location = NULL;

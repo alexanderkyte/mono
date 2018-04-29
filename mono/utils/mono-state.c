@@ -50,6 +50,7 @@ mono_native_state_add_ctx (JsonWriter *writer, MonoContext *ctx)
 	mono_json_writer_object_key(writer, "BP");
 	mono_json_writer_printf (writer, "\"%p\",\n", (gpointer) MONO_CONTEXT_GET_BP (ctx));
 
+	mono_json_writer_indent (writer);
 	mono_json_writer_object_end (writer);
 	mono_json_writer_printf (writer, ",\n");
 }
@@ -84,7 +85,7 @@ mono_native_state_add_frame (JsonWriter *writer, MonoFrameSummary *frame)
 	} else {
 		mono_json_writer_indent (writer);
 		mono_json_writer_object_key(writer, "native_address");
-		mono_json_writer_printf (writer, "\"%0xlx\",\n", (intptr_t) frame->unmanaged_data.ip);
+		mono_json_writer_printf (writer, "\"0x%x\",\n", (intptr_t) frame->unmanaged_data.ip);
 
 		mono_json_writer_indent (writer);
 		mono_json_writer_object_key(writer, "is_trampoline");
@@ -124,6 +125,12 @@ mono_native_state_add_thread (JsonWriter *writer, MonoThreadSummary *thread, Mon
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_key(writer, "thread_info_addr");
 	mono_json_writer_printf (writer, "\"%x\",\n", (gpointer) thread->info_addr);
+
+	if (thread->name) {
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "thread_name");
+		mono_json_writer_printf (writer, "\"%s\",\n", thread->name);
+	}
 
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_key(writer, "native_thread_id");

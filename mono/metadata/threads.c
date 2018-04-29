@@ -5834,6 +5834,8 @@ mono_thread_internal_is_current (MonoInternalThread *internal)
 
 static size_t num_threads_summarized = 0;
 
+// mono_thread_internal_current doesn't always work in signal
+// handler contexts. This does.
 static MonoInternalThread *
 find_missing_thread (MonoNativeThreadId id)
 {
@@ -5851,22 +5853,19 @@ find_missing_thread (MonoNativeThreadId id)
 static gboolean
 mono_threads_summarize_one (MonoThreadSummary *out, MonoContext *ctx)
 {
-	MonoInternalThread *thread = mono_thread_internal_current ();
 	MonoDomain *domain;
 
-	if (!thread) {
-		// The thread didn't have its object put in memory yet
-		// Example: finalizer thread usually doesn't. 
-		// Most of the time we can recover it by looping through
-		// the threads to find the right one.
-		MonoNativeThreadId current = mono_native_thread_id_get();
-		thread = find_missing_thread (current);
+	MonoNativeThreadId current = mono_native_thread_id_get();
+	MonoInternalThread *thread = find_missing_thread (current);
 
-		// Not one of ours
-		if (!thread) {
-			MOSTLY_ASYNC_SAFE_PRINTF ("Can't find managed thread for tid 0x%x", current);
-			return FALSE;
-		}
+	// Not one of ours
+	if (!thread) {
+		MOSTLY_ASYNC_SAFE_PRINTF ("Can't find managed thread for tid 0x%x", current);
+		exit (1);
+
+		/*return FALSE;*/
+	} else {
+		MOSTLY_ASYNC_SAFE_PRINTF("Thread is %p\n", thread);
 	}
 
 	memset (out, 0x0, sizeof (MonoThreadSummary));
@@ -5875,14 +5874,19 @@ mono_threads_summarize_one (MonoThreadSummary *out, MonoContext *ctx)
 	out->native_thread_id = (intptr_t) thread_get_tid (thread);
 	out->managed_thread_ptr = (intptr_t) get_current_thread_ptr_for_domain (domain, thread);
 	out->info_addr = (intptr_t) thread->thread_info;
+	if (thread->name) {
+		char *name = g_utf16_to_utf8 (thread->name, thread->name_len, NULL, NULL, NULL);
+		MOSTLY_ASYNC_SAFE_PRINTF ("Thread name is %s\n", name);
+		out->name = name;
+	}
 
 	out->num_frames = mono_get_eh_callbacks ()->mono_summarize_stack (domain, out->frames, ctx);
 
 	// FIXME: handle failure gracefully
 	// Enable when doing unmanaged
 	/*g_assert (out->num_frames > 0);*/
-	if (out->num_frames == 0)
-		return FALSE;
+	/*if (out->num_frames == 0)*/
+		/*return FALSE;*/
 
 	return TRUE;
 }
@@ -5904,6 +5908,7 @@ mono_threads_summarize (MonoContext *ctx, gchar **out)
 		if (!current)
 			g_error ("Can't get native thread ID");
 
+		// FIXME: The sgen thread never shows up here
 		MonoInternalThread *thread_array [128];
 		int nthreads = collect_threads (thread_array, 128);
 
@@ -5927,19 +5932,20 @@ mono_threads_summarize (MonoContext *ctx, gchar **out)
 
 			mono_memory_barrier ();
 			size_t old_num_summarized = num_threads_summarized;
+
+			sigprocmask (SIG_UNBLOCK, &sigset, &old_sigset);
 			mono_threads_pthread_kill (info, SIGTERM);
 
 			while (old_num_summarized == num_threads_summarized) {
 				sleep (1);
 				mono_memory_barrier ();
-				mono_threads_pthread_kill (info, SIGTERM);
+				/*mono_threads_pthread_kill (info, SIGTERM);*/
 
 				// Pause this handler so other handlers can run
 				/*int signum;*/
 				fprintf (stderr, "Waiting");
-				sigprocmask (SIG_UNBLOCK, &sigset, &old_sigset);
 				/*sigsuspend (&sigset);*/
-				mono_threads_pthread_kill (info, SIGTERM);
+				/*mono_threads_pthread_kill (info, SIGTERM);*/
 				/*sigprocmask (SIG_UNBLOCK, &old_sigset, NULL);*/
 				/*g_assert (success == 0);*/
 			}

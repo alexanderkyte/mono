@@ -331,7 +331,7 @@ void
 mono_threads_exit_gc_safe_region_unbalanced_internal (gpointer cookie, MonoStackData *stackdata);
 
 #ifdef TARGET_OSX
-#define MONO_MAX_SUMMARY_NAME_LEN 40
+#define MONO_MAX_SUMMARY_NAME_LEN 140
 #define MONO_MAX_SUMMARY_THREADS 32
 #define MONO_MAX_SUMMARY_FRAMES 40
 
@@ -353,6 +353,7 @@ typedef struct {
 typedef struct {
 	gboolean is_managed;
 
+	const char *name;
 	intptr_t managed_thread_ptr;
 	intptr_t info_addr;
 	intptr_t native_thread_id;
