@@ -2625,6 +2625,12 @@ mono_jit_set_aot_mode (MonoAotMode mode)
 
 }
 
+MonoAotMode
+mono_jit_get_aot_mode (void)
+{
+	return mono_aot_mode;
+}
+
 mono_bool
 mono_jit_aot_compiling (void)
 {
