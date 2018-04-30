@@ -71,9 +71,17 @@ mono_native_state_add_frame (JsonWriter *writer, MonoFrameSummary *frame)
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_begin(writer);
 
-	mono_json_writer_indent (writer);
-	mono_json_writer_object_key(writer, "is_managed");
-	mono_json_writer_printf (writer, "\"%s\",\n", frame->is_managed ? "true" : "false");
+	if (frame->is_managed) {
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "is_managed");
+		mono_json_writer_printf (writer, "\"%s\",\n", frame->is_managed ? "true" : "false");
+	}
+
+	if (frame->unmanaged_data.is_trampoline) {
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "is_trampoline");
+		mono_json_writer_printf (writer, "\"true\",");
+	}
 
 	if (frame->is_managed) {
 		mono_json_writer_indent (writer);
@@ -95,14 +103,14 @@ mono_native_state_add_frame (JsonWriter *writer, MonoFrameSummary *frame)
 	} else {
 		mono_json_writer_indent (writer);
 		mono_json_writer_object_key(writer, "native_address");
-		mono_json_writer_printf (writer, "\"0x%x\",\n", (intptr_t) frame->unmanaged_data.ip);
-
-		mono_json_writer_indent (writer);
-		mono_json_writer_object_key(writer, "is_trampoline");
-		mono_json_writer_printf (writer, "\"%s\"", frame->unmanaged_data.is_trampoline ? "true" : "false");
+		if (frame->unmanaged_data.ip)
+			mono_json_writer_printf (writer, "\"%p\"", (void *) frame->unmanaged_data.ip);
+		else
+			mono_json_writer_printf (writer, "\"outside mono-sgen\"");
 
 		if (frame->unmanaged_data.has_name) {
 			mono_json_writer_printf (writer, ",\n");
+
 			mono_json_writer_indent (writer);
 			mono_json_writer_object_key(writer, "unmanaged_name");
 			mono_json_writer_printf (writer, "\"%s\"\n", frame->str_descr);
@@ -235,12 +243,12 @@ mono_native_state_add_ee_info  (JsonWriter *writer)
 
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_key(writer, "coop-enabled");
-	mono_json_writer_printf (writer, "\"%s\",\n", mono_threads_is_cooperative_suspension_enabled () ? "true" : "false");
+	mono_json_writer_printf (writer, "\"%s\"\n", mono_threads_is_cooperative_suspension_enabled () ? "true" : "false");
 
 	mono_json_writer_indent_pop (writer);
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_end (writer);
-	mono_json_writer_printf (writer, "\n");
+	mono_json_writer_printf (writer, ",\n");
 }
 
 // Taken from driver.c
@@ -341,7 +349,7 @@ mono_native_state_add_version (JsonWriter *writer)
 	mono_json_writer_indent_pop (writer);
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_end (writer);
-	mono_json_writer_printf (writer, "\n");
+	mono_json_writer_printf (writer, ",\n");
 }
 
 static void
@@ -388,12 +396,12 @@ mono_native_state_add_memory (JsonWriter *writer)
 
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_key(writer, "major_gc_time_concurrent");
-	mono_json_writer_printf (writer, "\"%lu\",\n", stats.major_gc_time_concurrent);
+	mono_json_writer_printf (writer, "\"%lu\"\n", stats.major_gc_time_concurrent);
 
 	mono_json_writer_indent_pop (writer);
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_end (writer);
-	mono_json_writer_printf (writer, "\n");
+	mono_json_writer_printf (writer, ",\n");
 }
 
 static void
@@ -413,6 +421,18 @@ mono_native_state_add_prologue (JsonWriter *writer)
 #endif
 
 	mono_native_state_add_memory (writer);
+
+	const char *assertion_msg = g_get_assertion_message ();
+	if (assertion_msg != NULL) {
+		mono_json_writer_indent (writer);
+		mono_json_writer_object_key(writer, "assertion_message");
+
+		char *pos;
+		if ((pos = strchr (assertion_msg, '\n')) != NULL)
+			*pos = '\0';
+
+		mono_json_writer_printf (writer, "\"%s\",\n", assertion_msg);
+	}
 
 	// Start threads array
 	mono_json_writer_indent (writer);

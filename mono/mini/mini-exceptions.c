@@ -1342,7 +1342,7 @@ summarize_frame (StackFrameInfo *frame, MonoContext *ctx, gpointer data)
 
 	fprintf (stderr, "After Summarize frame init ran\n");
 
-	dest->unmanaged_data.ip = (intptr_t) MONO_CONTEXT_GET_IP (ctx);
+	mono_get_portable_ip ((intptr_t) MONO_CONTEXT_GET_IP (ctx), &dest->unmanaged_data.ip, NULL);
 	dest->unmanaged_data.is_trampoline = frame->ji && frame->ji->is_trampoline;
 
 	if (frame->ji && frame->type != FRAME_TYPE_TRAMPOLINE)
@@ -1413,20 +1413,16 @@ mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *c
 #ifdef TARGET_OSX
 
 	out->num_unmanaged_frames = backtrace (frame_ips, MONO_MAX_SUMMARY_FRAMES);
-	for (int i =0; i < out->num_unmanaged_frames; ++i) {
-		Dl_info info;
-		gpointer ip = frame_ips [i];
-		out->unmanaged_frames [i].unmanaged_data.ip = ip;
 
-		int success = dladdr ((void*)ip, &info);
+	for (int i =0; i < out->num_unmanaged_frames; ++i) {
+		intptr_t ip = frame_ips [i];
+
+		int success = mono_get_portable_ip (ip, &out->unmanaged_frames [i].unmanaged_data.ip, &out->unmanaged_frames [i].str_descr);
 		if (!success)
 			continue;
 
-		fprintf (stderr, "NAME UNMANAGED \t%s\n", info.dli_sname);
-#ifndef MONO_PRIVATE_CRASHES
-		strncpy (&out->unmanaged_frames [i].str_descr, info.dli_sname, MONO_MAX_SUMMARY_NAME_LEN);
-		out->unmanaged_frames [i].unmanaged_data.has_name = TRUE;
-#endif
+		if (out->unmanaged_frames [i].str_descr [0] != '\0')
+			out->unmanaged_frames [i].unmanaged_data.has_name = TRUE;
 	}
 
 #endif
