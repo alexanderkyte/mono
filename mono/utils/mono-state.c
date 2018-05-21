@@ -476,4 +476,4 @@ mono_summarize_native_state_add_thread (MonoThreadSummary *thread, MonoContext *
 	mono_native_state_add_thread (&writer, thread, ctx);
 }
 
-#endif // HOST_WIN32
+#endif // TARGET_OSX
