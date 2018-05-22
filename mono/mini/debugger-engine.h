@@ -5,6 +5,8 @@
 #ifndef __MONO_DEBUGGER_ENGINE_H__
 #define __MONO_DEBUGGER_ENGINE_H__
 
+#include <mono/metadata/seq-points-data.h>
+
 /*
 FIXME:
 - Move EventKind back to debugger-agent.c as it contains sdb wire protocol constants.
