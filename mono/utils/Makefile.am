@@ -170,6 +170,9 @@ monoutils_sources = \
 	mono-conc-hashtable.c	\
 	json.h	\
 	json.c	\
+	mono-debugger-state-machine.h	\
+	mono-debugger-types.h	\
+	mono-debugger-state-machine.c	\
 	networking.c	\
 	networking-posix.c	\
 	networking-fallback.c	\
