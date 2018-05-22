@@ -6,6 +6,7 @@
 #define __MONO_DEBUGGER_ENGINE_H__
 
 #include <mono/metadata/seq-points-data.h>
+#include <mono/utils/mono-debugger-state-machine.h>
 
 /*
 FIXME:
@@ -155,6 +156,34 @@ typedef struct {
 	MonoMethod *method;
 	guint32 native_offset;
 } DbgEngineStackFrame;
+
+
+
+//typedef struct {
+	//MonoMethod *method;
+	//int il_offset;
+//} MonoBreakpointLocation;
+
+MonoGHashTable *
+mono_debugger_get_thread_states (void);
+
+gboolean
+mono_debugger_is_disconnected (void);
+
+//int
+//mono_de_current_breakpoints (MonoBreakpointLocation **out);
+
+//gint32
+//mono_debugger_get_suspend_count (void);
+
+intptr_t 
+mono_debugger_tls_thread_id (gpointer debuggerTlsData);
+
+void
+mono_debugger_set_thread_state (gpointer ref, MonoDebuggerThreadState expected, MonoDebuggerThreadState set);
+
+MonoDebuggerThreadState
+mono_debugger_get_thread_state (gpointer ref);
 
 void mono_de_init (void);
 void mono_de_cleanup (void);

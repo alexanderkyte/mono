@@ -211,6 +211,7 @@ typedef struct {
 	guint32 resume_count;
 
 	MonoInternalThread *thread;
+	intptr_t thread_id;
 
 	/*
 	 * Information about the frame which transitioned to native code for running
@@ -250,6 +251,9 @@ typedef struct {
 
 	/* The currently unloading appdomain */
 	MonoDomain *domain_unloading;
+
+	// The state that the debugger expects the thread to be in
+	MonoDebuggerThreadState thread_state;
 } DebuggerTlsData;
 
 typedef struct {
@@ -857,6 +861,56 @@ debugger_agent_parse_options (char *options)
 			exit (1);
 		}
 	}
+}
+
+void
+mono_debugger_set_thread_state (gpointer ref, MonoDebuggerThreadState expected, MonoDebuggerThreadState set)
+{
+	DebuggerTlsData *tls = (DebuggerTlsData *) ref;
+
+	if (!tls)
+		g_error ("Cannot get state of null thread");
+
+	g_assert (tls->thread_state == expected);
+
+	tls->thread_state = set;
+
+	return;
+}
+
+MonoDebuggerThreadState
+mono_debugger_get_thread_state (gpointer ref)
+{
+	DebuggerTlsData *tls = (DebuggerTlsData *) ref;
+
+	if (!tls)
+		g_error ("Cannot get state of null thread");
+
+	return tls->thread_state;
+}
+
+intptr_t 
+mono_debugger_tls_thread_id (gpointer ref)
+{
+	DebuggerTlsData *tls = (DebuggerTlsData *) ref;
+
+	if (!tls)
+		return 0;
+
+	return tls->thread_id;
+}
+
+// Only call this function with the loader lock held
+MonoGHashTable *
+mono_debugger_get_thread_states (void)
+{
+	return thread_to_tls;
+}
+
+gboolean
+mono_debugger_is_disconnected (void)
+{
+	return disconnected;
 }
 
 static void
@@ -2903,6 +2957,7 @@ suspend_current (void)
 		mono_coop_sem_post (&suspend_sem);
 	}
 
+	mono_debugger_log_suspend (tls);
 	DEBUG_PRINTF (1, "[%p] Suspended.\n", (gpointer) (gsize) mono_native_thread_id_get ());
 
 	while (suspend_count - tls->resume_count > 0) {
@@ -2916,6 +2971,7 @@ suspend_current (void)
 
 	mono_coop_mutex_unlock (&suspend_mutex);
 
+	mono_debugger_log_resume (tls);
 	DEBUG_PRINTF (1, "[%p] Resumed.\n", (gpointer) (gsize) mono_native_thread_id_get ());
 
 	if (tls->pending_invoke) {
@@ -3853,6 +3909,8 @@ thread_startup (MonoProfiler *prof, uintptr_t tid)
 	tls = g_new0 (DebuggerTlsData, 1);
 	MONO_GC_REGISTER_ROOT_SINGLE (tls->thread, MONO_ROOT_SOURCE_DEBUGGER, NULL, "Debugger Thread Reference");
 	tls->thread = thread;
+	// Do so we have thread id even after termination
+	tls->thread_id = (intptr_t) thread->tid;
 	mono_native_tls_set_value (debugger_tls_id, tls);
 
 	DEBUG_PRINTF (1, "[%p] Thread started, obj=%p, tls=%p.\n", (gpointer)tid, thread, tls);
