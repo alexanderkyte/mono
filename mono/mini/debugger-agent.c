@@ -2547,6 +2547,7 @@ suspend_current (void)
 		mono_coop_sem_post (&suspend_sem);
 	}
 
+	mono_debugger_log_suspend (tls);
 	DEBUG_PRINTF (1, "[%p] Suspended.\n", (gpointer) (gsize) mono_native_thread_id_get ());
 
 	while (suspend_count - tls->resume_count > 0) {
@@ -2560,6 +2561,7 @@ suspend_current (void)
 
 	mono_coop_mutex_unlock (&suspend_mutex);
 
+	mono_debugger_log_resume (tls);
 	DEBUG_PRINTF (1, "[%p] Resumed.\n", (gpointer) (gsize) mono_native_thread_id_get ());
 
 	if (tls->pending_invoke) {

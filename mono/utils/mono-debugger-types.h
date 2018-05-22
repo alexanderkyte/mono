@@ -19,6 +19,8 @@
 #include <mono/metadata/threads-types.h>
 #include <mono/mini/debugger-engine.h>
 
+#ifndef DISABLE_SDB
+
 typedef enum {
 	CMD_SET_VM = 1,
 	CMD_SET_OBJECT_REF = 9,
@@ -229,7 +231,8 @@ typedef enum {
 typedef enum {
 	MONO_DEBUGGER_RESUMED,
 	MONO_DEBUGGER_SUSPENDED,
-} MonoDebuggerState;
+	MONO_DEBUGGER_TERMINATED,
+} MonoDebuggerThreadState;
 
 typedef struct
 {
@@ -327,6 +330,7 @@ typedef struct {
 	guint32 resume_count;
 
 	MonoInternalThread *thread;
+	intptr_t thread_id;
 
 	/*
 	 * Information about the frame which transitioned to native code for running
@@ -366,8 +370,33 @@ typedef struct {
 
 	/* The currently unloading appdomain */
 	MonoDomain *domain_unloading;
+
+	// The state that the debugger expects the thread to be in
+	MonoDebuggerThreadState thread_state;
 } DebuggerTlsData;
 
+void
+mono_debugger_start_single_stepping (void);
+
+void
+mono_debugger_stop_single_stepping (void);
+
+void
+mono_debugger_free_frames (StackFrame **frames, int nframes);
+
+// Only call this function with the loader
+// lock held
+MonoGHashTable *
+mono_debugger_get_thread_states (void);
+
+gboolean
+mono_debugger_is_disconnected (void);
+
+gint32
+mono_debugger_get_suspend_count (void);
+
+
+#endif // DISABLE_SDB
 
 
 #endif
