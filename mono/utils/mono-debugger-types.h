@@ -229,9 +229,10 @@ typedef enum {
 } CmdObject;
 
 typedef enum {
-	MONO_DEBUGGER_RESUMED,
-	MONO_DEBUGGER_SUSPENDED,
-	MONO_DEBUGGER_TERMINATED,
+	MONO_DEBUGGER_STARTED = 0,
+	MONO_DEBUGGER_RESUMED = 1,
+	MONO_DEBUGGER_SUSPENDED = 2,
+	MONO_DEBUGGER_TERMINATED = 3,
 } MonoDebuggerThreadState;
 
 typedef struct
@@ -375,6 +376,11 @@ typedef struct {
 	MonoDebuggerThreadState thread_state;
 } DebuggerTlsData;
 
+typedef struct {
+	MonoMethod *method;
+	int il_offset;
+} MonoBreakpointLocation;
+
 void
 mono_debugger_start_single_stepping (void);
 
@@ -388,6 +394,9 @@ mono_debugger_free_frames (StackFrame **frames, int nframes);
 // lock held
 MonoGHashTable *
 mono_debugger_get_thread_states (void);
+
+int
+mono_de_current_breakpoints (MonoBreakpointLocation **out);
 
 gboolean
 mono_debugger_is_disconnected (void);
