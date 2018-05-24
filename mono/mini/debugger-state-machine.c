@@ -374,10 +374,17 @@ mono_debugger_state (JsonWriter *writer)
 	debugger_log_iter_init (&diter);
 
 	mono_json_writer_indent (writer);
-	mono_json_writer_object_key(writer, "debugger history");
+	mono_json_writer_object_key(writer, "debugger_history");
 	mono_json_writer_array_begin (writer);
 
+	gboolean first = TRUE;
+
 	while (debugger_log_iter_next (&diter, &item)) {
+		if (!first)
+			mono_json_writer_printf (writer, ",\n");
+		else
+			first = FALSE;
+
 		mono_json_writer_indent (writer);
 		mono_json_writer_object_begin(writer);
 
@@ -395,18 +402,18 @@ mono_debugger_state (JsonWriter *writer)
 
 		mono_json_writer_indent (writer);
 		mono_json_writer_object_key(writer, "counter");
-		mono_json_writer_printf (writer, "\"%d\",\n", item->counter);
+		mono_json_writer_printf (writer, "\"%d\"\n", item->counter);
 
 		mono_json_writer_indent_pop (writer);
 		mono_json_writer_indent (writer);
 		mono_json_writer_object_end (writer);
-		mono_json_writer_printf (writer, ",\n");
 	}
 	mono_json_writer_printf (writer, "\n");
 
 	mono_json_writer_indent_pop (writer);
 	mono_json_writer_indent (writer);
 	mono_json_writer_array_end (writer);
+	mono_json_writer_printf (writer, ",\n");
 
 	debugger_log_iter_destroy (&diter);
 
@@ -414,7 +421,11 @@ mono_debugger_state (JsonWriter *writer)
 	gboolean disconnected = mono_debugger_is_disconnected ();
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_key(writer, "client_state");
-	mono_json_writer_printf (writer, "\"%s\",\n", disconnected ? "disconnected" : "connected");
+	mono_json_writer_printf (writer, "\"%s\"\n", disconnected ? "disconnected" : "connected");
+
+	mono_json_writer_indent (writer);
+	mono_json_writer_object_end (writer);
+	mono_json_writer_printf (writer, "\n");
 
 	mono_json_writer_indent_pop (writer);
 	mono_json_writer_indent (writer);
