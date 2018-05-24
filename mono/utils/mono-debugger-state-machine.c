@@ -48,7 +48,7 @@ typedef struct {
 
 static MonoDebuggerLog *debugger_log;
 
-#define MAX_DEBUGGER_LOG_LEN 4
+#define MAX_DEBUGGER_LOG_LEN 65
 #define MONO_DEBUGGER_LOG_UNINIT -1
 
 static const char *
@@ -302,9 +302,8 @@ dump_thread_state (gpointer key, gpointer debugger_tls, gpointer user_data)
 void
 mono_debugger_state (JsonWriter *writer)
 {
-	if (debugger_log->max_size == 0) {
+	if (debugger_log == GINT_TO_POINTER (MONO_DEBUGGER_LOG_UNINIT))
 		return;
-	}
 
 	mono_loader_lock ();
 	mono_json_writer_object_begin(writer);
@@ -356,8 +355,6 @@ mono_debugger_state (JsonWriter *writer)
 			mono_json_writer_object_end (writer);
 			mono_json_writer_printf (writer, ",\n");
 		}
-
-		mono_json_writer_printf (writer, ",\n");
 
 		mono_json_writer_indent_pop (writer);
 		mono_json_writer_indent (writer);
@@ -431,5 +428,21 @@ mono_debugger_state (JsonWriter *writer)
 	mono_json_writer_object_end (writer);
 
 	mono_loader_unlock ();
+}
+
+char *
+mono_debugger_state_str (void)
+{
+	if (debugger_log == GINT_TO_POINTER (MONO_DEBUGGER_LOG_UNINIT))
+		return NULL;
+
+	JsonWriter writer;
+	mono_json_writer_init (&writer);
+	mono_debugger_state (&writer);
+
+	char *result = g_strdup(writer.text->str);
+	mono_json_writer_destroy (&writer);
+
+	return result;
 }
 

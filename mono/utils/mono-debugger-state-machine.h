@@ -63,4 +63,7 @@ mono_debugger_log_suspend (gpointer tls);
 void
 mono_debugger_state (JsonWriter *writer);
 
+char *
+mono_debugger_state_str (void);
+
 #endif // __MONO_UTILS_DEBUGGER_STATE_MACHINE__ 
