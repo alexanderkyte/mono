@@ -157,24 +157,11 @@ typedef struct {
 	guint32 native_offset;
 } DbgEngineStackFrame;
 
-
-
-//typedef struct {
-	//MonoMethod *method;
-	//int il_offset;
-//} MonoBreakpointLocation;
-
 MonoGHashTable *
 mono_debugger_get_thread_states (void);
 
 gboolean
 mono_debugger_is_disconnected (void);
-
-//int
-//mono_de_current_breakpoints (MonoBreakpointLocation **out);
-
-//gint32
-//mono_debugger_get_suspend_count (void);
 
 intptr_t 
 mono_debugger_tls_thread_id (gpointer debuggerTlsData);
@@ -204,6 +191,7 @@ MonoBreakpoint* mono_de_set_breakpoint (MonoMethod *method, long il_offset, Even
 void mono_de_collect_breakpoints_by_sp (SeqPoint *sp, MonoJitInfo *ji, GPtrArray *ss_reqs, GPtrArray *bp_reqs);
 void mono_de_clear_breakpoints_for_domain (MonoDomain *domain);
 void mono_de_add_pending_breakpoints (MonoMethod *method, MonoJitInfo *ji);
+int mono_de_current_breakpoints (MonoBreakpoint **out);
 
 //single stepping
 void mono_de_start_single_stepping (void);
