@@ -78,10 +78,11 @@ mono_debug_log_thread_state_to_string (MonoDebuggerThreadState state)
 	}
 }
 
+static MonoCoopMutex debugger_log_mutex;
+
 void
 mono_debugger_log_init (void)
 {
-	mono_loader_lock ();
 
 	if (debugger_log == GINT_TO_POINTER (MONO_DEBUGGER_LOG_UNINIT))
 		g_error ("Attempted to initialize debugger log after cleanup");
@@ -90,17 +91,21 @@ mono_debugger_log_init (void)
 	debugger_log->max_size = MAX_DEBUGGER_LOG_LEN;
 	debugger_log->cursor = MONO_DEBUGGER_LOG_UNINIT;
 	debugger_log->items = g_malloc0 (sizeof (MonoDebugLogItem) * debugger_log->max_size);
-	mono_loader_unlock ();
+
+	mono_coop_mutex_init (&debugger_log_mutex);
+
+	mono_coop_mutex_lock (&debugger_log_mutex);
+	mono_coop_mutex_unlock (&debugger_log_mutex);
 }
 
 void
 mono_debugger_log_free (void)
 {
-	mono_loader_lock ();
+	mono_coop_mutex_lock (&debugger_log_mutex);
 	g_free (debugger_log->items);
 	g_free (debugger_log);
 	debugger_log = GINT_TO_POINTER (MONO_DEBUGGER_LOG_UNINIT);
-	mono_loader_unlock ();
+	mono_coop_mutex_unlock (&debugger_log_mutex);
 }
 
 static void
@@ -111,7 +116,7 @@ debugger_log_append (MonoDebugLogKind kind, intptr_t tid, const char *message)
 	if (!debugger_log || (debugger_log == GINT_TO_POINTER (MONO_DEBUGGER_LOG_UNINIT)))
 		mono_debugger_log_init ();
 
-	mono_loader_lock ();
+	mono_coop_mutex_lock (&debugger_log_mutex);
 
 	if (debugger_log->cursor == MONO_DEBUGGER_LOG_UNINIT) {
 		item = &debugger_log->items [0];
@@ -133,7 +138,7 @@ debugger_log_append (MonoDebugLogKind kind, intptr_t tid, const char *message)
 	MOSTLY_ASYNC_SAFE_PRINTF ("DEBUGGER LOG (%zu): (%s:0x%x:%s) \n", item->counter, mono_debug_log_kind_to_string (item->kind), item->tid, item->message);
 #endif
 
-	mono_loader_unlock ();
+	mono_coop_mutex_unlock (&debugger_log_mutex);
 }
 
 static void
@@ -305,7 +310,7 @@ mono_debugger_state (JsonWriter *writer)
 	if (debugger_log == GINT_TO_POINTER (MONO_DEBUGGER_LOG_UNINIT))
 		return;
 
-	mono_loader_lock ();
+	mono_coop_mutex_lock (&debugger_log_mutex);
 	mono_json_writer_object_begin(writer);
 
 	mono_json_writer_indent (writer);
@@ -427,7 +432,7 @@ mono_debugger_state (JsonWriter *writer)
 	mono_json_writer_indent (writer);
 	mono_json_writer_object_end (writer);
 
-	mono_loader_unlock ();
+	mono_coop_mutex_unlock (&debugger_log_mutex);
 }
 
 char *
