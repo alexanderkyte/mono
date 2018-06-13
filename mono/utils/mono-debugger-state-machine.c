@@ -50,6 +50,7 @@ static MonoDebuggerLog *debugger_log;
 
 #define MAX_DEBUGGER_LOG_LEN 65
 #define MONO_DEBUGGER_LOG_UNINIT -1
+#define MAX_LOGGED_BREAKPOINTS 128
 
 static const char *
 mono_debug_log_kind_to_string (MonoDebugLogKind kind)
@@ -83,7 +84,6 @@ static MonoCoopMutex debugger_log_mutex;
 void
 mono_debugger_log_init (void)
 {
-
 	if (debugger_log == GINT_TO_POINTER (MONO_DEBUGGER_LOG_UNINIT))
 		g_error ("Attempted to initialize debugger log after cleanup");
 
@@ -93,9 +93,6 @@ mono_debugger_log_init (void)
 	debugger_log->items = g_malloc0 (sizeof (MonoDebugLogItem) * debugger_log->max_size);
 
 	mono_coop_mutex_init (&debugger_log_mutex);
-
-	mono_coop_mutex_lock (&debugger_log_mutex);
-	mono_coop_mutex_unlock (&debugger_log_mutex);
 }
 
 void
@@ -257,7 +254,7 @@ mono_debugger_log_suspend (gpointer tls)
 	g_assert (prev_state == MONO_DEBUGGER_RESUMED || prev_state == MONO_DEBUGGER_STARTED);
 	mono_debugger_set_thread_state (tls, prev_state, MONO_DEBUGGER_SUSPENDED);
 
-	char *msg = g_strdup_printf ("Suspending 0x%x from state %s", tid, tid, mono_debug_log_thread_state_to_string (prev_state));
+	char *msg = g_strdup_printf ("Suspending 0x%x from state %s", tid, mono_debug_log_thread_state_to_string (prev_state));
 	debugger_log_append (DEBUG_LOG_STATE_CHANGE, tid, msg);
 }
 
@@ -336,8 +333,9 @@ mono_debugger_state (JsonWriter *writer)
 	mono_json_writer_printf (writer, ",\n");
 
 	// FIXME: Log breakpoint state
-	MonoBreakpoint *bps;
-	int num_bps = mono_de_current_breakpoints (&bps);
+	// FIXME: We currently have a maximum 
+	MonoBreakpoint bps [MAX_LOGGED_BREAKPOINTS];
+	int num_bps = mono_de_current_breakpoints (bps, MAX_LOGGED_BREAKPOINTS);
 	if (num_bps) {
 		mono_json_writer_indent (writer);
 		mono_json_writer_object_key(writer, "breakpoints");
@@ -366,8 +364,6 @@ mono_debugger_state (JsonWriter *writer)
 		mono_json_writer_array_end (writer);
 		mono_json_writer_printf (writer, ",\n");
 	}
-
-	g_free (bps);
 
 	// Log history
 	MonoDebuggerLogIter diter;

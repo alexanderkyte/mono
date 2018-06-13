@@ -285,19 +285,26 @@ bp_matches_method (MonoBreakpoint *bp, MonoMethod *method)
 }
 
 int
-mono_de_current_breakpoints (MonoBreakpoint **out)
+mono_de_current_breakpoints (MonoBreakpoint *out, intptr_t max_len)
 {
+	if (!breakpoints)
+		return 0;
+
 	mono_loader_lock ();
 
-	int len = breakpoints->len;
-	MonoBreakpoint *bps = g_malloc0 (sizeof (MonoBreakpoint) * len);
+	int len = MIN(max_len, breakpoints->len);
 
-	for (int i = 0; i < len; ++i)
-		bps [i] = *(MonoBreakpoint *) g_ptr_array_index (breakpoints, i);
+	for (int i = 0; i < len; ++i) {
+		MonoBreakpoint *bp = (MonoBreakpoint *) g_ptr_array_index (breakpoints, i);
+		if (!bp) {
+			len = i;
+			break;
+		}
+
+		out [i] = *bp;
+	}
 
 	mono_loader_unlock ();
-
-	*out = bps;
 
 	return len;
 }
