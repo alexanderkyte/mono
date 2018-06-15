@@ -1,5 +1,5 @@
 
-EXTRA_DIST=SUBMODULES.json build.mk
+EXTRA_DIST=SUBMODULES.json build.am
 
 if INTERNAL_LLVM
 
@@ -9,4 +9,4 @@ clean-local: clean-llvm
 
 endif
 
-include build.mk
+include build.am
