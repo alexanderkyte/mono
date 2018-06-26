@@ -3078,6 +3078,9 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 	}
 	g_free (names);
 
+	mono_runtime_printf_err ("\nFlight recorder output:\n");
+	mono_log_dump_recorder ();
+
 	/* Try to get more meaningful information using gdb */
 	char *debugger_log = mono_debugger_state_str ();
 	if (debugger_log) {
