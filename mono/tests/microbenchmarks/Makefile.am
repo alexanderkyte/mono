@@ -45,7 +45,7 @@ define BenchmarkDotNetTemplate
 #$(eval TEST_FILE_$(1):=$(shell test -z $(3) && echo $(1) || echo "$(3)"))
 
 src/$(1).exe:: src/$(1).cs src/Microbenchmarks.cs Makefile BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll
-	mcs src/$(1).cs src/Microbenchmarks.cs -r:$(top_builddir)/mono/tests/microbenchmarks/BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll 
+	mcs -unsafe src/$(1).cs src/Microbenchmarks.cs -r:$(top_builddir)/mono/tests/microbenchmarks/BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll 
 
 build-$(1): src/$(1).exe
 
@@ -58,5 +58,5 @@ build:: build-$(1)
 
 endef
 
-$(eval $(call BenchmarkDotNetTemplate,BinaryTrees))
-
+#$(eval $(call BenchmarkDotNetTemplate,BinaryTrees))
+#$(eval $(call BenchmarkDotNetTemplate,NBody))
