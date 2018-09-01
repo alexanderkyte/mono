@@ -899,6 +899,9 @@ mono_mb_create_and_cache_full (GHashTable *cache, gpointer key,
 							   MonoMethodBuilder *mb, MonoMethodSignature *sig,
 							   int max_stack, WrapperInfo *info, gboolean *out_found);
 
+MonoException *
+mono_marshal_rethrow_exception (MonoException *exc);
+
 G_END_DECLS
 
 #endif /* __MONO_MARSHAL_H__ */

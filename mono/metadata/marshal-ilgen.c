@@ -1171,7 +1171,15 @@ emit_thread_interrupt_checkpoint_call (MonoMethodBuilder *mb, gpointer checkpoin
 	/* Throw the exception returned by the checkpoint function, if any */
 	mono_mb_emit_byte (mb, CEE_DUP);
 	pos_noex = mono_mb_emit_branch (mb, CEE_BRFALSE);
-	mono_mb_emit_byte (mb, CEE_THROW);
+
+	// This codepath seems to be very rarely hit when using the non-LLVM
+	// backend. I think that the aot compiler passes on the BCL for the default
+	// profiles probably capture this a bit. 
+	//
+	// See calls to mono_get_rethrow_exception_addr in /mini to see the more
+	// common path
+	mono_mb_emit_icall (mb, mono_marshal_rethrow_exception);
+
 	mono_mb_patch_branch (mb, pos_noex);
 	mono_mb_emit_byte (mb, CEE_POP);
 	
@@ -1191,6 +1199,16 @@ static void
 emit_thread_force_interrupt_checkpoint (MonoMethodBuilder *mb)
 {
 	emit_thread_interrupt_checkpoint_call (mb, (gpointer)mono_thread_force_interruption_checkpoint_noraise);
+}
+
+MonoException *
+mono_marshal_rethrow_exception (MonoException *exc)
+{
+	mono_get_eh_callbacks ()->mono_reraise_exception (exc);
+
+	// Easier than making caller add more CEE_DUP
+	// mimic the implicit signature of CEE_THROW
+	return exc;
 }
 
 void
