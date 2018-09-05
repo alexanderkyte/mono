@@ -128,7 +128,7 @@ static gboolean mono_install_handler_block_guard (MonoThreadUnwindState *ctx);
 static void mono_uninstall_current_handler_block_guard (void);
 static gboolean mono_exception_walk_trace_internal (MonoException *ex, MonoExceptionFrameWalk func, gpointer user_data);
 
-static void mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx);
+static void mono_summarize_stack (MonoThreadSummary *out, MonoContext *crash_ctx);
 static void mono_summarize_exception (MonoException *exc, MonoThreadSummary *out, MonoError *error);
 
 static gboolean
@@ -1297,7 +1297,7 @@ next:
 
 #ifdef DISABLE_CRASH_REPORTING
 static void
-mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx, MonoError *error)
+mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctxr)
 {
 	return;
 }
@@ -1511,7 +1511,7 @@ mono_summarize_exception (MonoException *exc, MonoThreadSummary *out, MonoError 
 
 
 static void 
-mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx)
+mono_summarize_stack (MonoThreadSummary *out, MonoContext *crash_ctx)
 {
 	ERROR_DECL (frame_specific_error);
 	MonoSummarizeUserData data;
