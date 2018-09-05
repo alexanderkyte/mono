@@ -2627,7 +2627,9 @@ thread_interrupt (DebuggerTlsData *tls, MonoThreadInfo *info, MonoJitInfo *ji)
 			MonoThreadUnwindState *state = mono_thread_info_get_suspend_state (info);
 
 			data.last_frame_set = FALSE;
-			mono_get_eh_callbacks ()->mono_walk_stack_with_state (get_last_frame, state, MONO_UNWIND_SIGNAL_SAFE, &data);
+			ERROR_DECL(error);
+			mono_get_eh_callbacks ()->mono_walk_stack_with_state (get_last_frame, state, MONO_UNWIND_SIGNAL_SAFE, &data, error);
+			mono_error_assert_ok(error);
 			if (data.last_frame_set) {
 				gpointer jit_tls = tls->thread->thread_info->jit_data;
 
@@ -3217,7 +3219,9 @@ compute_frame_info_from (MonoInternalThread *thread, DebuggerTlsData *tls, MonoT
 	user_data.tls = tls;
 	user_data.frames = NULL;
 
-	mono_walk_stack_with_state (process_frame, state, opts, &user_data);
+	ERROR_DECL(error);
+	mono_walk_stack_with_state (process_frame, state, opts, &user_data, error);
+	mono_error_assert_ok(error);
 
 	nframes = g_slist_length (user_data.frames);
 	res = g_new0 (StackFrame*, nframes);
@@ -3254,23 +3258,30 @@ compute_frame_info (MonoInternalThread *thread, DebuggerTlsData *tls)
 	} if (!tls->really_suspended && tls->async_state.valid) {
 		/* Have to use the state saved by the signal handler */
 		process_frame (&tls->async_last_frame, NULL, &user_data);
-		mono_walk_stack_with_state (process_frame, &tls->async_state, opts, &user_data);
+		ERROR_DECL(error);
+		mono_walk_stack_with_state (process_frame, &tls->async_state, opts, &user_data, error);
+		mono_error_assert_ok(error);
 	} else if (tls->filter_state.valid) {
 		/*
 		 * We are inside an exception filter.
 		 *
 		 * First we add all the frames from inside the filter; 'tls->ctx' has the current context.
 		 */
+		ERROR_DECL(error);
 		if (tls->context.valid) {
-			mono_walk_stack_with_state (process_filter_frame, &tls->context, opts, &user_data);
+			mono_walk_stack_with_state (process_frame, &tls->async_state, opts, &user_data, error);
+			mono_error_assert_ok(error);
 			DEBUG_PRINTF (1, "\tFrame: <call filter>\n");
 		}
 		/*
 		 * After that, we resume unwinding from the location where the exception has been thrown.
 		 */
-		mono_walk_stack_with_state (process_frame, &tls->filter_state, opts, &user_data);
+		mono_walk_stack_with_state (process_frame, &tls->filter_state, opts, &user_data, error);
+		mono_error_assert_ok(error);
 	} else if (tls->context.valid) {
-		mono_walk_stack_with_state (process_frame, &tls->context, opts, &user_data);
+		ERROR_DECL(error);
+		mono_walk_stack_with_state (process_frame, &tls->context, opts, &user_data, error);
+		mono_error_assert_ok(error);
 	} else {
 		// FIXME:
 		tls->frame_count = 0;

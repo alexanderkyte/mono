@@ -119,16 +119,17 @@ static gpointer throw_corlib_exception_func;
 
 static MonoFtnPtrEHCallback ftnptr_eh_callback;
 
-static void mono_walk_stack_full (MonoJitStackWalk func, MonoContext *start_ctx, MonoDomain *domain, MonoJitTlsData *jit_tls, MonoLMF *lmf, MonoUnwindOptions unwind_options, gpointer user_data);
+static void mono_walk_stack_full (MonoJitStackWalk func, MonoContext *start_ctx, MonoDomain *domain, MonoJitTlsData *jit_tls, MonoLMF *lmf, MonoUnwindOptions unwind_options, gpointer user_data, MonoError *error);
 static void mono_raise_exception_with_ctx (MonoException *exc, MonoContext *ctx);
-static void mono_runtime_walk_stack_with_ctx (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnwindOptions unwind_options, void *user_data);
+static void mono_runtime_walk_stack_with_ctx (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnwindOptions unwind_options, void *user_data, MonoError *error);
+static void mono_walk_stack_with_ctx_checked (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnwindOptions unwind_options, void *user_data, MonoError *error);
 static gboolean mono_current_thread_has_handle_block_guard (void);
 static gboolean mono_install_handler_block_guard (MonoThreadUnwindState *ctx);
 static void mono_uninstall_current_handler_block_guard (void);
 static gboolean mono_exception_walk_trace_internal (MonoException *ex, MonoExceptionFrameWalk func, gpointer user_data);
 
 static void mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx);
-static void mono_summarize_exception (MonoException *exc, MonoThreadSummary *out);
+static void mono_summarize_exception (MonoException *exc, MonoThreadSummary *out, MonoError *error);
 
 static gboolean
 first_managed (MonoStackFrameInfo *frame, MonoContext *ctx, gpointer addr)
@@ -1064,22 +1065,19 @@ ves_icall_get_trace (MonoException *exc, gint32 skip, MonoBoolean need_file_info
 }
 
 static void
-mono_runtime_walk_stack_with_ctx (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnwindOptions unwind_options, void *user_data)
+mono_runtime_walk_stack_with_ctx (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnwindOptions unwind_options, void *user_data, MonoError *error)
 {
 	if (!start_ctx) {
 		MonoJitTlsData *jit_tls = mono_tls_get_jit_tls ();
 		if (jit_tls && jit_tls->orig_ex_ctx_set)
 			start_ctx = &jit_tls->orig_ex_ctx;
 	}
-	mono_walk_stack_with_ctx (func, start_ctx, unwind_options, user_data);
+	mono_walk_stack_with_ctx_checked (func, start_ctx, unwind_options, user_data, error);
 }
-/**
- * mono_walk_stack_with_ctx:
- * Unwind the current thread starting at \p start_ctx.
- * If \p start_ctx is null, we capture the current context.
- */
-void
-mono_walk_stack_with_ctx (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnwindOptions unwind_options, void *user_data)
+
+
+static void
+mono_walk_stack_with_ctx_checked (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnwindOptions unwind_options, void *user_data, MonoError *error)
 {
 	MonoContext extra_ctx;
 	MonoThreadInfo *thread = mono_thread_info_current_unchecked ();
@@ -1094,7 +1092,20 @@ mono_walk_stack_with_ctx (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnw
 		start_ctx = &extra_ctx;
 	}
 
-	mono_walk_stack_full (func, start_ctx, mono_domain_get (), thread->jit_data, mono_get_lmf (), unwind_options, user_data);
+	mono_walk_stack_full (func, start_ctx, mono_domain_get (), thread->jit_data, mono_get_lmf (), unwind_options, user_data, error);
+}
+
+/**
+ * mono_walk_stack_with_ctx:
+ * Unwind the current thread starting at \p start_ctx.
+ * If \p start_ctx is null, we capture the current context.
+ */
+void
+mono_walk_stack_with_ctx (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnwindOptions unwind_options, void *user_data)
+{
+	ERROR_DECL (error);
+	mono_walk_stack_with_ctx_checked (func, start_ctx, unwind_options, user_data, error);
+	mono_error_assert_ok (error);
 }
 
 /**
@@ -1108,7 +1119,7 @@ mono_walk_stack_with_ctx (MonoJitStackWalk func, MonoContext *start_ctx, MonoUnw
  * If \p state is null, we capture the current context.
  */
 void
-mono_walk_stack_with_state (MonoJitStackWalk func, MonoThreadUnwindState *state, MonoUnwindOptions unwind_options, void *user_data)
+mono_walk_stack_with_state (MonoJitStackWalk func, MonoThreadUnwindState *state, MonoUnwindOptions unwind_options, void *user_data, MonoError *error)
 {
 	MonoThreadUnwindState extra_state;
 	if (!state) {
@@ -1129,7 +1140,7 @@ mono_walk_stack_with_state (MonoJitStackWalk func, MonoThreadUnwindState *state,
 		(MonoDomain *)state->unwind_data [MONO_UNWIND_DATA_DOMAIN],
 		(MonoJitTlsData *)state->unwind_data [MONO_UNWIND_DATA_JIT_TLS],
 		(MonoLMF *)state->unwind_data [MONO_UNWIND_DATA_LMF],
-		unwind_options, user_data);
+		unwind_options, user_data, error);
 }
 
 void
@@ -1138,7 +1149,9 @@ mono_walk_stack (MonoJitStackWalk func, MonoUnwindOptions options, void *user_da
 	MonoThreadUnwindState state;
 	if (!mono_thread_state_init_from_current (&state))
 		return;
-	mono_walk_stack_with_state (func, &state, options, user_data);
+	ERROR_DECL(error);
+	mono_walk_stack_with_state (func, &state, options, user_data, error);
+	mono_error_assert_ok(error);
 }
 
 /**
@@ -1156,9 +1169,11 @@ mono_walk_stack (MonoJitStackWalk func, MonoUnwindOptions options, void *user_da
  * managed stack frames are found or when the callback returns a TRUE value.
  */
 static void
-mono_walk_stack_full (MonoJitStackWalk func, MonoContext *start_ctx, MonoDomain *domain, MonoJitTlsData *jit_tls, MonoLMF *lmf, MonoUnwindOptions unwind_options, gpointer user_data)
+mono_walk_stack_full (MonoJitStackWalk func, MonoContext *start_ctx, MonoDomain *domain, MonoJitTlsData *jit_tls, MonoLMF *lmf, MonoUnwindOptions unwind_options, gpointer user_data, MonoError *error)
 {
-	gint il_offset, i;
+	error_init (error);
+
+	gint il_offset;
 	MonoContext ctx, new_ctx;
 	StackFrameInfo frame;
 	gboolean res;
@@ -1201,14 +1216,28 @@ mono_walk_stack_full (MonoJitStackWalk func, MonoContext *start_ctx, MonoDomain 
 	}
 #endif
 
-	g_assert (start_ctx);
-	g_assert (domain);
-	g_assert (jit_tls);
+	if (!start_ctx) {
+		mono_error_set_argument_null (error, "start_ctx", "");
+		return;
+	}
+
+	if (!domain) {
+		mono_error_set_argument_null (error, "domain", "");
+		return;
+	}
+
+	if (!jit_tls) {
+		mono_error_set_argument_null (error, "jit_tls", "");
+		return;
+	}
+
 	/*The LMF will be null if the target have no managed frames.*/
  	/* g_assert (lmf); */
 
-	if (async)
-		g_assert (unwind_options == MONO_UNWIND_NONE);
+	if (async && (unwind_options != MONO_UNWIND_NONE)) {
+		mono_error_set_argument (error, "unwind_options", "async && (unwind_options != MONO_UNWIND_NONE) not legal");
+		return;
+	}
 
 	memcpy (&ctx, start_ctx, sizeof (MonoContext));
 	memset (reg_locations, 0, sizeof (reg_locations));
@@ -1257,7 +1286,7 @@ mono_walk_stack_full (MonoJitStackWalk func, MonoContext *start_ctx, MonoDomain 
 
 next:
 		if (get_reg_locations) {
-			for (i = 0; i < MONO_MAX_IREGS; ++i)
+			for (int i = 0; i < MONO_MAX_IREGS; ++i)
 				if (new_reg_locations [i])
 					reg_locations [i] = new_reg_locations [i];
 		}
@@ -1268,13 +1297,13 @@ next:
 
 #ifdef DISABLE_CRASH_REPORTING
 static void
-mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx)
+mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx, MonoError *error)
 {
 	return;
 }
 
 static void
-mono_summarize_exception (MonoException *exc, MonoThreadSummary *out)
+mono_summarize_exception (MonoException *exc, MonoThreadSummary *out, MonoError *error)
 {
 	return;
 }
@@ -1286,6 +1315,7 @@ typedef struct {
 	int num_frames;
 	int max_frames;
 	MonoStackHash *hashes;
+	MonoError *error;
 } MonoSummarizeUserData;
 
 static void
@@ -1309,7 +1339,9 @@ mono_get_portable_ip (intptr_t in_ip, intptr_t *out_ip, char *out_name)
 	Dl_info info;
 	int success = dladdr ((void*) mono_get_portable_ip, &info);
 	intptr_t this_module = (intptr_t) info.dli_fbase;
-	g_assert (success);
+
+	if (!success)
+		return FALSE;
 
 	success = dladdr ((void*)in_ip, &info);
 	if (!success)
@@ -1369,13 +1401,21 @@ summarize_offset_rich_hash (intptr_t accum, MonoFrameSummary *frame)
 	return hash_accum;
 }
 
+// Returns whether to end the stack walk
 static gboolean
 summarize_frame_internal (MonoMethod *method, gpointer ip, size_t native_offset, gboolean managed, gpointer user_data)
 {
 	MonoSummarizeUserData *ud = (MonoSummarizeUserData *) user_data;
-	g_assert (ud->num_frames + 1 < ud->max_frames);
+	error_init (ud->error);
+
+	gboolean valid_state = ud->num_frames + 1 < ud->max_frames;
+
+	if (!valid_state) {
+		mono_error_set_argument (ud->error, "user_data", "Exceeded the maximum number of frames");
+		return TRUE;
+	}
+
 	MonoFrameSummary *dest = &ud->frames [ud->num_frames];
-	ud->num_frames++;
 
 	dest->unmanaged_data.ip = (intptr_t) ip;
 	dest->is_managed = managed;
@@ -1390,7 +1430,12 @@ summarize_frame_internal (MonoMethod *method, gpointer ip, size_t native_offset,
 	MonoDebugSourceLocation *location = NULL;
 
 	if (managed) {
-		g_assert (method);
+		if (!method) {
+			mono_error_set_argument_null (ud->error, "method", "Managed method frame, but no provided managed method");
+			// stop walking
+			return TRUE;
+		}
+
 		MonoImage *image = mono_class_get_image (method->klass);
 		// Used for hashing, more stable across rebuilds than using GUID
 		copy_summary_string_safe (dest->str_descr, image->assembly_name);
@@ -1413,12 +1458,17 @@ summarize_frame_internal (MonoMethod *method, gpointer ip, size_t native_offset,
 	ud->hashes->offset_free_hash = summarize_offset_free_hash (ud->hashes->offset_free_hash, dest);
 	ud->hashes->offset_rich_hash = summarize_offset_rich_hash (ud->hashes->offset_rich_hash, dest);
 
+	// We return FALSE, so we're continuing walking
+	// And we increment the pointer because we're done with this cell in the array
+	ud->num_frames++;
 	return FALSE;
 }
 
 static gboolean
 summarize_frame (StackFrameInfo *frame, MonoContext *ctx, gpointer data)
 {
+	MonoSummarizeUserData *ud = (MonoSummarizeUserData *) data;
+	error_init (ud->error);
 	// Don't record trampolines between managed frames
 	if (frame->ji && frame->ji->is_trampoline)
 		return TRUE;
@@ -1426,17 +1476,22 @@ summarize_frame (StackFrameInfo *frame, MonoContext *ctx, gpointer data)
 	MonoMethod *method = NULL;
 	intptr_t ip = 0x0;
 	mono_get_portable_ip ((intptr_t) MONO_CONTEXT_GET_IP (ctx), &ip, NULL);
+	// Don't need to handle return status "success" because this ip is stored below only, NULL is okay
 
-	g_assert (frame->ji && frame->type != FRAME_TYPE_TRAMPOLINE);
+	gboolean sane_frame = (frame->ji && frame->type != FRAME_TYPE_TRAMPOLINE);
+	if (!sane_frame) {
+		mono_error_set_argument (ud->error, "frame", "Frame is a trampoline or lacks jit info");
+		return TRUE;
+	}
+
 	method = jinfo_get_method (frame->ji);
-
 	gboolean is_managed = (method != NULL);
 
 	return summarize_frame_internal (method, (gpointer) ip, frame->native_offset, is_managed, data);
 }
 
 static void
-mono_summarize_exception (MonoException *exc, MonoThreadSummary *out)
+mono_summarize_exception (MonoException *exc, MonoThreadSummary *out, MonoError *error)
 {
 	memset (out, 0, sizeof (MonoThreadSummary));
 
@@ -1447,6 +1502,9 @@ mono_summarize_exception (MonoException *exc, MonoThreadSummary *out)
 	data.frames = out->managed_frames;
 	data.hashes = &out->hashes;
 
+	error_init (error);
+	data.error = error;
+
 	mono_exception_walk_trace (exc, summarize_frame_internal, &data);
 	out->num_managed_frames = data.num_frames;
 }
@@ -1455,6 +1513,7 @@ mono_summarize_exception (MonoException *exc, MonoThreadSummary *out)
 static void 
 mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx)
 {
+	ERROR_DECL (frame_specific_error);
 	MonoSummarizeUserData data;
 	memset (&data, 0, sizeof (MonoSummarizeUserData));
 	data.max_frames = MONO_MAX_SUMMARY_FRAMES;
@@ -1468,8 +1527,16 @@ mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *c
 	// 
 	// Summarize managed stack
 	// 
-	mono_walk_stack_with_ctx (summarize_frame, crash_ctx, MONO_UNWIND_LOOKUP_IL_OFFSET, &data);
+	ERROR_DECL (global_stack_error);
+	mono_walk_stack_with_ctx_checked (summarize_frame, crash_ctx, MONO_UNWIND_LOOKUP_IL_OFFSET, &data, global_stack_error);
 	out->num_managed_frames = data.num_frames;
+
+	if (!mono_error_ok (global_stack_error)) {
+		// This is a pointer to global memory
+		out->error_msg = mono_error_get_message (global_stack_error);
+	} else if (!mono_error_ok (frame_specific_error)) {
+		out->error_msg = mono_error_get_message (frame_specific_error);
+	}
 
 	// 
 	// Summarize unmanaged stack
@@ -3213,7 +3280,9 @@ mono_install_handler_block_guard (MonoThreadUnwindState *ctx)
 
 	/* Do an async safe stack walk */
 	mono_thread_info_set_is_async_context (TRUE);
-	mono_walk_stack_with_state (find_last_handler_block, ctx, MONO_UNWIND_NONE, &data);
+	ERROR_DECL(error);
+	mono_walk_stack_with_state (find_last_handler_block, ctx, MONO_UNWIND_NONE, &data, error);
+	mono_error_assert_ok(error);
 	mono_thread_info_set_is_async_context (FALSE);
 
 	if (!data.ji)

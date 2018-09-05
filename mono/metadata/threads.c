@@ -3793,10 +3793,12 @@ get_thread_dump (MonoThreadInfo *info, gpointer ud)
 	g_string_append (text, "\n");
 #endif
 
+	ERROR_DECL (error);
+
 	if (thread == mono_thread_internal_current ())
-		mono_get_eh_callbacks ()->mono_walk_stack_with_ctx (collect_frame, NULL, MONO_UNWIND_SIGNAL_SAFE, ud);
+		mono_get_eh_callbacks ()->mono_walk_stack_with_ctx (collect_frame, NULL, MONO_UNWIND_SIGNAL_SAFE, ud, error);
 	else
-		mono_get_eh_callbacks ()->mono_walk_stack_with_state (collect_frame, mono_thread_info_get_suspend_state (info), MONO_UNWIND_SIGNAL_SAFE, ud);
+		mono_get_eh_callbacks ()->mono_walk_stack_with_state (collect_frame, mono_thread_info_get_suspend_state (info), MONO_UNWIND_SIGNAL_SAFE, ud, error);
 
 	return MonoResumeThread;
 }
@@ -5280,6 +5282,8 @@ mono_thread_info_get_last_managed (MonoThreadInfo *info)
 	if (!info)
 		return NULL;
 
+	ERROR_DECL (error);
+
 	/*
 	 * The suspended thread might be holding runtime locks. Make sure we don't try taking
 	 * any runtime locks while unwinding. In coop case we shouldn't safepoint in regions
@@ -5287,9 +5291,13 @@ mono_thread_info_get_last_managed (MonoThreadInfo *info)
 	 */
 	if (!mono_threads_are_safepoints_enabled ())
 		mono_thread_info_set_is_async_context (TRUE);
-	mono_get_eh_callbacks ()->mono_walk_stack_with_state (last_managed, mono_thread_info_get_suspend_state (info), MONO_UNWIND_SIGNAL_SAFE, &ji);
+
+	mono_get_eh_callbacks ()->mono_walk_stack_with_state (last_managed, mono_thread_info_get_suspend_state (info), MONO_UNWIND_SIGNAL_SAFE, &ji, error);
+
 	if (!mono_threads_are_safepoints_enabled ())
 		mono_thread_info_set_is_async_context (FALSE);
+
+	mono_error_assert_ok (error);
 	return ji;
 }
 
@@ -6067,13 +6075,8 @@ mono_threads_summarize_one (MonoThreadSummary *out, MonoContext *ctx)
 		char *name = g_utf16_to_utf8 (thread->name, thread->name_len, NULL, NULL, NULL);
 		out->name = name;
 	}
-	mono_get_eh_callbacks ()->mono_summarize_stack (domain, out, ctx);
 
-	// FIXME: handle failure gracefully
-	// Enable when doing unmanaged
-	/*g_assert (out->num_frames > 0);*/
-	/*if (out->num_frames == 0)*/
-		/*return FALSE;*/
+	mono_get_eh_callbacks ()->mono_summarize_stack (domain, out, ctx);
 
 	mono_gchandle_free (handle);
 

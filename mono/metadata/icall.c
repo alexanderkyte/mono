@@ -5819,7 +5819,10 @@ ves_icall_Mono_Runtime_ExceptionToState (MonoExceptionHandle exc_handle, guint64
 	// FIXME: Push handles down into mini/mini-exceptions.c
 	MonoException *exc = MONO_HANDLE_RAW (exc_handle);
 	MonoThreadSummary out;
-	mono_get_eh_callbacks ()->mono_summarize_exception (exc, &out);
+	mono_get_eh_callbacks ()->mono_summarize_exception (exc, &out, error);
+
+	if (!mono_error_ok (error))
+		return result;
 
 	*portable_hash_out = (guint64) out.hashes.offset_free_hash;
 	*unportable_hash_out = (guint64) out.hashes.offset_rich_hash;
