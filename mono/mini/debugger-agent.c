@@ -273,7 +273,7 @@ typedef struct {
 #define HEADER_LENGTH 11
 
 #define MAJOR_VERSION 2
-#define MINOR_VERSION 48
+#define MINOR_VERSION 49
 
 typedef enum {
 	CMD_SET_VM = 1,
@@ -500,6 +500,9 @@ typedef struct {
 	char *category, *message;
 	/* For EVENT_KIND_TYPE_LOAD */
 	MonoClass *klass;
+	/* For EVENT_KIND_CRASH  */
+	char *dump;
+	MonoStackHash *hashes;
 } EventInfo;
 
 typedef struct {
@@ -3775,6 +3778,12 @@ process_event (EventKind event, gpointer arg, gint32 il_offset, MonoContext *ctx
 			if (CHECK_PROTOCOL_VERSION (2, 27))
 				buffer_add_int (&buf, mono_environment_exitcode_get ());
 			break;
+		case EVENT_KIND_CRASH: {
+			EventInfo *ei = (EventInfo *)arg;
+			buffer_add_int (&buf, ei->hashes->offset_free_hash);
+			buffer_add_string (&buf, ei->dump);
+			break;
+		}
 		case EVENT_KIND_EXCEPTION: {
 			EventInfo *ei = (EventInfo *)arg;
 			buffer_add_objid (&buf, ei->exc);
@@ -4856,6 +4865,35 @@ ss_clear_for_assembly (SingleStepReq *req, MonoAssembly *assembly)
 			}
 		}
 	}
+}
+
+/*
+ * This takes a lot of locks and stuff. Do this at the end, after
+ * other things have dumped us, so that getting stuck here won't
+ * prevent seeing other crash information
+ */
+void
+mono_debugger_agent_send_crash (char *jsonDump, MonoStackHash *hashes, int pause)
+{
+	int suspend_policy;
+	GSList *events;
+	EventInfo ei;
+
+	if (!agent_config.enabled)
+		return;
+
+	// It doesn't make sense to wait for lldb/gdb to finish if we're not
+	// actually enabled. Therefore we do the wait here.
+	sleep (pause);
+
+	mono_loader_lock ();
+	events = create_event_list (EVENT_KIND_CRASH, NULL, NULL, NULL, &suspend_policy);
+	mono_loader_unlock ();
+
+	ei.dump = jsonDump;
+	ei.hashes = hashes;
+
+	process_event (EVENT_KIND_CRASH, &ei, 0, NULL, events, suspend_policy);
 }
 
 /*

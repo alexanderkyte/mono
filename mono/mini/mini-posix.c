@@ -1082,6 +1082,8 @@ dump_native_stacktrace (const char *signal, void *ctx)
 			exit (1);
 		}
 
+		mono_debugger_agent_send_crash (output, &hashes, 2 /* wait # seconds */);
+
 		mono_runtime_printf_err ("\nDebug info from gdb:\n");
 		waitpid (pid, &status, 0);
 	}

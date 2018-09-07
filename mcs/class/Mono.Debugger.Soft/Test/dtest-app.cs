@@ -319,6 +319,10 @@ public class Tests : TestsBase, ITest2
 			unhandled_exception_endinvoke ();
 			return 0;
 		}
+		if (args.Length >0 && args [0] == "crash") {
+			crash ();
+			return 0;
+		}
 		if (args.Length >0 && args [0] == "unhandled-exception-user") {
 			unhandled_exception_user ();
 			return 0;
@@ -1328,6 +1332,13 @@ public class Tests : TestsBase, ITest2
 			}, null);
 		Thread.Sleep (1000);
 		unhandled_exception_endinvoke_2 ();
+	}
+
+	[MethodImplAttribute (MethodImplOptions.NoInlining)]
+	public static void crash () {
+		var monoType = Type.GetType ("System.Threading.Mutex", false);
+		var m = monoType.GetMethod("ReleaseMutex_internal", BindingFlags.NonPublic | BindingFlags.Static);
+		m.Invoke(null, new object[] { new IntPtr (-1) });
 	}
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]

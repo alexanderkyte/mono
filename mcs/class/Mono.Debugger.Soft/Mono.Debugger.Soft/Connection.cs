@@ -367,6 +367,14 @@ namespace Mono.Debugger.Soft
 			get; set;
 		}
 
+		public string Dump {
+			get; set;
+		}
+
+		public ulong Hash {
+			get; set;
+		}
+
 		public EventInfo (EventType type, int req_id) {
 			EventType = type;
 			ReqId = req_id;
@@ -463,7 +471,8 @@ namespace Mono.Debugger.Soft
 			EXCEPTION = 13,
 			KEEPALIVE = 14,
 			USER_BREAK = 15,
-			USER_LOG = 16
+			USER_LOG = 16,
+			CRASH = 17
 		}
 
 		enum ModifierKind {
@@ -1354,6 +1363,11 @@ namespace Mono.Debugger.Soft
 									exit_code = r.ReadInt ();
 								//EventHandler.VMDeath (req_id, 0, null);
 								events [i] = new EventInfo (etype, req_id) { ExitCode = exit_code };
+							} else if (kind == EventKind.CRASH) {
+								string dump = r.ReadString ();
+								ulong hash = (ulong) r.ReadLong ();
+
+								events [i] = new EventInfo (etype, req_id) { Dump = dump, Hash = hash };
 							} else if (kind == EventKind.THREAD_START) {
 								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = thread_id };
 								//EventHandler.ThreadStart (req_id, thread_id, thread_id);

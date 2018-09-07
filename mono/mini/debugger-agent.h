@@ -44,4 +44,7 @@ mono_debugger_agent_stub_init (void);
 MONO_API gboolean
 mono_debugger_agent_transport_handshake (void);
 
+void
+mono_debugger_agent_send_crash (char *jsonDump, MonoStackHash *hashes, int pauseTime);
+
 #endif

@@ -2444,6 +2444,32 @@ public class DebuggerTests
 	}
 
 	[Test]
+	public void Crash () {
+		vm.Detach ();
+
+		Start (new string [] { "dtest-app.exe", "crash_vm" });
+
+		Event e = run_until ("crash");
+
+		while (true) {
+			vm.Resume ();
+			e = GetNextEvent ();
+			var crash = e as CrashEvent;
+
+			if (crash == null)
+				continue;
+
+			Assert.AreNotEqual (0, crash.Dump.Length);
+			Assert.AreNotEqual (0, crash.Hash);
+
+			Console.WriteLine ("Dump: {0}", crash.Dump);
+			break;
+		}
+
+		vm = null;
+	}
+
+	[Test]
 	public void Dispose () {
 		run_until ("Main");
 
