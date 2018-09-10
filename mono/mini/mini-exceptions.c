@@ -130,6 +130,7 @@ static gboolean mono_exception_walk_trace_internal (MonoException *ex, MonoExcep
 
 static void mono_summarize_stack (MonoThreadSummary *out, MonoContext *crash_ctx);
 static void mono_summarize_exception (MonoException *exc, MonoThreadSummary *out, MonoError *error);
+static void mono_crash_reporting_register_native_library (const char *module_path, const char *module_name);
 
 static gboolean
 first_managed (MonoStackFrameInfo *frame, MonoContext *ctx, gpointer addr)
@@ -236,6 +237,7 @@ mono_exceptions_init (void)
 	cbs.mono_walk_stack_with_state = mono_walk_stack_with_state;
 	cbs.mono_summarize_stack = mono_summarize_stack;
 	cbs.mono_summarize_exception = mono_summarize_exception;
+	cbs.mono_register_native_library = mono_crash_reporting_register_native_library;
 
 	if (mono_llvm_only) {
 		cbs.mono_raise_exception = mono_llvm_raise_exception;
@@ -1088,7 +1090,7 @@ mono_walk_stack_with_ctx_checked (MonoJitStackWalk func, MonoContext *start_ctx,
 
 	if (!start_ctx) {
 		mono_arch_flush_register_windows ();
-		MONO_INIT_CONTEXT_FROM_FUNC (&extra_ctx, mono_walk_stack_with_ctx);
+		MONO_INIT_CONTEXT_FROM_FUNC (&extra_ctx, mono_walk_stack_with_ctx_checked);
 		start_ctx = &extra_ctx;
 	}
 
@@ -1297,7 +1299,7 @@ next:
 
 #ifdef DISABLE_CRASH_REPORTING
 static void
-mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctxr)
+mono_summarize_stack (MonoDomain *domain, MonoThreadSummary *out, MonoContext *crash_ctx)
 {
 	return;
 }
