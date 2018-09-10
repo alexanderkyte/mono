@@ -27,6 +27,9 @@ else
     export EXTRA_CFLAGS="$EXTRA_CFLAGS -ggdb3 -O2"
 fi
 
+# Get good telemetry on CI
+export EXTRA_CFLAGS="$EXTRA_CFLAGS --with-crash-privacy=no"
+
 if [[ $CI_TAGS == *'collect-coverage'* ]]; then
     # Collect coverage for further use by lcov and similar tools.
     # Coverage must be collected with -O0 and debug information.
