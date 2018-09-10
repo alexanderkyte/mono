@@ -1375,7 +1375,8 @@ check_whitelisted_module (const char *in_name, const char **out_module)
 {
 	if (!native_library_whitelist) {
 		if (g_str_has_suffix (in_name, "mono-sgen")) {
-			*out_module = "mono";
+			if (out_module)
+				*out_module = "mono";
 			return TRUE;
 		}
 
@@ -1475,9 +1476,13 @@ summarize_frame_internal (MonoMethod *method, gpointer ip, size_t native_offset,
 	if (method && method->wrapper_type != MONO_WRAPPER_NONE) {
 		dest->is_managed = FALSE;
 		dest->unmanaged_data.has_name = TRUE;
-
 		copy_summary_string_safe (dest->str_descr, mono_method_full_name (method, TRUE));
 	}
+	
+#ifndef MONO_PRIVATE_CRASHES
+	if (method)
+		dest->managed_data.name = mono_method_full_name (method, TRUE);
+#endif
 
 	MonoDebugSourceLocation *location = NULL;
 
@@ -1521,23 +1526,23 @@ summarize_frame (StackFrameInfo *frame, MonoContext *ctx, gpointer data)
 {
 	MonoSummarizeUserData *ud = (MonoSummarizeUserData *) data;
 	error_init (ud->error);
-	// Don't record trampolines between managed frames
-	if (frame->ji && frame->ji->is_trampoline)
-		return TRUE;
 
-	MonoMethod *method = NULL;
+	if (frame->ji && (frame->ji->is_trampoline || frame->ji->async))
+		return FALSE; // Keep unwinding
+
 	intptr_t ip = 0x0;
 	mono_get_portable_ip ((intptr_t) MONO_CONTEXT_GET_IP (ctx), &ip, NULL, NULL);
 	// Don't need to handle return status "success" because this ip is stored below only, NULL is okay
 
-	gboolean sane_frame = (frame->ji && frame->type != FRAME_TYPE_TRAMPOLINE);
-	if (!sane_frame) {
-		mono_error_set_argument (ud->error, "frame", "Frame is a trampoline or lacks jit info");
-		return TRUE;
+	gboolean is_managed = (frame->type == FRAME_TYPE_MANAGED);
+	if (!frame->ji && is_managed) {
+		mono_error_set_argument (ud->error, "frame", "Missing jinfo for managed frame");
+		return FALSE; // Keep unwinding
 	}
 
-	method = jinfo_get_method (frame->ji);
-	gboolean is_managed = (method != NULL);
+	MonoMethod *method = NULL;
+	if (is_managed)
+		method = jinfo_get_method (frame->ji);
 
 	return summarize_frame_internal (method, (gpointer) ip, frame->native_offset, is_managed, data);
 }
@@ -1573,6 +1578,7 @@ mono_summarize_stack (MonoThreadSummary *out, MonoContext *crash_ctx)
 	data.frames = out->managed_frames;
 	data.hashes = &out->hashes;
 
+	data.error = frame_specific_error;
 	// FIXME: collect stack pointer for both and sort frames by SP
 	// so people can see relative ordering of both managed and unmanaged frames.
 
