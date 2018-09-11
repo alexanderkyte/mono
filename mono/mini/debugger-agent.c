@@ -520,7 +520,7 @@ typedef struct ReplyPacket {
 #ifdef HOST_ANDROID
 #define DEBUG_PRINTF(level, ...) do { if (G_UNLIKELY ((level) <= log_level)) { g_print (__VA_ARGS__); } } while (0)
 #else
-#define DEBUG_PRINTF(level, ...) do { if (G_UNLIKELY ((level) <= log_level)) { fprintf (log_file, __VA_ARGS__); fflush (log_file); } } while (0)
+#define DEBUG_PRINTF(level, ...) do { if (level < 0) { MOSTLY_ASYNC_SAFE_PRINTF(__VA_ARGS__); } } while (0)
 #endif
 
 #ifdef HOST_WIN32
@@ -3494,6 +3494,7 @@ create_event_list (EventKind event, GPtrArray *reqs, MonoJitInfo *ji, EventInfo 
 
 	for (i = 0; i < reqs->len; ++i) {
 		EventRequest *req = (EventRequest *)g_ptr_array_index (reqs, i);
+
 		if (req->event_kind == event) {
 			gboolean filtered = FALSE;
 
@@ -3641,6 +3642,7 @@ event_to_string (EventKind event)
 	case EVENT_KIND_KEEPALIVE: return "KEEPALIVE";
 	case EVENT_KIND_USER_BREAK: return "USER_BREAK";
 	case EVENT_KIND_USER_LOG: return "USER_LOG";
+	case EVENT_KIND_CRASH: return "CRASH";
 	default:
 		g_assert_not_reached ();
 		return "";
@@ -3668,36 +3670,38 @@ process_event (EventKind event, gpointer arg, gint32 il_offset, MonoContext *ctx
 	int nevents;
 
 	if (!inited) {
-		DEBUG_PRINTF (2, "Debugger agent not initialized yet: dropping %s\n", event_to_string (event));
+		/*MOSTLY_ASYNC_SAFE_PRINTF ("Debugger agent not initialized yet: dropping %s\n", event_to_string (event));*/
 		return;
 	}
 
 	if (!vm_start_event_sent && event != EVENT_KIND_VM_START) {
 		// FIXME: We miss those events
-		DEBUG_PRINTF (2, "VM start event not sent yet: dropping %s\n", event_to_string (event));
+		/*MOSTLY_ASYNC_SAFE_PRINTF ("VM start event not sent yet: dropping %s\n", event_to_string (event));*/
 		return;
 	}
 
 	if (vm_death_event_sent) {
-		DEBUG_PRINTF (2, "VM death event has been sent: dropping %s\n", event_to_string (event));
+		/*MOSTLY_ASYNC_SAFE_PRINTF ("VM death event has been sent: dropping %s\n", event_to_string (event));*/
 		return;
 	}
 
 	if (mono_runtime_is_shutting_down () && event != EVENT_KIND_VM_DEATH) {
-		DEBUG_PRINTF (2, "Mono runtime is shutting down: dropping %s\n", event_to_string (event));
+		/*MOSTLY_ASYNC_SAFE_PRINTF ("Mono runtime is shutting down: dropping %s\n", event_to_string (event));*/
 		return;
 	}
 
 	if (disconnected) {
-		DEBUG_PRINTF (2, "Debugger client is not connected: dropping %s\n", event_to_string (event));
+		/*MOSTLY_ASYNC_SAFE_PRINTF ("Debugger client is not connected: dropping %s\n", event_to_string (event));*/
 		return;
 	}
 
 	if (event == EVENT_KIND_KEEPALIVE)
 		suspend_policy = SUSPEND_POLICY_NONE;
 	else {
-		if (events == NULL)
+		if (events == NULL) {
+			/*MOSTLY_ASYNC_SAFE_PRINTF ("%s %d", __FILE__, __LINE__);*/
 			return;
+		}
 
 		if (agent_config.defer) {
 			if (is_debugger_thread ()) {
@@ -3705,9 +3709,11 @@ process_event (EventKind event, gpointer arg, gint32 il_offset, MonoContext *ctx
 				suspend_policy = SUSPEND_POLICY_NONE;
 			}
 		} else {
-			if (is_debugger_thread () && event != EVENT_KIND_VM_DEATH)
+			if (is_debugger_thread () && event != EVENT_KIND_VM_DEATH) {
 				// FIXME: Send these with a NULL thread, don't suspend the current thread
+				/*MOSTLY_ASYNC_SAFE_PRINTF ("%s %d", __FILE__, __LINE__);*/
 				return;
+			}
 		}
 	}
 
@@ -3779,8 +3785,9 @@ process_event (EventKind event, gpointer arg, gint32 il_offset, MonoContext *ctx
 				buffer_add_int (&buf, mono_environment_exitcode_get ());
 			break;
 		case EVENT_KIND_CRASH: {
+			/*MOSTLY_ASYNC_SAFE_PRINTF("\nAdding crash\n");*/
 			EventInfo *ei = (EventInfo *)arg;
-			buffer_add_int (&buf, ei->hashes->offset_free_hash);
+			buffer_add_long (&buf, ei->hashes->offset_free_hash);
 			buffer_add_string (&buf, ei->dump);
 			break;
 		}
@@ -3839,7 +3846,9 @@ process_event (EventKind event, gpointer arg, gint32 il_offset, MonoContext *ctx
 			get_objref (keepalive_obj);
 	}
 
+	/*MOSTLY_ASYNC_SAFE_PRINTF("\nBefore send packet\n");*/
 	send_success = send_packet (CMD_SET_EVENT, CMD_COMPOSITE, &buf);
+	/*MOSTLY_ASYNC_SAFE_PRINTF("\nAfter send packet %d\n", send_success);*/
 
 	if (send_success) {
 		DebuggerTlsData *tls = (DebuggerTlsData *)mono_native_tls_get_value (debugger_tls_id);
@@ -3906,6 +3915,10 @@ runtime_initialized (MonoProfiler *prof)
 static void
 runtime_shutdown (MonoProfiler *prof)
 {
+	/*while (TRUE) {*/
+		/*MOSTLY_ASYNC_SAFE_PRINTF ("Attach!");*/
+		/*[>sleep (20);<]*/
+	/*}*/
 	process_profiler_event (EVENT_KIND_VM_DEATH, NULL);
 
 	mono_debugger_agent_cleanup ();
@@ -4886,14 +4899,35 @@ mono_debugger_agent_send_crash (char *jsonDump, MonoStackHash *hashes, int pause
 	// actually enabled. Therefore we do the wait here.
 	sleep (pause);
 
+	// Don't heap allocate when we can avoid it
+	EventRequest request;
+	memset (&request, 0, sizeof (request));
+	request.event_kind = EVENT_KIND_CRASH;
+
+	gpointer pdata [1];
+	pdata [0] = &request;
+	GPtrArray array;
+	memset (&array, 0, sizeof (array));
+	array.pdata = pdata;
+	array.len = 1;
+
 	mono_loader_lock ();
-	events = create_event_list (EVENT_KIND_CRASH, NULL, NULL, NULL, &suspend_policy);
+	events = create_event_list (EVENT_KIND_CRASH, &array, NULL, NULL, &suspend_policy);
 	mono_loader_unlock ();
 
 	ei.dump = jsonDump;
 	ei.hashes = hashes;
 
+	/*MOSTLY_ASYNC_SAFE_PRINTF ("Sending debugger !\n");*/
+	g_assert (events != NULL);
+
 	process_event (EVENT_KIND_CRASH, &ei, 0, NULL, events, suspend_policy);
+
+	/*MOSTLY_ASYNC_SAFE_PRINTF ("Sleeping Sending debugger !\n");*/
+	// Don't die before it is sent.
+	sleep (4);
+
+	/*MOSTLY_ASYNC_SAFE_PRINTF ("Done Sending debugger !\n");*/
 }
 
 /*

@@ -1032,6 +1032,8 @@ dump_native_stacktrace (const char *signal, void *ctx)
 			// So we dump to disk
 			if (!leave && !dump_for_merp)
 				mono_crash_dump (output, &hashes);
+
+			mono_debugger_agent_send_crash (output, &hashes, 0 /* wait # seconds */);
 		}
 #endif
 
@@ -1078,13 +1080,11 @@ dump_native_stacktrace (const char *signal, void *ctx)
 		if (pid == 0) {
 			dup2 (STDERR_FILENO, STDOUT_FILENO);
 
+			mono_runtime_printf_err ("\nDebug info from gdb:\n");
 			mono_gdb_render_native_backtraces (crashed_pid);
 			exit (1);
 		}
 
-		mono_debugger_agent_send_crash (output, &hashes, 2 /* wait # seconds */);
-
-		mono_runtime_printf_err ("\nDebug info from gdb:\n");
 		waitpid (pid, &status, 0);
 	}
 #endif

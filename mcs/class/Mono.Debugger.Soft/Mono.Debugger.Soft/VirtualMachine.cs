@@ -799,6 +799,9 @@ namespace Mono.Debugger.Soft
 					l.Add (new UserLogEvent (vm, req_id, thread_id, ei.Level, ei.Category, ei.Message));
 					break;
 				case EventType.Crash:
+					// This class subclasses VMDisconnectedException, so people catching that
+					// event will cleanly handle this one. They'll just miss out on the stacktrace.
+					// throw new VMCrashException (ei.Dump, ei.Hash);
 					l.Add (new CrashEvent (vm, req_id, thread_id, ei.Dump, ei.Hash));
 					break;
 				}

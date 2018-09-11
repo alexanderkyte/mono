@@ -1271,7 +1271,9 @@ namespace Mono.Debugger.Soft
 		}
 
 		internal void Close () {
+			//Console.WriteLine ("closed here: {0}", Environment.StackTrace);
 			closed = true;
+			//Console.WriteLine(Environment.StackTrace);
 		}
 
 		internal bool IsClosed {
@@ -1281,6 +1283,7 @@ namespace Mono.Debugger.Soft
 		}
 
 		bool disconnected;
+		VMCrashException crashed;
 
 		internal ManualResetEvent DisconnectedEvent = new ManualResetEvent (false);
 
@@ -1288,9 +1291,13 @@ namespace Mono.Debugger.Soft
 			while (!closed) {
 				try {
 					bool res = ReceivePacket ();
-					if (!res)
+					if (!res) {
 						break;
-				} catch (ThreadAbortException) {
+					}
+				} catch (ThreadAbortException ex) {
+					break;
+				} catch (VMCrashException ex) {
+					crashed = ex;
 					break;
 				} catch (Exception ex) {
 					if (!closed) {
@@ -1302,11 +1309,21 @@ namespace Mono.Debugger.Soft
 
 			lock (reply_packets_monitor) {
 				disconnected = true;
+				//Console.WriteLine(Environment.StackTrace);
 				DisconnectedEvent.Set ();
 				Monitor.PulseAll (reply_packets_monitor);
 				TransportClose ();
 			}
 			EventHandler.VMDisconnect (0, 0, null);
+		}
+
+		void disconnected_check () {
+			if (!disconnected)
+				return;
+			else if (crashed != null)
+				throw crashed;
+			else
+				throw new VMDisconnectedException ();
 		}
 
 		bool ReceivePacket () {
@@ -1364,10 +1381,16 @@ namespace Mono.Debugger.Soft
 								//EventHandler.VMDeath (req_id, 0, null);
 								events [i] = new EventInfo (etype, req_id) { ExitCode = exit_code };
 							} else if (kind == EventKind.CRASH) {
-								string dump = r.ReadString ();
 								ulong hash = (ulong) r.ReadLong ();
+								string dump = r.ReadString ();
 
-								events [i] = new EventInfo (etype, req_id) { Dump = dump, Hash = hash };
+								// Throw here, otherwise we can be killed by VMDisconnectedExceptions 
+								// when trying to handle this event
+								//
+								// This class subclasses VMDisconnectedException, so people catching that
+								// event will cleanly handle this one. They'll just miss out on the stacktrace.
+								// throw new VMCrashException (dump, hash);
+								events [i] = new EventInfo (etype, req_id) { Dump = dump, Hash = hash};
 							} else if (kind == EventKind.THREAD_START) {
 								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = thread_id };
 								//EventHandler.ThreadStart (req_id, thread_id, thread_id);
@@ -1585,8 +1608,7 @@ namespace Mono.Debugger.Soft
 			int id = IdGenerator;
 			Stopwatch watch = null;
 
-			if (disconnected)
-				throw new VMDisconnectedException ();
+			disconnected_check ();
 
 			if (EnableConnectionLogging)
 				watch = Stopwatch.StartNew ();
@@ -1620,8 +1642,7 @@ namespace Mono.Debugger.Soft
 							return r;
 						}
 					} else {
-						if (disconnected)
-							throw new VMDisconnectedException ();
+						disconnected_check ();
 						Monitor.Wait (reply_packets_monitor);
 					}
 				}
@@ -2618,6 +2639,7 @@ namespace Mono.Debugger.Soft
 
 		public void ForceDisconnect ()
 		{
+			//Console.WriteLine ("closed here: {0}", Environment.StackTrace);
 			closed = true;
 			disconnected = true;
 			DisconnectedEvent.Set ();

@@ -33,7 +33,7 @@ TEST_HELPERS_SOURCES = \
 	Test/TypeLoadClass.cs
 
 dtest-app.exe: Test/dtest-app.cs $(TEST_HELPERS_SOURCES)
-	$(CSCOMPILE) -r:$(topdir)/class/lib/$(PROFILE)/mscorlib.dll -r:$(topdir)/class/lib/$(PROFILE)/System.Core.dll -r:$(topdir)/class/lib/$(PROFILE)/System.dll -out:$@ -unsafe $(PLATFORM_DEBUG_FLAGS) -optimize- Test/dtest-app.cs $(TEST_HELPERS_SOURCES)
+	$(CSCOMPILE) -r:$(topdir)/class/lib/$(PROFILE)/Mono.Posix.dll -r:$(topdir)/class/lib/$(PROFILE)/mscorlib.dll -r:$(topdir)/class/lib/$(PROFILE)/System.Core.dll -r:$(topdir)/class/lib/$(PROFILE)/System.dll -out:$@ -unsafe $(PLATFORM_DEBUG_FLAGS) -optimize- Test/dtest-app.cs $(TEST_HELPERS_SOURCES)
 
 CLEAN_FILES = dtest-app.exe dtest-app.exe.mdb dtest-app.pdb dtest-excfilter.exe dtest-excfilter.exe.mdb dtest-excfilter.pdb
 

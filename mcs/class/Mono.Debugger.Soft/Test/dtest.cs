@@ -2445,28 +2445,34 @@ public class DebuggerTests
 
 	[Test]
 	public void Crash () {
-		vm.Detach ();
+		bool success = false;
 
-		Start (new string [] { "dtest-app.exe", "crash_vm" });
+		try {
+			vm.Detach ();
+			Start (new string [] { "dtest-app.exe", "crash_vm" });
+			Event e = run_until ("crash");
+			while (!success) {
+				vm.Resume ();
+				e = GetNextEvent ();
+				var crash = e as CrashEvent;
+				if (crash == null)
+					continue;
 
-		Event e = run_until ("crash");
+				success = true;
+				Assert.AreNotEqual (0, crash.Dump.Length);
+				Assert.AreNotEqual (0, crash.Hash);
 
-		while (true) {
-			vm.Resume ();
-			e = GetNextEvent ();
-			var crash = e as CrashEvent;
+				Console.WriteLine ("This is the Dump: {0}", crash.Dump);
 
-			if (crash == null)
-				continue;
-
-			Assert.AreNotEqual (0, crash.Dump.Length);
-			Assert.AreNotEqual (0, crash.Hash);
-
-			Console.WriteLine ("Dump: {0}", crash.Dump);
-			break;
+				break;
+			}
+		} finally {
+			vm.Detach ();
+			vm = null;
 		}
 
-		vm = null;
+		if (!success)
+			Assert.Fail ("Didn't get crash event");
 	}
 
 	[Test]

@@ -16,6 +16,7 @@ using System.Net.Sockets;
 #if !MOBILE
 using MonoTests.Helpers;
 #endif
+using Mono.Posix;
 
 public class TestsBase
 {
@@ -319,7 +320,7 @@ public class Tests : TestsBase, ITest2
 			unhandled_exception_endinvoke ();
 			return 0;
 		}
-		if (args.Length >0 && args [0] == "crash") {
+		if (args.Length >0 && args [0] == "crash_vm") {
 			crash ();
 			return 0;
 		}
@@ -1334,11 +1335,21 @@ public class Tests : TestsBase, ITest2
 		unhandled_exception_endinvoke_2 ();
 	}
 
+	// kill(2)
+	//    int kill(pid_t pid, int sig);
+	//[DllImport (LIBC, SetLastError=true, EntryPoint="kill")]
+	//private static extern int sys_kill (int pid, int sig);
+
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]
 	public static void crash () {
-		var monoType = Type.GetType ("System.Threading.Mutex", false);
-		var m = monoType.GetMethod("ReleaseMutex_internal", BindingFlags.NonPublic | BindingFlags.Static);
-		m.Invoke(null, new object[] { new IntPtr (-1) });
+		//var monoType = Type.GetType ("Mono.Runtime", false);
+		//var m = monoType.GetMethod("AbortWithTelemetry", BindingFlags.NonPublic | BindingFlags.Static);
+		//m.Invoke(null, new object[] { });
+		//var pid = Mono.Unix.UnixProcess.GetCurrentProcess ();
+		//pid.Kill ();
+		//GC.GetGeneration (10);
+		//Mono.Unix.Native.Syscall.kill (pid.Id, Mono.Unix.e.Signum.SIGABRT);
+		unsafe { Console.WriteLine("{0}", *(int*)0x10000); }
 	}
 
 	[MethodImplAttribute (MethodImplOptions.NoInlining)]

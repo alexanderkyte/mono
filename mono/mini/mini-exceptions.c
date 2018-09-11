@@ -3141,7 +3141,6 @@ mono_handle_native_crash (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_T
 			 "used by your application.\n"
 			 "=================================================================\n",
 			signal);
-
 #ifdef MONO_ARCH_USE_SIGACTION
 	struct sigaction sa;
 	sa.sa_handler = SIG_DFL;
