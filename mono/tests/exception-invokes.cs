@@ -22,20 +22,28 @@ class C
 		int iterations = 0;
 		while (ex != null) {
 			string fullTrace = ex.StackTrace;
+
 			string[] frames = fullTrace.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
+			Console.WriteLine("Split into {0} lines", frames.Length);
 
-			// Console.WriteLine ("{0} frames", frames.Length);
-			// foreach (var str in frames)
-			// 	Console.WriteLine ("line {0}", str);
-			frames = frames.Where (l => l.StartsWith ("  at C.InvokeChain")).ToArray ();
-			// Console.WriteLine ("Post filter {0} frames", frames.Length);
+			int count = 0;
+			for (int i=0; i < frames.Length; i++)
+			{
+				var words = frames [i].Split((char []) null, StringSplitOptions.RemoveEmptyEntries);
+				if (words.Length > 1 && words [0] == "at" && words [1].StartsWith("C.InvokeChain"))
+					count++;
+				// Console.WriteLine("Line: {0} {1}", frames [i], words.Length);
+			}
 
-			if (frames.Length != 0) {
-				if (frames.Length != (C.StepSize-1)) {
-					Console.WriteLine ("Fail step size");
-					Environment.Exit (1);
+			if (count != 0)
+			{
+				if (count > 1 && count != C.StepSize)
+				{
+					Console.WriteLine("Fail step size");
+					Environment.Exit(1);
 				}
-				iterations += 1;
+				if (count == C.StepSize)
+					iterations += 1;
 			}
 
 			ex = ex.InnerException;
