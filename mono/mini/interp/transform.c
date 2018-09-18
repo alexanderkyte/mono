@@ -4295,6 +4295,12 @@ generate (MonoMethod *method, MonoMethodHeader *header, InterpMethod *rtm, unsig
 		case MONO_CUSTOM_PREFIX:
 			++td->ip;
 		        switch (*td->ip) {
+				case CEE_MONO_RETHROW:
+					CHECK_STACK (td, 1);
+					SIMPLE_OP (td, MINT_THROW);
+					td->sp = td->stack;
+					break;
+
 				case CEE_MONO_LD_DELEGATE_METHOD_PTR:
 					--td->sp;
 					td->ip += 1;
