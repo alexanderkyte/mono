@@ -5,8 +5,8 @@ using System.Reflection;
 
 class C
 {
-	const int StepSize = 4;
-	const int Iterations = 6;
+	const int StepSize = 5;
+	const int Iterations = 8;
 
 	public static void Main ()
 	{
@@ -65,8 +65,10 @@ class C
 		if (depth == 0) {
 			Base ();
 		} else if (depth % C.StepSize == 0) {
+			Console.WriteLine ("InvokeChain {0} indirect", depth);
 			typeof (C).GetMethod ("InvokeChain", BindingFlags.NonPublic | BindingFlags.Instance).Invoke (this, new object[] {depth - 1});
 		} else {
+			Console.WriteLine ("InvokeChain {0} direct", depth);
 			InvokeChain (depth - 1);
 		}
 	}
