@@ -8931,6 +8931,9 @@ mono_string_handle_length (MonoStringHandle s)
 uintptr_t
 mono_array_length (MonoArray *array)
 {
+	if (!array)
+		return 0;
+
 	uintptr_t res;
 	MONO_ENTER_GC_UNSAFE;
 	res = array->max_length;

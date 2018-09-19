@@ -11825,7 +11825,7 @@ mono_ldptr:
 			start_new_bblock = 1;
 			/* This can complicate code generation for llvm since the return value might not be defined */
 			if (COMPILE_LLVM (cfg))
-				INLINE_FAILURE ("throw");
+				INLINE_FAILURE ("mono_cee_mono_rethrow");
 			break;
 		}
 		case MONO_CEE_SIZEOF: {
