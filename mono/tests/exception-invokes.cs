@@ -32,7 +32,7 @@ class C
 				var words = frames [i].Split((char []) null, StringSplitOptions.RemoveEmptyEntries);
 				if (words.Length > 1 && words [0] == "at" && words [1].StartsWith("C.InvokeChain"))
 					count++;
-				// Console.WriteLine("Line: {0} {1}", frames [i], words.Length);
+					Console.WriteLine("Line: {0} {1}", frames [i], words.Length);
 			}
 
 			if (count != 0)
@@ -40,7 +40,7 @@ class C
 				if (count > 1 && count != C.StepSize)
 				{
 					Console.WriteLine("Fail step size");
-					Environment.Exit(1);
+					// Environment.Exit(1);
 				}
 				if (count == C.StepSize)
 					iterations += 1;
@@ -74,6 +74,7 @@ class C
 	[MethodImpl(MethodImplOptions.NoInlining)]
 	private void Base ()
 	{
+		Console.WriteLine ("Stacktrace at bottom: {0}", Environment.StackTrace);
 		throw new NotImplementedException ();
 	}
 }

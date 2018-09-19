@@ -1178,7 +1178,8 @@ emit_thread_interrupt_checkpoint_call (MonoMethodBuilder *mb, gpointer checkpoin
 	//
 	// See calls to mono_get_rethrow_exception_addr in /mini to see the more
 	// common path
-	mono_mb_emit_icall (mb, mono_marshal_rethrow_exception);
+	/*mono_mb_emit_icall (mb, mono_marshal_rethrow_exception);*/
+	mono_mb_emit_byte (mb, CEE_MONO_RETHROW);
 
 	mono_mb_patch_branch (mb, pos_noex);
 	mono_mb_emit_byte (mb, CEE_POP);

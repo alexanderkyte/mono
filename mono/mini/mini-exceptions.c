@@ -1923,7 +1923,7 @@ handle_exception_first_pass (MonoContext *ctx, MonoObject *obj, gint32 *out_filt
 	if (initial_trace_ips) {
 		int len = mono_array_length (initial_trace_ips) / TRACE_IP_ENTRY_SIZE;
 
-		for (i = 0; i < (len - 1); i++) {
+		for (i = 0; i < len; i++) {
 			for (int j = 0; j < TRACE_IP_ENTRY_SIZE; ++j) {
 				gpointer p = mono_array_get (initial_trace_ips, gpointer, (i * TRACE_IP_ENTRY_SIZE) + j);
 				trace_ips = g_list_prepend (trace_ips, p);
