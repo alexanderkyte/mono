@@ -388,11 +388,36 @@ mono_amd64_throw_exception (guint64 dummy1, guint64 dummy2, guint64 dummy3, guin
 
 	if (mono_object_isinst_checked (exc, mono_defaults.exception_class, error)) {
 		MonoException *mono_ex = (MonoException*)exc;
+
+		/*fprintf (stderr, "Before %s %d \n", __FILE__, __LINE__);*/
+		/*MonoException *new_mono_ex = mono_ex;*/
+		/*while (new_mono_ex) {*/
+			/*fprintf (stderr, "Looped %s\n", new_mono_ex->object.vtable->klass->name);*/
+			/*MonoArray *initial_trace_ips = new_mono_ex->trace_ips;*/
+			/*if (initial_trace_ips) {*/
+				/*int len = mono_array_length (initial_trace_ips);*/
+
+				/*for (int j = 0; j < len; ++j) {*/
+					/*gpointer *p = mono_array_addr (initial_trace_ips, gpointer, j);*/
+					/*char *name = mono_pmip (*p);*/
+					/*fprintf (stderr, "Frame %p %s \n", *p, name);*/
+				/*}*/
+			/*}*/
+			/*new_mono_ex = (MonoException *) mono_ex->inner_ex;*/
+		/*}*/
+
+		/*fprintf (stderr, "End %s %d \n", __FILE__, __LINE__);*/
+
 		if (!rethrow) {
+			fprintf (stderr, "Throwing non-rethrown here: %s %d\n", __FILE__, __LINE__);
 			mono_ex->stack_trace = NULL;
+			if (mono_ex->trace_ips)
+				g_assert_not_reached ();
 			mono_ex->trace_ips = NULL;
 		}
 	}
+
+
 	mono_error_assert_ok (error);
 
 	/* adjust eip so that it point into the call instruction */

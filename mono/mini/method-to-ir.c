@@ -12013,6 +12013,9 @@ mono_ldptr:
 	if ((cfg->verbose_level > 2) && (cfg->method == method)) 
 		mono_print_code (cfg, "AFTER METHOD-TO-IR");
 
+	if (!strcmp (cfg->method->name, "Invoke"))
+		mono_print_code (cfg, "Invoke print");
+
 	goto cleanup;
 
 mono_error_exit:
