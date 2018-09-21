@@ -2989,7 +2989,6 @@ mono_marshal_get_icall_wrapper (MonoMethodSignature *sig, const char *name, gcon
 
 	g_assert (sig->pinvoke);
 
-	name = g_strdup_printf ("wrapper_%d_%s", __LINE__, name);
 	mb = mono_mb_new (mono_defaults.object_class, name, MONO_WRAPPER_MANAGED_TO_NATIVE);
 
 	mb->method->save_lmf = 1;
@@ -3558,7 +3557,7 @@ mono_marshal_get_native_func_wrapper (MonoImage *image, MonoMethodSignature *sig
 	if ((res = mono_marshal_find_in_cache (cache, &key)))
 		return res;
 
-	name = g_strdup_printf ("wrapper_%d_native_%p", __LINE__, func);
+	name = g_strdup_printf ("wrapper_native_%p", func);
 	mb = mono_mb_new (mono_defaults.object_class, name, MONO_WRAPPER_MANAGED_TO_NATIVE);
 	mb->method->save_lmf = 1;
 
@@ -3621,7 +3620,7 @@ mono_marshal_get_native_func_wrapper_aot (MonoClass *klass)
 	sig = mono_metadata_signature_dup (mono_method_signature (invoke));
 	sig->hasthis = 0;
 
-	name = g_strdup_printf ("wrapper_%d_aot_native", __LINE__);
+	name = g_strdup_printf ("wrapper_aot_native");
 	mb = mono_mb_new (invoke->klass, name, MONO_WRAPPER_MANAGED_TO_NATIVE);
 	mb->method->save_lmf = 1;
 

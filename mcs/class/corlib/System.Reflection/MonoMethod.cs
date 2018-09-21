@@ -319,8 +319,6 @@ namespace System.Reflection {
 					throw;
 #endif
 				} catch (Exception e) {
-					Console.WriteLine ("TargetInvocationException created with inner exception: {0}", e.StackTrace);
-
 					throw new TargetInvocationException (e);
 				}
 			}
