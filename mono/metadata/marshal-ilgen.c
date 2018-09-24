@@ -1196,16 +1196,6 @@ emit_thread_force_interrupt_checkpoint (MonoMethodBuilder *mb)
 	emit_thread_interrupt_checkpoint_call (mb, (gpointer)mono_thread_force_interruption_checkpoint_noraise);
 }
 
-MonoException *
-mono_marshal_rethrow_exception (MonoException *exc)
-{
-	mono_get_eh_callbacks ()->mono_reraise_exception (exc);
-
-	// Easier than making caller add more CEE_DUP
-	// mimic the implicit signature of CEE_THROW
-	return exc;
-}
-
 void
 mono_marshal_emit_thread_interrupt_checkpoint (MonoMethodBuilder *mb)
 {
