@@ -1172,13 +1172,7 @@ emit_thread_interrupt_checkpoint_call (MonoMethodBuilder *mb, gpointer checkpoin
 	mono_mb_emit_byte (mb, CEE_DUP);
 	pos_noex = mono_mb_emit_branch (mb, CEE_BRFALSE);
 
-	// This codepath seems to be very rarely hit when using the non-LLVM
-	// backend. I think that the aot compiler passes on the BCL for the default
-	// profiles probably capture this a bit. 
-	//
-	// See calls to mono_get_rethrow_exception_addr in /mini to see the more
-	// common path
-	/*mono_mb_emit_icall (mb, mono_marshal_rethrow_exception);*/
+	mono_mb_emit_byte (mb, MONO_CUSTOM_PREFIX);
 	mono_mb_emit_byte (mb, CEE_MONO_RETHROW);
 
 	mono_mb_patch_branch (mb, pos_noex);
