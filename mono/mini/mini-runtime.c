@@ -3136,28 +3136,8 @@ mono_jit_runtime_invoke (MonoMethod *method, void *obj, void **params, MonoObjec
 
 		result = runtime_invoke ((MonoObject *)obj, params, exc, info->compiled_method);
 	}
-	if (catchExcInMonoError && *exc != NULL) {
-		fprintf (stderr, "Caught and saved %s %d \n", __FILE__, __LINE__);
-		MonoException *new_mono_ex = *((MonoException **) exc);
-		while (new_mono_ex) {
-			fprintf (stderr, "Looped %s\n", new_mono_ex->object.vtable->klass->name);
-			MonoArray *initial_trace_ips = new_mono_ex->trace_ips;
-			if (initial_trace_ips) {
-				int len = mono_array_length (initial_trace_ips);
-
-				for (int j = 0; j < len; ++j) {
-					gpointer *p = mono_array_addr (initial_trace_ips, gpointer, j);
-					char *name = mono_pmip (*p);
-					fprintf (stderr, "Frame %p %s \n", *p, name);
-				}
-			}
-			new_mono_ex = (MonoException *) new_mono_ex->inner_ex;
-		}
-
-		fprintf (stderr, "End %s %d \n", __FILE__, __LINE__);
-		
+	if (catchExcInMonoError && *exc != NULL)
 		mono_error_set_exception_instance (error, (MonoException*) *exc);
-	}
 	return result;
 }
 

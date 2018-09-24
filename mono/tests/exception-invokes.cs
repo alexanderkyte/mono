@@ -6,7 +6,7 @@ using System.Reflection;
 class C
 {
 	const int StepSize = 5;
-	const int Iterations = 10;
+	const int Iterations = 8;
 
 	public static void Main ()
 	{
@@ -21,7 +21,6 @@ class C
 
 		int iterations = 0;
 		while (ex != null) {
-			Console.WriteLine ("Ex is {0}", ex.GetType ());
 			string fullTrace = ex.StackTrace;
 
 			string[] frames = fullTrace.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
