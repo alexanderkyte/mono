@@ -60,3 +60,5 @@ endef
 
 #$(eval $(call BenchmarkDotNetTemplate,BinaryTrees))
 #$(eval $(call BenchmarkDotNetTemplate,NBody))
+
+#$(eval $(call BenchmarkDotNetTemplate,Template))
