@@ -37,15 +37,15 @@ check-local: test
 
 top_builddir = ../../../
 mcs_topdir = $(top_builddir)/mcs
-RUNTIME = MONO_PATH=$(mcs_topdir)/class/lib/default $(top_builddir)/runtime/mono-wrapper
-CSC = $(RUNTIME) $(mcs_topdir)/class/lib/default/mcs.exe
+RUNTIME = MONO_PATH=$(mcs_topdir)/class/lib/$(DEFAULT_PROFILE) $(top_builddir)/runtime/mono-wrapper
+CSC = $(RUNTIME) $(mcs_topdir)/class/lib/$(DEFAULT_PROFILE)/mcs.exe
 
 define BenchmarkDotNetTemplate
 #$(eval SOURCE_FILE_$(1):=$(shell test -z $(3) && echo $(1) || echo "$(3)"))
 #$(eval TEST_FILE_$(1):=$(shell test -z $(3) && echo $(1) || echo "$(3)"))
 
-src/$(1).exe:: src/$(1).cs src/Microbenchmarks.cs Makefile BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll
-	mcs -unsafe src/$(1).cs src/Microbenchmarks.cs -r:$(top_builddir)/mono/tests/microbenchmarks/BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll 
+src/$(1).exe:: src/$(1).cs src/Microbenchmarks.cs Makefile BenchmarkDotNet.stamp
+	$(CSC) -unsafe src/$(1).cs src/Microbenchmarks.cs -r:$(top_builddir)/mono/tests/microbenchmarks/BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll 
 
 build-$(1): src/$(1).exe
 
@@ -60,5 +60,6 @@ endef
 
 #$(eval $(call BenchmarkDotNetTemplate,BinaryTrees))
 #$(eval $(call BenchmarkDotNetTemplate,NBody))
+#$(eval $(call BenchmarkDotNetTemplate,Mandelbrot))
 
 #$(eval $(call BenchmarkDotNetTemplate,Template))
