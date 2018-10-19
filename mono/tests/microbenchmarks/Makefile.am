@@ -66,5 +66,6 @@ endef
 #$(eval $(call BenchmarkDotNetTemplate,Fannkuchredux))
 #$(eval $(call BenchmarkDotNetTemplate,Fasta))
 #$(eval $(call BenchmarkDotNetTemplate,KNucleotide))
+#$(eval $(call BenchmarkDotNetTemplate,RevComp))
 
 #$(eval $(call BenchmarkDotNetTemplate,Template))
