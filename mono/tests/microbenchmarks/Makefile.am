@@ -26,9 +26,10 @@ EXTRA_DIST=SUBMODULES.json
 
 BenchmarkDotNet.stamp: Makefile 
 	$(MAKE) reset-BenchmarkDotNet
+	$(MAKE) BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll
 	touch $@
 
-BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll: BenchmarkDotNet.stamp
+BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll:
 	cd BenchmarkDotNet && chmod +x ./build.sh && ./build.sh --skiptests=true
 
 all-local: test
@@ -58,14 +59,14 @@ build:: build-$(1)
 
 endef
 
-#$(eval $(call BenchmarkDotNetTemplate,BinaryTrees))
-#$(eval $(call BenchmarkDotNetTemplate,NBody))
-#$(eval $(call BenchmarkDotNetTemplate,Mandelbrot))
-#$(eval $(call BenchmarkDotNetTemplate,RegexRedux))
-#$(eval $(call BenchmarkDotNetTemplate,SpectralNorm))
-#$(eval $(call BenchmarkDotNetTemplate,Fannkuchredux))
-#$(eval $(call BenchmarkDotNetTemplate,Fasta))
-#$(eval $(call BenchmarkDotNetTemplate,KNucleotide))
-#$(eval $(call BenchmarkDotNetTemplate,RevComp))
+$(eval $(call BenchmarkDotNetTemplate,BinaryTrees))
+$(eval $(call BenchmarkDotNetTemplate,NBody))
+$(eval $(call BenchmarkDotNetTemplate,Mandelbrot))
+$(eval $(call BenchmarkDotNetTemplate,RegexRedux))
+$(eval $(call BenchmarkDotNetTemplate,SpectralNorm))
+$(eval $(call BenchmarkDotNetTemplate,Fannkuchredux))
+$(eval $(call BenchmarkDotNetTemplate,Fasta))
+$(eval $(call BenchmarkDotNetTemplate,KNucleotide))
+$(eval $(call BenchmarkDotNetTemplate,RevComp))
 
 #$(eval $(call BenchmarkDotNetTemplate,Template))
