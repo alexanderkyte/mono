@@ -62,6 +62,7 @@ endef
 #$(eval $(call BenchmarkDotNetTemplate,NBody))
 #$(eval $(call BenchmarkDotNetTemplate,Mandelbrot))
 #$(eval $(call BenchmarkDotNetTemplate,RegexRedux))
-#$(eval $(call BenchmarkDotNetSpectralNorm,SpectralNorm))
+#$(eval $(call BenchmarkDotNetTemplate,SpectralNorm))
+#$(eval $(call BenchmarkDotNetTemplate,Fannkuchredux))
 
 #$(eval $(call BenchmarkDotNetTemplate,Template))
