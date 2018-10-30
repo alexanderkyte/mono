@@ -2,9 +2,9 @@
   {
       "name": "BenchmarkDotNet", 
       "url": "https://github.com/alexanderkyte/BenchmarkDotNet.git",
-      "rev": "3d47c561c3db1a1b8129d1430d88b9e9d00e097c",
-      "remote-branch": "origin/mono_checkpoint", 
-      "branch": "mono_checkpoint", 
+      "rev": "6e23ef1ed8a6c693832d6588a55fcea60692c746",
+      "remote-branch": "origin/mono_aot", 
+      "branch": "mono_aot", 
       "directory": "BenchmarkDotNet"
   }
 ]

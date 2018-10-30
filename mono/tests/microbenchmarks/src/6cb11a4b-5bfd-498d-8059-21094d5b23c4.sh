@@ -1,0 +1,2 @@
+#!/bin/bash
+mono csc /noconfig /target:exe /optimize /unsafe /platform:x64 /appconfig:"/Users/akyte/mono/mono/tests/microbenchmarks/src/6cb11a4b-5bfd-498d-8059-21094d5b23c4.config" /reference:"/Users/akyte/mono/mcs/class/lib/net_4_x-macos/mscorlib.dll","/Users/akyte/mono/mono/tests/microbenchmarks/BenchmarkDotNet/src/BenchmarkDotNet/bin/Release/net46/BenchmarkDotNet.dll","/Users/akyte/mono/mono/tests/microbenchmarks/src/BinaryTrees.exe" 6cb11a4b-5bfd-498d-8059-21094d5b23c4.notcs

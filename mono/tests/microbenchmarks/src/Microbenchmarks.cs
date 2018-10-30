@@ -23,9 +23,9 @@ namespace MonoAOTMicrobenchmark
 			//.WithId("AOT Phase"));
 
 			Add(Job.ShortRun
-			.With(new MonoRuntime("Mono In-Tree", mono_path))
-			//.With(new[] { new MonoArgument("") })
-			.With(Jit.Llvm)
+			.With(new MonoRuntime("Mono In-Tree", mono_path, "--aot=full"))
+			.With(new[] { new MonoArgument("--full-aot") })
+			//.With(Jit.Llvm)
 			.WithId("AOT Run Phase"));
 
 			Add(DisassemblyDiagnoser.Create(new DisassemblyDiagnoserConfig(printIL: true, printAsm: true, printPrologAndEpilog: true, recursiveDepth: 0)));
