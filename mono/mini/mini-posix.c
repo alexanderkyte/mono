@@ -926,8 +926,25 @@ print_process_map (void)
 }
 
 static void
+assert_printer_callback (void)
+{
+	mono_dump_native_crash_info ("SIGABRT", NULL, NULL);
+}
+
+static void
 dump_native_stacktrace (const char *signal, void *ctx)
 {
+	static gint32 middle_of_crash = 0x0;
+	gint32 double_faulted = mono_atomic_cas_i32 ((gint32 *)&middle_of_crash, 0x1, 0x0);
+	if (!double_faulted) {
+		g_assertion_disable_global (assert_printer_callback);
+	} else {
+		mono_runtime_printf_err ("\nAn error has occured in the native fault reporting. Some diagnostic information will be unavailable.\n");
+
+		// In case still enabled
+		mono_summarize_toggle_assertions (FALSE);
+	}
+
 #ifdef HAVE_BACKTRACE_SYMBOLS
 	void *array [256];
 	char **names;
@@ -960,47 +977,51 @@ dump_native_stacktrace (const char *signal, void *ctx)
 		MonoStackHash hashes;
 
 #ifndef DISABLE_CRASH_REPORTING
-		gboolean leave = FALSE;
-		gboolean dump_for_merp = FALSE;
+		if (!double_faulted) {
+			gboolean leave = FALSE;
+			gboolean dump_for_merp = FALSE;
 #if defined(TARGET_OSX)
-		dump_for_merp = mono_merp_enabled ();
+			dump_for_merp = mono_merp_enabled ();
 #endif
 
-		if (!dump_for_merp) {
+			if (!dump_for_merp) {
 #ifdef DISABLE_STRUCTURED_CRASH
-			leave = TRUE;
+				leave = TRUE;
 #else
-			mini_register_sigterm_handler ();
+				mini_register_sigterm_handler ();
 #endif
-		}
+			}
 
-		MonoContext mctx;
-		MonoContext *passed_ctx = NULL;
-		if (!leave && ctx) {
-			mono_sigctx_to_monoctx (ctx, &mctx);
-			passed_ctx = &mctx;
-		}
+			MonoContext mctx;
+			MonoContext *passed_ctx = NULL;
+			if (!leave && ctx) {
+				mono_sigctx_to_monoctx (ctx, &mctx);
+				passed_ctx = &mctx;
+			}
 
-		if (!leave) {
-			mono_summarize_timeline_start ();
-			// Returns success, so leave if !success
-			leave = !mono_threads_summarize (passed_ctx, &output, &hashes, FALSE, TRUE, NULL, 0);
-		}
+			if (!leave) {
+				mono_summarize_timeline_start ();
+				mono_summarize_toggle_assertions (TRUE);
+				// Returns success, so leave if !success
+				leave = !mono_threads_summarize (passed_ctx, &output, &hashes, FALSE, TRUE, NULL, 0);
+			}
 
-		if (!leave) {
-			// Wait for the other threads to clean up and exit their handlers
-			// We can't lock / wait indefinitely, in case one of these threads got stuck somehow
-			// while dumping. 
-			mono_runtime_printf_err ("\nWaiting for dumping threads to resume\n");
-			sleep (1);
-		}
+			if (!leave) {
+				// Wait for the other threads to clean up and exit their handlers
+				// We can't lock / wait indefinitely, in case one of these threads got stuck somehow
+				// while dumping. 
+				mono_runtime_printf_err ("\nWaiting for dumping threads to resume\n");
+				sleep (1);
+			}
 
-		// We want our crash, and don't have telemetry
-		// So we dump to disk
-		if (!leave && !dump_for_merp) {
-			mono_summarize_timeline_phase_log (MonoSummaryCleanup);
-			mono_crash_dump (output, &hashes);
-			mono_summarize_timeline_phase_log (MonoSummaryDone);
+			// We want our crash, and don't have telemetry
+			// So we dump to disk
+			if (!leave && !dump_for_merp) {
+				mono_summarize_timeline_phase_log (MonoSummaryCleanup);
+				mono_crash_dump (output, &hashes);
+				mono_summarize_timeline_phase_log (MonoSummaryDone);
+				mono_summarize_toggle_assertions (FALSE);
+			}
 		}
 #endif // DISABLE_CRASH_REPORTING
 
@@ -1030,13 +1051,16 @@ dump_native_stacktrace (const char *signal, void *ctx)
 #endif
 
 #if defined(TARGET_OSX) && !defined(DISABLE_CRASH_REPORTING)
-		if (mono_merp_enabled ()) {
+		if (!double_faulted && mono_merp_enabled ()) {
 			if (pid == 0) {
 				if (output) {
 					gboolean merp_upload_success = mono_merp_invoke (crashed_pid, signal, output, &hashes);
+					if (!merp_upload_success)
+						mono_runtime_printf_err ("\nThe MERP upload step has failed.\n");
+					else
+						mono_summarize_timeline_phase_log (MonoSummaryDone);
 
-					g_assert (merp_upload_success);
-					mono_summarize_timeline_phase_log (MonoSummaryDone);
+					mono_summarize_toggle_assertions (FALSE);
 				} else {
 					mono_runtime_printf_err ("\nMerp dump step not run, no dump created.\n");
 				}
@@ -1054,11 +1078,16 @@ dump_native_stacktrace (const char *signal, void *ctx)
 
 		waitpid (pid, &status, 0);
 
-		// We've already done our gdb dump and our telemetry steps. Before exiting,
-		// see if we can notify any attached debugger instances.
-		//
-		// At this point we are accepting that the below step might end in a crash
-		mini_get_dbg_callbacks ()->send_crash (output, &hashes, 0 /* wait # seconds */);
+		if (double_faulted)
+			exit (-1);
+
+		if (output) {
+			// We've already done our gdb dump and our telemetry steps. Before exiting,
+			// see if we can notify any attached debugger instances.
+			//
+			// At this point we are accepting that the below step might end in a crash
+			mini_get_dbg_callbacks ()->send_crash (output, &hashes, 0 /* wait # seconds */);
+		}
 	}
 #endif
 #else
