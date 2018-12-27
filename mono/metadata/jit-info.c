@@ -660,6 +660,7 @@ jit_info_table_add (MonoDomain *domain, MonoJitInfoTable *volatile *table_ptr, M
 
 	/* Debugging code, should be removed. */
 	//jit_info_table_check (table);
+	mono_memory_write_barrier ();
 }
 
 void
@@ -750,6 +751,7 @@ jit_info_table_remove (MonoJitInfoTable *table, MonoJitInfo *ji)
 
 	/* Debugging code, should be removed. */
 	//jit_info_table_check (table);
+	mono_memory_write_barrier ();
 }
 
 void
