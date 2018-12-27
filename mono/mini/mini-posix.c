@@ -878,6 +878,7 @@ mono_runtime_setup_stat_profiler (void)
 static void
 dump_memory_around_ip (void *ctx)
 {
+#if 0
 #ifdef MONO_ARCH_HAVE_SIGCTX_TO_MONOCTX
 	if (!ctx)
 		return;
@@ -891,6 +892,7 @@ dump_memory_around_ip (void *ctx)
 	} else {
 		mono_runtime_printf_err ("instruction pointer is NULL, skip dumping");
 	}
+#endif
 #endif
 }
 
@@ -934,9 +936,13 @@ assert_printer_callback (void)
 static void
 dump_native_stacktrace (const char *signal, void *ctx)
 {
+	mono_memory_barrier ();
 	static gint32 middle_of_crash = 0x0;
 	gint32 double_faulted = mono_atomic_cas_i32 ((gint32 *)&middle_of_crash, 0x1, 0x0);
+	mono_memory_write_barrier ();
+
 	if (!double_faulted) {
+		mono_runtime_printf_err ("Dumping, not in media res %d\n", double_faulted);
 		g_assertion_disable_global (assert_printer_callback);
 	} else {
 		mono_runtime_printf_err ("\nAn error has occured in the native fault reporting. Some diagnostic information will be unavailable.\n");
@@ -950,6 +956,10 @@ dump_native_stacktrace (const char *signal, void *ctx)
 	char **names;
 	int i, size;
 
+#if 0
+	// Crashes a lot in backtrace_symbols
+	// FIXME: make this work using dladdr
+
 	mono_runtime_printf_err ("\nNative stacktrace:\n");
 
 	size = backtrace (array, 256);
@@ -957,6 +967,7 @@ dump_native_stacktrace (const char *signal, void *ctx)
 	for (i = 0; i < size; ++i) {
 		mono_runtime_printf_err ("\t%s", names [i]);
 	}
+#endif
 
 	/* Try to get more meaningful information using gdb */
 	// FIXME: Remove locking and reenable. Can race with itself
@@ -1054,11 +1065,16 @@ dump_native_stacktrace (const char *signal, void *ctx)
 		if (!double_faulted && mono_merp_enabled ()) {
 			if (pid == 0) {
 				if (output) {
+					mono_runtime_printf_err ("\nBefore merp upload\n");
 					gboolean merp_upload_success = mono_merp_invoke (crashed_pid, signal, output, &hashes);
+
 					if (!merp_upload_success)
 						mono_runtime_printf_err ("\nThe MERP upload step has failed.\n");
-					else
+					else {
+						// Remove
+						mono_runtime_printf_err ("\nThe MERP upload step has succeeded.\n");
 						mono_summarize_timeline_phase_log (MonoSummaryDone);
+					}
 
 					mono_summarize_toggle_assertions (FALSE);
 				} else {
