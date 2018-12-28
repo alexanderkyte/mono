@@ -170,6 +170,7 @@ mono_jit_info_table_free (MonoJitInfoTable *table)
 static int
 jit_info_table_index (MonoJitInfoTable *table, gint8 *addr)
 {
+	mono_memory_barrier ();
 	int left = 0, right = table->num_chunks;
 
 	g_assert (left < right);
@@ -177,6 +178,7 @@ jit_info_table_index (MonoJitInfoTable *table, gint8 *addr)
 	do {
 		int pos = (left + right) / 2;
 		MonoJitInfoTableChunk *chunk = table->chunks [pos];
+		g_assert (table->num_chunks <= MONO_JIT_INFO_TABLE_CHUNK_SIZE);
 
 		if (addr < chunk->last_code_end)
 			right = pos;
@@ -437,6 +439,9 @@ jit_info_table_realloc (MonoJitInfoTable *old)
 		result->chunks [i]->last_code_end = (gint8*)ji->code_start + ji->code_size;
 	}
 
+	for (int i=0; i < result->num_chunks; i++) {
+		g_assert (result->chunks [i]->num_elements < 30000);
+	}
 	return result;
 }
 

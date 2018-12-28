@@ -197,7 +197,11 @@ class C
 			// Throws if invalid json
 			if (!silent)
 				Console.WriteLine("Validating: {0}",  crashFile);
-			var obj = checker.DeserializeObject (crashFile);
+			try {
+				var obj = checker.DeserializeObject (crashFile);
+			} catch (Exception e) {
+				throw new Exception (String.Format ("Invalid json: {0}", crashFile));
+			}
 
 			// Assert it has the required merp fields
 		}
@@ -309,7 +313,7 @@ class C
 
 			Console.WriteLine ("Starting crash stress test\n");
 			try {
-				for (int i=0; i < 20; i++)
+				for (int i=0; i < 100; i++)
 					SpawnCrashingRuntime (processExe, CrasherClass.StresserIndex, true);
 			} catch (Exception e) {
 				Console.WriteLine ("Stress test caught failure. Shutting down.\n\n", e.InnerException);
