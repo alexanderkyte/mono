@@ -90,7 +90,7 @@ seq_point_info_inflate (MonoSeqPointInfo *info)
 	if (info_inflated.alloc_data)
 		info_inflated.data = ptr;
 	else
-		memcpy (&info_inflated.data, ptr, sizeof (guint8*));
+		memcpy (&info_inflated.data, &ptr, sizeof (ptr));
 
 	return info_inflated;
 }
