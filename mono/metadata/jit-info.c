@@ -528,7 +528,7 @@ jit_info_table_purify_chunk (MonoJitInfoTableChunk *old)
 	}
 
 	result->num_elements = j;
-	g_assert (j < 300000);
+	g_assert (j < MONO_JIT_INFO_TABLE_CHUNK_SIZE + 1);
 
 	if (result->num_elements > 0)
 		result->last_code_end = (gint8*)result->data [j - 1]->code_start + result->data [j - 1]->code_size;
