@@ -6371,8 +6371,11 @@ summarizer_state_term (SummarizerGlobalState *state, gchar **out, gchar *mem, si
 		mono_get_eh_callbacks ()->mono_summarize_managed_stack (threads [i]);
 	}
 
+	MonoStateWriter writer;
+	memset (&writer, 0, sizeof (writer));
+
 	mono_summarize_timeline_phase_log (MonoSummaryStateWriter);
-	mono_summarize_native_state_begin (mem, provided_size);
+	mono_summarize_native_state_begin (&writer, mem, provided_size);
 	MOSTLY_ASYNC_SAFE_PRINTF ("after begin state\n");
 	for (int i=0; i < state->nthreads; i++) {
 		MonoThreadSummary *thread = threads [i];
@@ -6380,14 +6383,14 @@ summarizer_state_term (SummarizerGlobalState *state, gchar **out, gchar *mem, si
 			continue;
 
 		MOSTLY_ASYNC_SAFE_PRINTF ("before add thread\n");
-		mono_summarize_native_state_add_thread (thread, thread->ctx, thread == controlling);
+		mono_summarize_native_state_add_thread (&writer, thread, thread->ctx, thread == controlling);
 		// Set non-shared state to notify the waiting thread to clean up
 		// without having to keep our shared state alive
 		mono_atomic_store_i32 (&thread->done, 0x1);
 		mono_os_sem_post (&thread->done_wait);
 	}
 	MOSTLY_ASYNC_SAFE_PRINTF ("before end state\n");
-	*out = mono_summarize_native_state_end ();
+	*out = mono_summarize_native_state_end (&writer);
 	MOSTLY_ASYNC_SAFE_PRINTF ("after end state\n");
 	mono_summarize_timeline_phase_log (MonoSummaryStateWriterDone);
 	MOSTLY_ASYNC_SAFE_PRINTF ("after logged end state\n");
