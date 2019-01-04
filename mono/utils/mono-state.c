@@ -241,32 +241,47 @@ mono_summarize_timeline_phase_log (MonoSummaryStage next)
 }
 
 static void
-mem_file_name (const char *tag, char *name, size_t limit)
+mem_file_name (long tag, char *name, size_t limit)
 {
 	name [0] = '\0';
 	pid_t pid = getpid ();
-	g_snprintf (name, sizeof (name), "mono_crash.mem.%d.%s.blob", pid, tag);
+	g_snprintf (name, limit, "mono_crash.mem.%d.%lx.blob", pid, tag);
 }
 
 gboolean
-mono_state_alloc_mem (MonoStateMem *mem, const char *tag, size_t size)
+mono_state_alloc_mem (MonoStateMem *mem, long tag, size_t size)
 {
 	char name [100];
 	mem_file_name (tag, name, sizeof (name));
 
 	memset (mem, 0, sizeof (*mem));
-	mem->handle = g_open (name, O_WRONLY | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
-	mem->mem = mmap (0, size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->handle, 0);
+	mem->tag = tag;
 	mem->size = size;
+
+	mem->handle = g_open (name, O_RDWR | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+	if (mem->handle < 1)
+		return FALSE;
+
+	lseek (mem->handle, mem->size, SEEK_SET);
+	g_write (mem->handle, "", 1);
+
+	mem->mem = mmap (0, mem->size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->handle, 0);
+	if (mem->mem == GINT_TO_POINTER (-1))
+		g_assert_not_reached ();
+
+// return FALSE;
 
 	return TRUE;
 }
 
 void
-mono_state_free_mem (const char *tag, MonoStateMem *mem)
+mono_state_free_mem (MonoStateMem *mem)
 {
-	char name [100];
-	mem_file_name (tag, name, sizeof (name));
+	if (!mem->mem)
+		return;
+
+  msync(mem->mem, mem->size, MS_SYNC);
+	munmap (mem->mem, mem->size);
 
 	// Note: We aren't calling msync on this file.
 	// There is no guarantee that we're going to persist
@@ -277,6 +292,9 @@ mono_state_free_mem (const char *tag, MonoStateMem *mem)
 		close (mem->handle);
 	else
 		MOSTLY_ASYNC_SAFE_PRINTF ("NULL handle mono-state mem on freeing\n");
+
+	char name [100];
+	mem_file_name (mem->tag, name, sizeof (name));
 	unlink (name);
 }
 
@@ -296,6 +314,12 @@ MonoSummaryStage
 mono_summarize_timeline_read_level (const char *directory, gboolean clear)
 {
 	char out_file [200];
+
+	if (!directory)
+		directory = log.directory;
+
+	if (!directory)
+		return MonoSummaryNone;
 
 	// Make sure that clear gets to erase all of these files if they exist
 	gboolean has_level_done = timeline_has_level (directory, out_file, sizeof(out_file), clear, MonoSummaryDone);

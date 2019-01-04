@@ -102,6 +102,23 @@ mono_native_state_add_thread (MonoStateWriter *writer, MonoThreadSummary *thread
 void
 mono_crash_dump (const char *jsonFile, MonoStackHash *hashes);
 
+// Signal-safe file allocators
+
+typedef struct {
+	gpointer *mem;
+	size_t size;
+
+	// File Information
+	int handle;
+	long tag;
+} MonoStateMem;
+
+gboolean
+mono_state_alloc_mem (MonoStateMem *mem, long tag, size_t size);
+
+void
+mono_state_free_mem (MonoStateMem *mem);
+
 MONO_END_DECLS
 #endif // DISABLE_CRASH_REPORTING
 
