@@ -635,7 +635,7 @@ jit_info_table_add (MonoDomain *domain, MonoJitInfoTable *volatile *table_ptr, M
 	int num_elements;
 	int i;
 
-	table = *table_ptr;
+	table = mono_atomic_load_ptr ((volatile gpointer *) table_ptr);
 
  restart:
 	chunk_pos = jit_info_table_index (table, (gint8*)ji->code_start + ji->code_size);
@@ -648,7 +648,12 @@ jit_info_table_add (MonoDomain *domain, MonoJitInfoTable *volatile *table_ptr, M
 		/* Debugging code, should be removed. */
 		//jit_info_table_check (new_table);
 
-		*table_ptr = new_table;
+		gpointer old_table = mono_atomic_cas_ptr ((volatile gpointer *) table_ptr, new_table, table);
+		if (table != old_table) {
+			jit_info_table_free_non_duplicate (new_table);
+			goto restart;
+		}
+
 		mono_memory_barrier ();
 		domain->num_jit_info_table_duplicates++;
 		mono_thread_hazardous_try_free (table, (MonoHazardousFreeFunc)jit_info_table_free_duplicate);
