@@ -6148,7 +6148,7 @@ typedef struct {
 	pid_t supervisor_pid;
 } SummarizerSupervisorState;
 
-#ifndef HAVE_MONO_SUMMARIZER_SUPERVISOR
+#if 1
 static void
 summarizer_supervisor_wait (SummarizerSupervisorState *state)
 {
@@ -6373,24 +6373,31 @@ summarizer_state_term (SummarizerGlobalState *state, gchar **out, gchar *mem, si
 
 	mono_summarize_timeline_phase_log (MonoSummaryStateWriter);
 	mono_summarize_native_state_begin (mem, provided_size);
+	MOSTLY_ASYNC_SAFE_PRINTF ("after begin state\n");
 	for (int i=0; i < state->nthreads; i++) {
 		MonoThreadSummary *thread = threads [i];
 		if (!thread)
 			continue;
 
+		MOSTLY_ASYNC_SAFE_PRINTF ("before add thread\n");
 		mono_summarize_native_state_add_thread (thread, thread->ctx, thread == controlling);
 		// Set non-shared state to notify the waiting thread to clean up
 		// without having to keep our shared state alive
 		mono_atomic_store_i32 (&thread->done, 0x1);
 		mono_os_sem_post (&thread->done_wait);
 	}
+	MOSTLY_ASYNC_SAFE_PRINTF ("before end state\n");
 	*out = mono_summarize_native_state_end ();
+	MOSTLY_ASYNC_SAFE_PRINTF ("after end state\n");
 	mono_summarize_timeline_phase_log (MonoSummaryStateWriterDone);
+	MOSTLY_ASYNC_SAFE_PRINTF ("after logged end state\n");
 
 	mono_os_sem_destroy (&state->update);
 
 	memset (state, 0, sizeof (*state));
 	mono_atomic_store_i32 ((volatile gint32 *)&state->has_owner, 0);
+
+	MOSTLY_ASYNC_SAFE_PRINTF ("after after logged\n");
 }
 
 static void
@@ -6405,7 +6412,7 @@ summarizer_state_wait (MonoThreadSummary *thread)
 }
 
 gboolean
-mono_threads_summarize_execute (MonoContext *ctx, gchar **out, MonoStackHash *hashes, gboolean silent, gchar *mem, size_t provided_size)
+mono_threads_summarize_execute (MonoContext *ctx, gchar **out, MonoStackHash *hashes, gboolean silent, gchar *mempool, size_t provided_size)
 {
 	static SummarizerGlobalState state;
 
@@ -6420,15 +6427,20 @@ mono_threads_summarize_execute (MonoContext *ctx, gchar **out, MonoStackHash *ha
 		mono_summarize_timeline_phase_log (MonoSummaryUnmanagedStacks);
 	}
 
-	MonoThreadSummary this_thread;
+	MonoStateMem mem;
+	gboolean success = mono_state_alloc_mem (&mem, (long) current, sizeof (MonoThreadSummary));
+	if (!success)
+		return FALSE;
 
-	if (mono_threads_summarize_native_self (&this_thread, ctx)) {
+	MonoThreadSummary *this_thread = (MonoThreadSummary *) mem.mem;
+
+	if (mono_threads_summarize_native_self (this_thread, ctx)) {
 		// Init the synchronization between the controlling thread and the 
 		// providing thread
-		mono_os_sem_init (&this_thread.done_wait, 0);
+		mono_os_sem_init (&this_thread->done_wait, 0);
 
 		// Store a reference to our stack memory into global state
-		gboolean success = summarizer_post_dump (&state, &this_thread, current_idx);
+		gboolean success = summarizer_post_dump (&state, this_thread, current_idx);
 		if (!success && !state.silent)
 			MOSTLY_ASYNC_SAFE_PRINTF("Thread 0x%zx reported itself.\n", MONO_NATIVE_THREAD_ID_TO_UINT (current));
 	} else if (!state.silent) {
@@ -6447,16 +6459,18 @@ mono_threads_summarize_execute (MonoContext *ctx, gchar **out, MonoStackHash *ha
 			MOSTLY_ASYNC_SAFE_PRINTF("Finished thread summarizer pause from 0x%zx.\n", MONO_NATIVE_THREAD_ID_TO_UINT (current));
 
 		// Dump and cleanup all the stack memory
-		summarizer_state_term (&state, out, mem, provided_size, &this_thread);
+		summarizer_state_term (&state, out, mempool, provided_size, this_thread);
 	} else {
 		// Wait here, keeping our stack memory alive
 		// for the dumper
-		summarizer_state_wait (&this_thread);
+		summarizer_state_wait (this_thread);
 	}
 
 	// FIXME: How many threads should be counted?
 	if (hashes)
-		*hashes = this_thread.hashes;
+		*hashes = this_thread->hashes;
+
+	mono_state_free_mem (&mem);
 
 	return TRUE;
 }

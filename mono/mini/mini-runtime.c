@@ -3557,7 +3557,7 @@ MONO_SIG_HANDLER_FUNC (, mono_sigsegv_signal_handler)
 	}
 #endif
 
-	if (jit_tls->stack_size &&
+	if (jit_tls && jit_tls->stack_size &&
 		ABS ((guint8*)fault_addr - ((guint8*)jit_tls->end_of_stack - jit_tls->stack_size)) < 8192 * sizeof (gpointer)) {
 		/*
 		 * The hard-guard page has been hit: there is not much we can do anymore

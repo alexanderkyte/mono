@@ -947,25 +947,35 @@ dump_native_stacktrace (const char *signal, void *ctx)
 	} else {
 		mono_runtime_printf_err ("\nAn error has occured in the native fault reporting. Some diagnostic information will be unavailable.\n");
 
+		pid_t crashed_pid = getpid ();
+		MOSTLY_ASYNC_SAFE_PRINTF ("Attach to PID %d. Supervisor thread will signal us shortly.\n", crashed_pid);
+		while (TRUE) {
+			// Sleep for 1 second.
+			g_usleep (1000 * 1000);
+		}
+
 		// In case still enabled
 		mono_summarize_toggle_assertions (FALSE);
 	}
 
 #ifdef HAVE_BACKTRACE_SYMBOLS
-	void *array [256];
+#if 0
 	char **names;
 	int i, size;
+	// Too much space to allocate on the alt stack.
+	void *array [256];
 
-#if 0
-	// Crashes a lot in backtrace_symbols
-	// FIXME: make this work using dladdr
+	if (double_faulted) {
+		// Crashes a lot in backtrace_symbols
+		// FIXME: make this work using dladdr
 
-	mono_runtime_printf_err ("\nNative stacktrace:\n");
+		mono_runtime_printf_err ("\nNative stacktrace:\n");
 
-	size = backtrace (array, 256);
-	names = backtrace_symbols (array, size);
-	for (i = 0; i < size; ++i) {
-		mono_runtime_printf_err ("\t%s", names [i]);
+		size = backtrace (array, 256);
+		names = backtrace_symbols (array, size);
+		for (i = 0; i < size; ++i) {
+			mono_runtime_printf_err ("\t%s", names [i]);
+		}
 	}
 #endif
 
@@ -1023,6 +1033,7 @@ dump_native_stacktrace (const char *signal, void *ctx)
 				// while dumping. 
 				mono_runtime_printf_err ("\nWaiting for dumping threads to resume\n");
 				sleep (1);
+				mono_runtime_printf_err ("\nAfter sleep\n");
 			}
 
 			// We want our crash, and don't have telemetry
@@ -1036,6 +1047,7 @@ dump_native_stacktrace (const char *signal, void *ctx)
 		}
 #endif // DISABLE_CRASH_REPORTING
 
+		mono_runtime_printf_err ("\nBefore fork\n");
 		/*
 		* glibc fork acquires some locks, so if the crash happened inside malloc/free,
 		* it will deadlock. Call the syscall directly instead.
@@ -1050,6 +1062,7 @@ dump_native_stacktrace (const char *signal, void *ctx)
 #else
 		g_assert_not_reached ();
 #endif
+		mono_runtime_printf_err ("\nAfter fork from %d\n", pid);
 
 #if defined (HAVE_PRCTL) && defined(PR_SET_PTRACER)
 		if (pid > 0) {
@@ -1084,25 +1097,31 @@ dump_native_stacktrace (const char *signal, void *ctx)
 		}
 #endif
 
+		mono_runtime_printf_err ("\nBefore GDB phase\n");
 		if (pid == 0) {
 			dup2 (STDERR_FILENO, STDOUT_FILENO);
 
 			mono_runtime_printf_err ("\nDebug info from gdb:\n");
-			mono_gdb_render_native_backtraces (crashed_pid);
+			// mono_gdb_render_native_backtraces (crashed_pid);
+			mono_runtime_printf_err ("\nAfter GDB phase, gonna exit\n");
 			exit (1);
 		}
 
 		waitpid (pid, &status, 0);
 
-		if (double_faulted)
+		if (double_faulted) {
+			mono_runtime_printf_err ("\nExiting early due to double fault. Attach %d\n\n", pid);
 			exit (-1);
+		}
 
 		if (output) {
+			mono_runtime_printf_err ("\nDoing debugger dump\n");
 			// We've already done our gdb dump and our telemetry steps. Before exiting,
 			// see if we can notify any attached debugger instances.
 			//
 			// At this point we are accepting that the below step might end in a crash
 			mini_get_dbg_callbacks ()->send_crash (output, &hashes, 0 /* wait # seconds */);
+			mono_runtime_printf_err ("\nDid debugger dump\n");
 		}
 	}
 #endif

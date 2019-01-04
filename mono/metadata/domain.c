@@ -28,6 +28,7 @@
 #include <mono/utils/mono-tls.h>
 #include <mono/utils/mono-mmap.h>
 #include <mono/utils/mono-threads.h>
+#include <mono/utils/mono-threads-debug.h>
 #include <mono/metadata/object.h>
 #include <mono/metadata/object-internals.h>
 #include <mono/metadata/domain-internals.h>
@@ -1193,11 +1194,28 @@ mono_domain_free (MonoDomain *domain, gboolean force)
 	 * this will free them.
 	 */
 	mono_thread_hazardous_try_free_all ();
-	if (domain->aot_modules)
+
+	if (domain->aot_modules) {
 		mono_jit_info_table_free (domain->aot_modules);
+	}
+
 	g_assert (domain->num_jit_info_table_duplicates == 0);
-	mono_jit_info_table_free (domain->jit_info_table);
-	domain->jit_info_table = NULL;
+
+	while (TRUE) {
+		gpointer table = mono_atomic_load_ptr ((volatile gpointer *) &domain->jit_info_table);
+
+		if (!table)
+			break;
+
+		gpointer old_table = mono_atomic_cas_ptr ((volatile gpointer *) &domain->jit_info_table, NULL, table);
+		if (table != old_table) {
+			MOSTLY_ASYNC_SAFE_PRINTF ("Table: %s old table %s\n", table, old_table);
+			continue;
+		}
+
+		mono_jit_info_table_free (table);
+	}
+
 	g_assert (!domain->jit_info_free_queue);
 
 	/* collect statistics */

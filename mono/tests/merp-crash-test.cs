@@ -20,8 +20,7 @@ class C
 
 			// Basic functionality
 			Crashers.Add(new Tuple<String, Action> ("MerpCrashManaged", MerpCrashManaged));
-			Crashers.Add(new Tuple<String, Action> ("MerpCrashMalloc", MerpCrashMalloc));
-			//  Run malloc test for stress tests
+			//  Run this test for stress tests
 			//
 			//  I've ran a burn-in with all of them of
 			//  1,000 - 10,000 runs already.
@@ -29,7 +28,9 @@ class C
 			//  Feel free to change by moving this line.
 			StresserIndex = Crashers.Count - 1;
 
-			Crashers.Add(new Tuple<String, Action> ("MerpCrashNullNp", MerpCrashNullFp));
+			Crashers.Add(new Tuple<String, Action> ("MerpCrashMalloc", MerpCrashMalloc));
+
+			Crashers.Add(new Tuple<String, Action> ("MerpCrashNullFp", MerpCrashNullFp));
 			Crashers.Add(new Tuple<String, Action> ("MerpCrashExceptionHook", MerpCrashUnhandledExceptionHook));
 
 			// Specific Edge Cases
@@ -190,7 +191,6 @@ class C
 
 		if (crashFileExists) {
 			var crashFile = File.ReadAllText (crashFilePath);
-			//File.Delete (crashFilePath);
 
 			var checker = new JavaScriptSerializer ();
 
@@ -203,6 +203,7 @@ class C
 				throw new Exception (String.Format ("Invalid json: {0}", crashFile));
 			}
 
+			File.Delete (crashFilePath);
 			// Assert it has the required merp fields
 		}
 
@@ -214,6 +215,29 @@ class C
 
 		if (!crashFileExists)
 			throw new Exception (String.Format ("Did not produce {0}", crashFilePath));
+	}
+
+	public static void
+	Cleanup (string configDir)
+	{
+		var xmlFilePath = String.Format("{0}CustomLogsMetadata.xml", configDir);
+		var paramsFilePath = String.Format("{0}MERP.uploadparams.txt", configDir);
+		var crashFilePath = String.Format("{0}lastcrashlog.txt", configDir);
+
+		// Fixme: Maybe parse these json files rather than
+		// just checking they exist
+		var xmlFileExists = File.Exists (xmlFilePath);
+		var paramsFileExists = File.Exists (paramsFilePath);
+		var crashFileExists = File.Exists (crashFilePath);
+
+		if (xmlFileExists)
+			File.Delete (xmlFilePath);
+
+		if (paramsFileExists)
+			File.Delete (paramsFilePath);
+
+		if (crashFileExists)
+			File.Delete (crashFilePath);
 	}
 
 	static void DumpLogSet ()
@@ -236,13 +260,11 @@ class C
 		var convert = monoType.GetMethod("CheckCrashReportLog", BindingFlags.NonPublic | BindingFlags.Static);
 		var result = (int) convert.Invoke(null, new object[] { "./", true });
 		// Value of enum
-		var monoSummaryDone = 8;
-		var merpInvoke = 6;
-		string [] levels = new string [] { "None", "Setup", "SuspendHandshake", "DumpTraversal", "StateWriter", "MerpWriter", "MerpInvoke", "Cleanup", "Done", "DoubleFault" };
+		string [] levels = new string [] { "None", "Setup", "SuspendHandshake", "UnmanagedStacks", "ManagedStacks", "StateWriter", "StateWriterDone", "MerpWriter", "MerpInvoke", "Cleanup", "Done", "DoubleFault" };
 
-		if (merpInvoke == result) {
+		if ("MerpInvoke" == levels [result]) {
 			Console.WriteLine ("Merp invoke command failed, expected failure?");
-		} else if (monoSummaryDone != result) {
+		} else if ("Done" != levels [result]) {
 			throw new Exception (String.Format ("Crash level not done, failed in stage: {0}", levels [result]));
 		}
 	}
@@ -291,18 +313,18 @@ class C
 				}
 			}
 
-			Console.WriteLine ("\n\n##################");
-			Console.WriteLine ("Merp Test Results:");
-			Console.WriteLine ("##################\n\n");
+			// Console.WriteLine ("\n\n##################");
+			// Console.WriteLine ("Merp Test Results:");
+			// Console.WriteLine ("##################\n\n");
 
-			if (failure_count > 0) {
-				for (int i=0; i < CrasherClass.Crashers.Count; i++) {
-					if (failures [i] != null) {
-						Console.WriteLine ("Crash reporter failed test {0}", CrasherClass.Crashers [i].Item1);
-						Console.WriteLine ("Cause: {0}\n{1}\n", failures [i].Message, failures [i].StackTrace);
-					}
-				}
-			}
+			// if (failure_count > 0) {
+			// 	for (int i=0; i < CrasherClass.Crashers.Count; i++) {
+			// 		if (failures [i] != null) {
+			// 			Console.WriteLine ("Crash reporter failed test {0}", CrasherClass.Crashers [i].Item1);
+			// 			Console.WriteLine ("Cause: {0}\n{1}\n", failures [i].Message, failures [i].StackTrace);
+			// 		}
+			// 	}
+			// }
 
 			if (failure_count > 0)
 				return;
@@ -312,12 +334,16 @@ class C
 			Console.WriteLine ("##################\n\n");
 
 			Console.WriteLine ("Starting crash stress test\n");
-			try {
-				for (int i=0; i < 100; i++)
+			int iter = 0;
+			for (iter=0; iter < 10000; iter++) {
+				Console.WriteLine ("Iteration {0}", iter);
+				try {
 					SpawnCrashingRuntime (processExe, CrasherClass.StresserIndex, true);
-			} catch (Exception e) {
-				Console.WriteLine ("Stress test caught failure. Shutting down.\n\n", e.InnerException);
-				throw;
+				} catch (Exception e) {
+					Console.WriteLine ("Stress test caught failure. Shutting down after {1} iterations.\n {0} \n\n", e.InnerException, iter);
+					Cleanup (configDir);
+					throw;
+				}
 			}
 			Console.WriteLine ("Ending crash stress test. No failures caught.\n");
 

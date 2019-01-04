@@ -32,7 +32,7 @@ clean-local:
 EXTRA_DIST=SUBMODULES.json
 
 if MONO_JEMALLOC_ASSERT
-ASSERT_OPT=--enable-debug
+ASSERT_OPT=--enable-debug --enable-fill
 endif
 
 jemalloc:
@@ -42,7 +42,7 @@ jemalloc:
 # Disable zone allocator, otherwise malloc uses jemalloc for things it's not set for
 # We call autoconf ourselves so we can call configure and not autogen. Autogen script is broken, minor bash issues around quote escaping
 jemalloc/lib/libjemalloc.a: jemalloc Makefile
-	cd jemalloc && autoconf && ./configure --with-jemalloc-prefix=mono_je --prefix=`pwd` $(ASSERT_OPT) $(JEMALLOC_AUTOCONF_FLAGS) --disable-zone-allocator EXTRA_CFLAGS="-I $(top_srcdir) $(GLIB_CFLAGS) $(CFLAGS) $(PLATFORM_CFLAGS) $(ARCH_CFLAGS) $(SHARED_CFLAGS) " CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS) $(JEMALLOC_CPPFLAGS) " CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
+	cd jemalloc && autoconf && ./configure --with-jemalloc-prefix=mono_je --prefix=`pwd` --enable-debug $(JEMALLOC_AUTOCONF_FLAGS) --disable-zone-allocator EXTRA_CFLAGS="-I $(top_srcdir) $(GLIB_CFLAGS) $(CFLAGS) $(PLATFORM_CFLAGS) $(ARCH_CFLAGS) $(SHARED_CFLAGS) -Wno-error" CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS) $(JEMALLOC_CPPFLAGS) " CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
 
 	cd jemalloc && $(MAKE) build_lib_static 
 

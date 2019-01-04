@@ -50,7 +50,7 @@ assert_not_reached_mem (const char *msg)
 {
 	MOSTLY_ASYNC_SAFE_PRINTF ("%s\n", msg);
 
-#if 0
+#if 1
 	pid_t crashed_pid = getpid ();
 	// Break here
 	MOSTLY_ASYNC_SAFE_PRINTF ("Attach to PID %d. Supervisor thread will signal us shortly.\n", crashed_pid);
@@ -112,6 +112,8 @@ mono_summarize_toggle_assertions (gboolean enable)
 		saved = FALSE;
 	}
 
+	MOSTLY_ASYNC_SAFE_PRINTF ("Installed safety assertions\n");
+
 	mono_memory_barrier ();
 #endif
 }
@@ -166,11 +168,15 @@ mono_summarize_double_fault_log (void)
 void
 mono_summarize_timeline_phase_log (MonoSummaryStage next)
 {
-	if (log.level == MonoSummaryNone)
-		return;
+	if (log.level == MonoSummaryNone) {
+		MOSTLY_ASYNC_SAFE_PRINTF ("Logging not enabled!");
+		g_assert_not_reached ();
+	}
 
-	if (!log.directory)
-		return;
+	if (!log.directory) {
+		MOSTLY_ASYNC_SAFE_PRINTF ("Logging no directory!");
+		g_assert_not_reached ();
+	}
 
 	MonoSummaryStage out_level;
 	switch (log.level) {
@@ -191,6 +197,11 @@ mono_summarize_timeline_phase_log (MonoSummaryStage next)
 			break;
 		case MonoSummaryStateWriterDone:
 #ifdef TARGET_OSX
+			if (!mono_merp_enabled ()) {
+				MOSTLY_ASYNC_SAFE_PRINTF ("Merp corruption, says not enabled");
+				g_assert (mono_merp_enabled ());
+			}
+
 			if (mono_merp_enabled ()) {
 				out_level = MonoSummaryMerpWriter;
 			} else
@@ -241,32 +252,51 @@ mono_summarize_timeline_phase_log (MonoSummaryStage next)
 }
 
 static void
-mem_file_name (const char *tag, char *name, size_t limit)
+mem_file_name (long tag, char *name, size_t limit) 
 {
 	name [0] = '\0';
 	pid_t pid = getpid ();
-	g_snprintf (name, sizeof (name), "mono_crash.mem.%d.%s.blob", pid, tag);
+	g_snprintf (name, limit, "mono_crash.mem.%d.%lx.blob", pid, tag);
+	MOSTLY_ASYNC_SAFE_PRINTF("Opening %s\n", name);
 }
 
 gboolean
-mono_state_alloc_mem (MonoStateMem *mem, const char *tag, size_t size)
+mono_state_alloc_mem (MonoStateMem *mem, long tag, size_t size)
 {
-	char name [100];
+	char name [100]; 
 	mem_file_name (tag, name, sizeof (name));
 
 	memset (mem, 0, sizeof (*mem));
-	mem->handle = g_open (name, O_WRONLY | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
-	mem->mem = mmap (0, size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->handle, 0);
+	mem->tag = tag;
 	mem->size = size;
+
+	mem->handle = g_open (name, O_RDWR | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+	if (mem->handle < 1)
+		return FALSE;
+
+	lseek (mem->handle, mem->size, SEEK_SET);
+	g_write (mem->handle, "", 1);
+
+	mem->mem = mmap (0, mem->size, PROT_READ | PROT_WRITE, MAP_SHARED, mem->handle, 0);
+	if (mem->mem == GINT_TO_POINTER (-1)) {
+		g_assert_not_reached ();
+	}
+
+// return FALSE;
+
+	MOSTLY_ASYNC_SAFE_PRINTF ("allocate for %s\n", name);
 
 	return TRUE;
 }
 
 void
-mono_state_free_mem (const char *tag, MonoStateMem *mem)
+mono_state_free_mem (MonoStateMem *mem)
 {
-	char name [100];
-	mem_file_name (tag, name, sizeof (name));
+	if (!mem->mem)
+		return;
+
+  msync(mem->mem, mem->size, MS_SYNC);
+	munmap (mem->mem, mem->size);
 
 	// Note: We aren't calling msync on this file.
 	// There is no guarantee that we're going to persist
@@ -277,7 +307,11 @@ mono_state_free_mem (const char *tag, MonoStateMem *mem)
 		close (mem->handle);
 	else
 		MOSTLY_ASYNC_SAFE_PRINTF ("NULL handle mono-state mem on freeing\n");
+
+	char name [100]; 
+	mem_file_name (mem->tag, name, sizeof (name));
 	unlink (name);
+	MOSTLY_ASYNC_SAFE_PRINTF ("free for %s\n", name);
 }
 
 static gboolean 
@@ -296,6 +330,12 @@ MonoSummaryStage
 mono_summarize_timeline_read_level (const char *directory, gboolean clear)
 {
 	char out_file [200];
+
+	if (!directory)
+		directory = log.directory;
+
+	if (!directory)
+		return MonoSummaryNone;
 
 	// Make sure that clear gets to erase all of these files if they exist
 	gboolean has_level_done = timeline_has_level (directory, out_file, sizeof(out_file), clear, MonoSummaryDone);

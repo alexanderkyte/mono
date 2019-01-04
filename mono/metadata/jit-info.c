@@ -105,8 +105,8 @@ jit_info_table_free (MonoJitInfoTable *table, gboolean duplicate)
 		if (!table->domain->num_jit_info_table_duplicates) {
 			GSList *list;
 
-			for (list = table->domain->jit_info_free_queue; list; list = list->next)
-				g_free (list->data);
+			// for (list = table->domain->jit_info_free_queue; list; list = list->next)
+			// 	g_free (list->data);
 
 			g_slist_free (table->domain->jit_info_free_queue);
 			table->domain->jit_info_free_queue = NULL;
@@ -129,16 +129,16 @@ jit_info_table_free (MonoJitInfoTable *table, gboolean duplicate)
 
 		for (tombstone = chunk->next_tombstone; tombstone; ) {
 			MonoJitInfo *next = tombstone->n.next_tombstone;
-			g_free (tombstone);
+			// g_free (tombstone);
 			tombstone = next;
 		}
 
-		g_free (chunk);
+		// g_free (chunk);
 	}
 
 	mono_domain_unlock (domain);
 
-	g_free (table);
+	// g_free (table);
 }
 
 static void
@@ -635,7 +635,7 @@ jit_info_table_add (MonoDomain *domain, MonoJitInfoTable *volatile *table_ptr, M
 	int num_elements;
 	int i;
 
-	table = *table_ptr;
+	table = mono_atomic_load_ptr ((volatile gpointer *) table_ptr);
 
  restart:
 	chunk_pos = jit_info_table_index (table, (gint8*)ji->code_start + ji->code_size);
@@ -646,9 +646,14 @@ jit_info_table_add (MonoDomain *domain, MonoJitInfoTable *volatile *table_ptr, M
 		MonoJitInfoTable *new_table = jit_info_table_chunk_overflow (table, chunk);
 
 		/* Debugging code, should be removed. */
-		//jit_info_table_check (new_table);
+		jit_info_table_check (new_table);
 
-		*table_ptr = new_table;
+		gpointer old_table = mono_atomic_cas_ptr ((volatile gpointer *) table_ptr, new_table, table);
+		if (table != old_table) {
+			jit_info_table_free_non_duplicate (new_table);
+			goto restart;
+		}
+
 		mono_memory_barrier ();
 		domain->num_jit_info_table_duplicates++;
 		mono_thread_hazardous_try_free (table, (MonoHazardousFreeFunc)jit_info_table_free_duplicate);
