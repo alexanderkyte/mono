@@ -30,7 +30,7 @@ typedef enum {
 	MonoSummaryStateWriterDone = 6,
 	MonoSummaryMerpWriter = 7,
 	MonoSummaryMerpInvoke = 8,
-	MonoSummaryCleanup =98,
+	MonoSummaryCleanup = 9,
 	MonoSummaryDone = 10,
 
 	MonoSummaryDoubleFault = 11, 
