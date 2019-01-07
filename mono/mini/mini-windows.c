@@ -262,6 +262,12 @@ MONO_SIG_HANDLER_SIGNATURE (mono_chain_signal)
 
 #ifndef MONO_CROSS_COMPILE
 void
+mono_init_native_crash_info (void)
+{
+	return;
+}
+
+void
 mono_dump_native_crash_info (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_TYPE *info)
 {
 	//TBD

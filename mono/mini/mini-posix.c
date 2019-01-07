@@ -1152,6 +1152,16 @@ dump_native_stacktrace (const char *signal, void *ctx)
 #endif
 }
 
+static gchar *gdb_path;
+static gchar *lldb_path;
+
+void
+mono_init_native_crash_info (void)
+{
+	gdb_path = g_find_program_in_path ("gdb");
+	lldb_path = g_find_program_in_path ("lldb");
+}
+
 void
 mono_dump_native_crash_info (const char *signal, void *ctx, MONO_SIG_HANDLER_INFO_TYPE *info)
 {
@@ -1180,13 +1190,10 @@ mono_post_native_crash_handler (const char *signal, void *ctx, MONO_SIG_HANDLER_
 static gboolean
 native_stack_with_gdb (pid_t crashed_pid, const char **argv, int commands, char* commands_filename)
 {
-	gchar *gdb;
-
-	gdb = g_find_program_in_path ("gdb");
-	if (!gdb)
+	if (!gdb_path)
 		return FALSE;
 
-	argv [0] = gdb;
+	argv [0] = gdb_path;
 	argv [1] = "-batch";
 	argv [2] = "-x";
 	argv [3] = commands_filename;
@@ -1211,13 +1218,10 @@ native_stack_with_gdb (pid_t crashed_pid, const char **argv, int commands, char*
 static gboolean
 native_stack_with_lldb (pid_t crashed_pid, const char **argv, int commands, char* commands_filename)
 {
-	gchar *lldb;
-
-	lldb = g_find_program_in_path ("lldb");
-	if (!lldb)
+	if (!lldb_path)
 		return FALSE;
 
-	argv [0] = lldb;
+	argv [0] = lldb_path;
 	argv [1] = "--batch";
 	argv [2] = "--source";
 	argv [3] = commands_filename;
