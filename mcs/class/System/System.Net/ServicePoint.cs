@@ -55,18 +55,28 @@ namespace System.Net
 		bool tcp_keepalive;
 		int tcp_keepalive_time;
 		int tcp_keepalive_interval;
+		bool disposed;
+		int connectionLeaseTimeout = -1;
+		int receiveBufferSize = -1;
 
 		// Constructors
 
-		internal ServicePoint (Uri uri, int connectionLimit, int maxIdleTime)
+		internal ServicePoint (ServicePointManager.SPKey key, Uri uri, int connectionLimit, int maxIdleTime)
 		{
+			Key = key;
 			this.uri = uri;
+			this.connectionLimit = connectionLimit;
+			this.maxIdleTime = maxIdleTime;
 
 			Scheduler = new ServicePointScheduler (this, connectionLimit, maxIdleTime);
 		}
 
-		internal ServicePointScheduler Scheduler {
+		internal ServicePointManager.SPKey Key {
 			get;
+		}
+
+		ServicePointScheduler Scheduler {
+			get; set;
 		}
 
 		// Properties
@@ -75,29 +85,32 @@ namespace System.Net
 			get { return uri; }
 		}
 
-		static Exception GetMustImplement ()
-		{
-			return new NotImplementedException ();
-		}
-
 		public BindIPEndPoint BindIPEndPointDelegate {
 			get { return endPointCallback; }
 			set { endPointCallback = value; }
 		}
 
-		[MonoTODO]
 		public int ConnectionLeaseTimeout {
-			get {
-				throw GetMustImplement ();
-			}
-			set {
-				throw GetMustImplement ();
+			get { return connectionLeaseTimeout; }
+			set
+			{
+				if (value < Timeout.Infinite)
+					throw new ArgumentOutOfRangeException (nameof (value));
+
+				connectionLeaseTimeout = value;
 			}
 		}
 
+		int connectionLimit;
+		int maxIdleTime;
+
 		public int ConnectionLimit {
-			get { return Scheduler.ConnectionLimit; }
-			set { Scheduler.ConnectionLimit = value; }
+			get { return connectionLimit; }
+			set {
+				connectionLimit = value;
+				if (!disposed)
+					Scheduler.ConnectionLimit = value;
+			}
 		}
 
 		public string ConnectionName {
@@ -106,32 +119,39 @@ namespace System.Net
 
 		public int CurrentConnections {
 			get {
-				return Scheduler.CurrentConnections;
+				return disposed ? 0 : Scheduler.CurrentConnections;
 			}
 		}
 
 		public DateTime IdleSince {
 			get {
+				if (disposed)
+					return DateTime.MinValue;
 				return Scheduler.IdleSince.ToLocalTime ();
 			}
 		}
 
 		public int MaxIdleTime {
-			get { return Scheduler.MaxIdleTime; }
-			set { Scheduler.MaxIdleTime = value; }
+			get { return maxIdleTime; }
+			set {
+				maxIdleTime = value;
+				if (!disposed)
+					Scheduler.MaxIdleTime = value;
+			}
 		}
 
 		public virtual Version ProtocolVersion {
 			get { return protocolVersion; }
 		}
 
-		[MonoTODO]
 		public int ReceiveBufferSize {
-			get {
-				throw GetMustImplement ();
-			}
-			set {
-				throw GetMustImplement ();
+			get { return receiveBufferSize; }
+			set
+			{
+				if (value < -1)
+					throw new ArgumentOutOfRangeException (nameof (value));
+
+				receiveBufferSize = value;
 			}
 		}
 
@@ -265,6 +285,8 @@ namespace System.Net
 		internal void SendRequest (WebOperation operation, string groupName)
 		{
 			lock (this) {
+				if (disposed)
+					throw new ObjectDisposedException (typeof (ServicePoint).FullName);
 				Scheduler.SendRequest (operation, groupName);
 			}
 		}
@@ -272,8 +294,16 @@ namespace System.Net
 		public bool CloseConnectionGroup (string connectionGroupName)
 		{
 			lock (this) {
+				if (disposed)
+					return true;
 				return Scheduler.CloseConnectionGroup (connectionGroupName);
 			}
+		}
+
+		internal void FreeServicePoint ()
+		{
+			disposed = true;
+			Scheduler = null;
 		}
 
 		//

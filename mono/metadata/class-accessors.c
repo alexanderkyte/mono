@@ -5,8 +5,11 @@
  */
 #include <config.h>
 #include <mono/metadata/class-internals.h>
+#include <mono/metadata/marshal.h>
 #include <mono/metadata/tabledefs.h>
+#include <mono/metadata/class-abi-details.h>
 #ifdef MONO_CLASS_DEF_PRIVATE
+#include <mono/metadata/abi-details.h>
 #define REALLY_INCLUDE_CLASS_DEF 1
 #include <mono/metadata/class-private-definition.h>
 #undef REALLY_INCLUDE_CLASS_DEF
@@ -141,7 +144,7 @@ mono_class_get_first_field_idx (MonoClass *klass)
 	if (mono_class_is_ginst (klass))
 		return mono_class_get_first_field_idx (mono_class_get_generic_class (klass)->container_class);
 
-	g_assert (mono_class_has_static_metadata (klass));
+	g_assert (klass->type_token && !mono_class_is_ginst (klass));
 
 	return m_classdef_get_first_field_idx ((MonoClassDef*)klass);
 }
@@ -149,7 +152,7 @@ mono_class_get_first_field_idx (MonoClass *klass)
 void
 mono_class_set_first_field_idx (MonoClass *klass, guint32 idx)
 {
-	g_assert (mono_class_has_static_metadata (klass));
+	g_assert (klass->type_token && !mono_class_is_ginst (klass));
 
 	((MonoClassDef*)klass)->first_field_idx = idx;
 }
@@ -241,7 +244,7 @@ mono_class_set_field_count (MonoClass *klass, guint32 count)
 MonoMarshalType*
 mono_class_get_marshal_info (MonoClass *klass)
 {
-	return mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_MARSHAL_INFO);
+	return (MonoMarshalType*)mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_MARSHAL_INFO);
 }
 
 void
@@ -259,7 +262,7 @@ typedef struct {
 guint32
 mono_class_get_ref_info_handle (MonoClass *klass)
 {
-	Uint32Property *prop = mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_REF_INFO_HANDLE);
+	Uint32Property *prop = (Uint32Property*)mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_REF_INFO_HANDLE);
 	return prop ? prop->value : 0;
 }
 
@@ -267,16 +270,16 @@ guint32
 mono_class_set_ref_info_handle (MonoClass *klass, guint32 value)
 {
 	if (!value) {
-		Uint32Property *prop = mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_REF_INFO_HANDLE);
+		Uint32Property *prop = (Uint32Property*)mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_REF_INFO_HANDLE);
 		if (prop)
 			prop->value = 0;
 		return 0;
 	}
 
-	Uint32Property *prop = mono_class_alloc (klass, sizeof (Uint32Property));
+	Uint32Property *prop = (Uint32Property*)mono_class_alloc (klass, sizeof (Uint32Property));
 	prop->head.tag = PROP_REF_INFO_HANDLE;
 	prop->value = value;
-	prop = mono_property_bag_add (m_class_get_infrequent_data (klass), prop);
+	prop = (Uint32Property*)mono_property_bag_add (m_class_get_infrequent_data (klass), prop);
 	return prop->value;
 }
 
@@ -288,7 +291,7 @@ typedef struct {
 static void
 set_pointer_property (MonoClass *klass, InfrequentDataKind property, gpointer value)
 {
-	PointerProperty *prop = mono_class_alloc (klass, sizeof (PointerProperty));
+	PointerProperty *prop = (PointerProperty*)mono_class_alloc (klass, sizeof (PointerProperty));
 	prop->head.tag = property;
 	prop->value = value;
 	mono_property_bag_add (m_class_get_infrequent_data (klass), prop);
@@ -328,7 +331,7 @@ mono_class_set_nested_classes_property (MonoClass *klass, GList *value)
 MonoClassPropertyInfo*
 mono_class_get_property_info (MonoClass *klass)
 {
-	return mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_PROPERTY_INFO);
+	return (MonoClassPropertyInfo*)mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_PROPERTY_INFO);
 }
 
 void
@@ -341,7 +344,7 @@ mono_class_set_property_info (MonoClass *klass, MonoClassPropertyInfo *info)
 MonoClassEventInfo*
 mono_class_get_event_info (MonoClass *klass)
 {
-	return mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_EVENT_INFO);
+	return (MonoClassEventInfo*)mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_EVENT_INFO);
 }
 
 void
@@ -366,14 +369,14 @@ mono_class_set_field_def_values (MonoClass *klass, MonoFieldDefaultValue *values
 guint32
 mono_class_get_declsec_flags (MonoClass *klass)
 {
-	Uint32Property *prop = mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_DECLSEC_FLAGS);
+	Uint32Property *prop = (Uint32Property*)mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_DECLSEC_FLAGS);
 	return prop ? prop->value : 0;
 }
 
 void
 mono_class_set_declsec_flags (MonoClass *klass, guint32 value)
 {
-	Uint32Property *prop = mono_class_alloc (klass, sizeof (Uint32Property));
+	Uint32Property *prop = (Uint32Property*)mono_class_alloc (klass, sizeof (Uint32Property));
 	prop->head.tag = PROP_DECLSEC_FLAGS;
 	prop->value = value;
 	mono_property_bag_add (m_class_get_infrequent_data (klass), prop);
@@ -406,7 +409,7 @@ typedef struct {
 void
 mono_class_set_weak_bitmap (MonoClass *klass, int nbits, gsize *bits)
 {
-	WeakBitmapData *info = mono_class_alloc (klass, sizeof (WeakBitmapData));
+	WeakBitmapData *info = (WeakBitmapData *)mono_class_alloc (klass, sizeof (WeakBitmapData));
 	info->nbits = nbits;
 	info->bits = bits;
 
@@ -417,7 +420,7 @@ mono_class_set_weak_bitmap (MonoClass *klass, int nbits, gsize *bits)
 gsize*
 mono_class_get_weak_bitmap (MonoClass *klass, int *nbits)
 {
-	WeakBitmapData *prop = mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_WEAK_BITMAP);
+	WeakBitmapData *prop = (WeakBitmapData*)mono_property_bag_get (m_class_get_infrequent_data (klass), PROP_WEAK_BITMAP);
 
 	g_assert (prop);
 	*nbits = prop->nbits;
@@ -448,7 +451,7 @@ typedef struct {
 void
 mono_class_set_dim_conflicts (MonoClass *klass, GSList *conflicts)
 {
-	DimConflictData *info = mono_class_alloc (klass, sizeof (DimConflictData));
+	DimConflictData *info = (DimConflictData*)mono_class_alloc (klass, sizeof (DimConflictData));
 	info->data = conflicts;
 
 	g_assert (!mono_class_is_ginst (klass));
@@ -463,14 +466,88 @@ mono_class_get_dim_conflicts (MonoClass *klass)
 	if (mono_class_is_ginst (klass))
 		return mono_class_get_dim_conflicts (mono_class_get_generic_class (klass)->container_class);
 
-	DimConflictData *info = mono_property_bag_get (&klass->infrequent_data, PROP_DIM_CONFLICTS);
+	DimConflictData *info = (DimConflictData*)mono_property_bag_get (&klass->infrequent_data, PROP_DIM_CONFLICTS);
 
 	g_assert (info);
 	return info->data;
 }
 
+/**
+ * mono_class_set_failure:
+ * \param klass class in which the failure was detected
+ * \param ex_type the kind of exception/error to be thrown (later)
+ * \param ex_data exception data (specific to each type of exception/error)
+ *
+ * Keep a detected failure informations in the class for later processing.
+ * Note that only the first failure is kept.
+ *
+ * LOCKING: Acquires the loader lock.
+ */
+gboolean
+mono_class_set_failure (MonoClass *klass, MonoErrorBoxed *boxed_error)
+{
+	g_assert (boxed_error != NULL);
+
+	if (mono_class_has_failure (klass))
+		return FALSE;
+
+	mono_loader_lock ();
+	klass->has_failure = 1;
+	mono_class_set_exception_data (klass, boxed_error);
+	mono_loader_unlock ();
+
+	return TRUE;
+}
+
+/**
+ * mono_class_set_nonblittable:
+ * \param klass class which will be marked as not blittable.
+ *
+ * Mark \c klass as not blittable.
+ *
+ * LOCKING: Acquires the loader lock.
+ */
+void
+mono_class_set_nonblittable (MonoClass *klass) {
+	mono_loader_lock ();
+	klass->blittable = FALSE;
+	mono_loader_unlock ();
+}
+
+#ifndef DISABLE_REMOTING
+void
+mono_class_contextbound_bit_offset (int* byte_offset_out, guint8* mask_out) {
+	mono_marshal_find_bitfield_offset (MonoClass, contextbound, byte_offset_out, mask_out);
+}
+#endif
+
+/**
+ * mono_class_publish_gc_descriptor:
+ * \param klass the \c MonoClass whose GC descriptor is to be set
+ * \param gc_descr the GC descriptor for \p klass
+ *
+ * Sets the \c gc_descr_inited and \c gc_descr fields of \p klass.
+ * \returns previous value of \c klass->gc_descr_inited
+ *
+ * LOCKING: Acquires the loader lock.
+ */
+gboolean
+mono_class_publish_gc_descriptor (MonoClass *klass, MonoGCDescriptor gc_descr)
+{
+	gboolean ret;
+	mono_loader_lock ();
+	ret = klass->gc_descr_inited;
+	klass->gc_descr = gc_descr;
+	mono_memory_barrier ();
+	klass->gc_descr_inited = TRUE;
+	mono_loader_unlock ();
+	return ret;
+}
+
 #ifdef MONO_CLASS_DEF_PRIVATE
 #define MONO_CLASS_GETTER(funcname, rettype, optref, argtype, fieldname) rettype funcname (argtype *klass) { return optref klass-> fieldname ; }
+#define MONO_CLASS_OFFSET(funcname, argtype, fieldname) intptr_t funcname (void) { return MONO_STRUCT_OFFSET (argtype, fieldname); }
 #include "class-getters.h"
 #undef MONO_CLASS_GETTER
+#undef MONO_CLASS_OFFSET
 #endif /* MONO_CLASS_DEF_PRIVATE */

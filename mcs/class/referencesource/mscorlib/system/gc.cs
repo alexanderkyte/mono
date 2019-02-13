@@ -18,7 +18,9 @@ namespace System {
     //This class only static members and doesn't require the serializable keyword.
 
     using System;
+#if !MONO
     using System.Security.Permissions;
+#endif
     using System.Reflection;
     using System.Security;
     using System.Threading;
@@ -63,7 +65,7 @@ namespace System {
         NotApplicable = 4
     }
 
-    public static class GC 
+    public static partial class GC 
     {
 #if MONO
         [MethodImplAttribute (MethodImplOptions.InternalCall)]
@@ -78,14 +80,34 @@ namespace System {
         [MethodImplAttribute (MethodImplOptions.InternalCall)]
         extern static void RecordPressure (long bytesAllocated);
 
+#if !NETCORE
         // TODO: Move following to ConditionalWeakTable
         [MethodImplAttribute (MethodImplOptions.InternalCall)]
         internal extern static void register_ephemeron_array (Ephemeron[] array);
+#endif
 
         [MethodImplAttribute (MethodImplOptions.InternalCall)]
         extern static object get_ephemeron_tombstone ();
 
         internal static readonly object EPHEMERON_TOMBSTONE = get_ephemeron_tombstone ();
+
+        internal static void GetMemoryInfo(out uint highMemLoadThreshold,
+                                                  out ulong totalPhysicalMem,
+                                                  out uint lastRecordedMemLoad,
+                                                  // The next two are size_t
+                                                  out UIntPtr lastRecordedHeapSize,
+                                                  out UIntPtr lastRecordedFragmentation)
+        {
+            // TODO: Fill properly
+            highMemLoadThreshold = 0;
+            totalPhysicalMem = ulong.MaxValue;
+            lastRecordedMemLoad = 0;
+            lastRecordedHeapSize = UIntPtr.Zero;
+            lastRecordedFragmentation = UIntPtr.Zero;
+        }
+
+        [MethodImplAttribute (MethodImplOptions.InternalCall)]
+        public static extern long GetAllocatedBytesForCurrentThread ();
 #else
         [System.Security.SecurityCritical]  // auto-generated
         [ResourceExposure(ResourceScope.None)]
@@ -211,7 +233,9 @@ namespace System {
 #else
         [System.Security.SecuritySafeCritical]  // auto-generated
 #endif
+#if !MONO
         [ResourceExposure(ResourceScope.None)]
+#endif
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern int GetGeneration(Object obj);
 
@@ -403,8 +427,10 @@ namespace System {
     
         // Indicates that the system should not call the Finalize() method on
         // an object that would normally require this call.
+#if !MONO
         [System.Security.SecurityCritical]  // auto-generated
         [ResourceExposure(ResourceScope.None)]
+#endif
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern void _SuppressFinalize(Object o);
@@ -422,8 +448,10 @@ namespace System {
         // for which SuppressFinalize has already been called. The other situation 
         // where calling ReRegisterForFinalize is useful is inside a finalizer that 
         // needs to resurrect itself or an object that it references.
+#if !MONO
         [System.Security.SecurityCritical]  // auto-generated
         [ResourceExposure(ResourceScope.None)]
+#endif
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _ReRegisterForFinalize(Object o);
         
@@ -652,6 +680,7 @@ namespace System {
         }
     }
 
+#if !MONO
 #if !FEATURE_CORECLR
     internal class SizedReference : IDisposable
     {
@@ -750,5 +779,6 @@ namespace System {
             GC.SuppressFinalize(this);
         }
     }
+#endif
 #endif
 }

@@ -15,6 +15,13 @@
 #ifdef HAVE_SGEN_GC
 #include <mono/sgen/sgen-gc.h>
 #endif
+#ifdef MONO_CLASS_DEF_PRIVATE
+/* Rationale: MonoClass field offsets are computed here.  Need to see the definition.
+ */
+#define REALLY_INCLUDE_CLASS_DEF 1
+#include <mono/metadata/class-private-definition.h>
+#undef REALLY_INCLUDE_CLASS_DEF
+#endif
 
 static int
 dump_arch (void)
@@ -27,6 +34,10 @@ dump_arch (void)
 	g_print ("#ifdef TARGET_ARM\n");
 #elif defined (TARGET_ARM64)
 	g_print ("#ifdef TARGET_ARM64\n");
+#elif defined (TARGET_RISCV32)
+	g_print ("#ifdef TARGET_RISCV32\n");
+#elif defined (TARGET_RISCV64)
+	g_print ("#ifdef TARGET_RISCV64\n");
 #else
 	return 0;
 #endif

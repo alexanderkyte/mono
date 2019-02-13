@@ -66,7 +66,7 @@ namespace MonoTests.System.Runtime.ExceptionServices
 		}
 
 		[Test]
-		[Category ("NotWorkingRuntimeInterpreter")]
+		[Category ("MultiThreaded")]
 		public void Throw ()
 		{
 			Exception orig = null;
@@ -93,7 +93,7 @@ namespace MonoTests.System.Runtime.ExceptionServices
 		}
 
 		[Test]
-		[Category ("NotWorkingRuntimeInterpreter")]
+		[Category ("StackWalks")]
 		public void ThrowWithEmptyFrames ()
 		{
 			var edi = ExceptionDispatchInfo.Capture (new OperationCanceledException ());
@@ -108,7 +108,7 @@ namespace MonoTests.System.Runtime.ExceptionServices
 		}
 
 		[Test]
-		[Category ("NotWorkingRuntimeInterpreter")]
+		[Category ("StackWalks")]
 		public void LastThrowWins ()
 		{
 			Exception e;
@@ -140,7 +140,7 @@ namespace MonoTests.System.Runtime.ExceptionServices
 		}
 
 		[Test]
-		[Category ("NotWorkingRuntimeInterpreter")]
+		[Category ("StackWalks")]
 		public void ThrowMultipleCaptures ()
 		{
 			Exception e;
@@ -169,7 +169,7 @@ namespace MonoTests.System.Runtime.ExceptionServices
 		}
 
 		[Test]
-		[Category ("NotWorkingRuntimeInterpreter")]
+		[Category ("StackWalks")]
 		public void StackTraceUserCopy ()
 		{
 			try {

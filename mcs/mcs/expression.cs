@@ -920,7 +920,7 @@ namespace Mono.CSharp
 
 		public override bool ContainsEmitWithAwait ()
 		{
-			throw new NotImplementedException ();
+			return false;
 		}
 
 		public override Expression CreateExpressionTree (ResolveContext ec)
@@ -2051,7 +2051,11 @@ namespace Mono.CSharp
 
 						if (d.BuiltinType == BuiltinTypeSpec.Type.Dynamic)
 							return this;
-						
+
+						// TODO: Requires custom optimized version with variable store
+						if (Variable != null)
+							return this;
+
 						//
 						// Turn is check into simple null check for implicitly convertible reference types
 						//
@@ -2754,6 +2758,12 @@ namespace Mono.CSharp
 		public override bool IsSideEffectFree {
 			get {
 				return true;
+			}
+		}
+
+		public override bool IsNull {
+			get {
+				return TypeSpec.IsReferenceType (type);
 			}
 		}
 
@@ -5669,6 +5679,12 @@ namespace Mono.CSharp
 				ConvCast.Emit (ec, enum_conversion);
 		}
 
+		public override void EmitPrepare (EmitContext ec)
+		{
+			Left.EmitPrepare (ec);
+			Right.EmitPrepare (ec);
+		}
+
 		public override void EmitSideEffect (EmitContext ec)
 		{
 			if ((oper & Operator.LogicalMask) != 0 ||
@@ -6385,7 +6401,7 @@ namespace Mono.CSharp
 							}
 						}
 
-						if (conv_false_expr != null) {
+						if (conv_false_expr != null && false_type != InternalType.ErrorType && true_type != InternalType.ErrorType) {
 							ec.Report.Error (172, true_expr.Location,
 								"Type of conditional expression cannot be determined as `{0}' and `{1}' convert implicitly to each other",
 									true_type.GetSignatureForError (), false_type.GetSignatureForError ());
@@ -6398,7 +6414,7 @@ namespace Mono.CSharp
 				} else if ((conv = Convert.ImplicitConversion (ec, false_expr, true_type, loc)) != null) {
 					false_expr = conv;
 				} else {
-					if (false_type != InternalType.ErrorType) {
+					if (false_type != InternalType.ErrorType && true_type != InternalType.ErrorType) {
 						ec.Report.Error (173, true_expr.Location,
 							"Type of conditional expression cannot be determined because there is no implicit conversion between `{0}' and `{1}'",
 							true_type.GetSignatureForError (), false_type.GetSignatureForError ());
@@ -6424,6 +6440,30 @@ namespace Mono.CSharp
 					false_expr is Constant && true_expr is Constant).Resolve (ec);
 			}
 
+			return this;
+		}
+
+		public override Expression DoResolveLValue (ResolveContext rc, Expression right_side)
+		{
+			expr = expr.Resolve (rc);
+			true_expr = true_expr.Resolve (rc);
+			false_expr = false_expr.Resolve (rc);
+
+			if (true_expr == null || false_expr == null || expr == null)
+				return null;
+			
+			if (!(true_expr is ReferenceExpression && false_expr is ReferenceExpression)) {
+				rc.Report.Error (8326, expr.Location, "Both ref conditional operators must be ref values");
+				return null;
+			}
+
+			if (!TypeSpecComparer.IsEqual (true_expr.Type, false_expr.Type)) {
+				rc.Report.Error (8327, true_expr.Location, "The ref conditional expression types `{0}' and `{1}' have to match",
+				                 true_expr.Type.GetSignatureForError (), false_expr.Type.GetSignatureForError ()); 
+			}
+
+			eclass = ExprClass.Value;
+			type = true_expr.Type;
 			return this;
 		}
 
@@ -6774,7 +6814,7 @@ namespace Mono.CSharp
 						"Cannot use fixed variable `{0}' inside an anonymous method, lambda expression or query expression",
 						GetSignatureForError ());
 				} else if (local_info.IsByRef || local_info.Type.IsByRefLike) {
-					if (ec.CurrentAnonymousMethod is StateMachineInitializer) {
+					if (local_info.Type.IsSpecialRuntimeType || ec.CurrentAnonymousMethod is StateMachineInitializer) {
 						// It's reported later as 4012/4013
 					} else {
 						ec.Report.Error (8175, loc,
@@ -11877,10 +11917,15 @@ namespace Mono.CSharp
 			if (!TypeManager.VerifyUnmanaged (ec.Module, otype, loc))
 				return null;
 
-			type = PointerContainer.MakeType (ec.Module, otype);
+			ResolveExpressionType (ec, otype);
 			eclass = ExprClass.Value;
 
 			return this;
+		}
+
+		protected virtual void ResolveExpressionType (ResolveContext rc, TypeSpec elementType)
+		{
+			type = PointerContainer.MakeType (rc.Module, elementType);
 		}
 
 		public override void Emit (EmitContext ec)
@@ -11931,11 +11976,33 @@ namespace Mono.CSharp
 		public bool ResolveSpanConversion (ResolveContext rc, TypeSpec spanType)
 		{
 			ctor = MemberCache.FindMember (spanType, MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (PointerContainer.MakeType (rc.Module, rc.Module.Compiler.BuiltinTypes.Void), rc.Module.Compiler.BuiltinTypes.Int)), BindingRestriction.DeclaredOnly) as MethodSpec;
-			if (ctor == null)
+			if (ctor == null) {
+				this.type = InternalType.ErrorType;
 				return false;
+			}
 			
 			this.type = spanType;
 			return true;
+		}
+	}
+
+	class SpanStackAlloc : StackAlloc
+	{
+		public SpanStackAlloc (Expression type, Expression count, Location l)
+			: base (type, count, l)
+		{
+		}
+
+		protected override void ResolveExpressionType (ResolveContext rc, TypeSpec elementType)
+		{
+			var span = rc.Module.PredefinedTypes.SpanGeneric.Resolve ();
+			if (span == null) {
+				type = InternalType.ErrorType;
+				return;
+			}
+
+			type = span.MakeGenericType (rc, new [] { elementType });
+			ResolveSpanConversion (rc, type);
 		}
 	}
 
@@ -13085,6 +13152,9 @@ namespace Mono.CSharp
 			if (expr is IAssignMethod)
 				return true;
 
+			if (expr is Conditional)
+				return true;
+
 			var invocation = expr as Invocation;
 			if (invocation?.Type.Kind == MemberKind.ByRef)
 				return true;
@@ -13230,6 +13300,10 @@ namespace Mono.CSharp
 		public DefaultLiteralExpression (Location loc)
 		{
 			this.loc = loc;
+		}
+
+		protected override void CloneTo (CloneContext clonectx, Expression t)
+		{
 		}
 
 		public override Expression CreateExpressionTree (ResolveContext ec)

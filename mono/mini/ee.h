@@ -15,7 +15,7 @@
 #ifndef __MONO_EE_H__
 #define __MONO_EE_H__
 
-#define MONO_EE_API_VERSION 0x1
+#define MONO_EE_API_VERSION 0x9
 
 typedef struct _MonoInterpStackIter MonoInterpStackIter;
 
@@ -27,15 +27,17 @@ struct _MonoInterpStackIter {
 typedef gpointer MonoInterpFrameHandle;
 
 struct _MonoEECallbacks {
-	gpointer (*create_method_pointer) (MonoMethod *method, MonoError *error);
+	void (*entry_from_trampoline) (gpointer ccontext, gpointer imethod);
+	void (*to_native_trampoline) (gpointer addr, gpointer ccontext);
+	gpointer (*create_method_pointer) (MonoMethod *method, gboolean compile, MonoError *error);
+	MonoFtnDesc *(*create_method_pointer_llvmonly) (MonoMethod *method, gboolean unbox, MonoError *error);
 	MonoObject* (*runtime_invoke) (MonoMethod *method, void *obj, void **params, MonoObject **exc, MonoError *error);
 	void (*init_delegate) (MonoDelegate *del);
-	gpointer (*get_remoting_invoke) (gpointer imethod, MonoError *error);
-	gpointer (*create_trampoline) (MonoDomain *domain, MonoMethod *method, MonoError *error);
-	void (*walk_stack_with_ctx) (MonoInternalStackWalk func, MonoContext *ctx, MonoUnwindOptions options, void *user_data);
+	void (*delegate_ctor) (MonoObjectHandle this_obj, MonoObjectHandle target, gpointer addr, MonoError *error);
+	gpointer (*get_remoting_invoke) (MonoMethod *method, gpointer imethod, MonoError *error);
 	void (*set_resume_state) (MonoJitTlsData *jit_tls, MonoException *ex, MonoJitExceptionInfo *ei, MonoInterpFrameHandle interp_frame, gpointer handler_ip);
-	gboolean (*run_finally) (StackFrameInfo *frame, int clause_index, gpointer handler_ip);
-	gboolean (*run_filter) (StackFrameInfo *frame, MonoException *ex, int clause_index, gpointer handler_ip);
+	gboolean (*run_finally) (StackFrameInfo *frame, int clause_index, gpointer handler_ip, gpointer handler_ip_end);
+	gboolean (*run_filter) (StackFrameInfo *frame, MonoException *ex, int clause_index, gpointer handler_ip, gpointer handler_ip_end);
 	void (*frame_iter_init) (MonoInterpStackIter *iter, gpointer interp_exit_data);
 	gboolean (*frame_iter_next) (MonoInterpStackIter *iter, StackFrameInfo *frame);
 	MonoJitInfo* (*find_jit_info) (MonoDomain *domain, MonoMethod *method);
@@ -49,6 +51,7 @@ struct _MonoEECallbacks {
 	void (*frame_arg_to_data) (MonoInterpFrameHandle frame, MonoMethodSignature *sig, int index, gpointer data);
 	void (*data_to_frame_arg) (MonoInterpFrameHandle frame, MonoMethodSignature *sig, int index, gpointer data);
 	gpointer (*frame_arg_to_storage) (MonoInterpFrameHandle frame, MonoMethodSignature *sig, int index);
+	void (*frame_arg_set_storage) (MonoInterpFrameHandle frame, MonoMethodSignature *sig, int index, gpointer storage);
 	MonoInterpFrameHandle (*frame_get_parent) (MonoInterpFrameHandle frame);
 	void (*start_single_stepping) (void);
 	void (*stop_single_stepping) (void);

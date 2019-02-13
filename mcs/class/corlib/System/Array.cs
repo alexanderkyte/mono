@@ -36,7 +36,6 @@
 using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Runtime.ConstrainedExecution;
@@ -49,7 +48,6 @@ namespace System
 		private Array ()
 		{
 		}
-
 		/*
 		 * These methods are used to implement the implicit generic interfaces 
 		 * implemented by arrays in NET 2.0.
@@ -64,6 +62,21 @@ namespace System
 		internal bool InternalArray__ICollection_get_IsReadOnly ()
 		{
 			return true;
+		}
+
+		// adapted to the Mono array layout
+		[StructLayout(LayoutKind.Sequential)]
+		private class RawData
+		{
+			public IntPtr Bounds;
+			public IntPtr Count;
+			public byte Data;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal ref byte GetRawSzArrayData()
+		{
+			return ref Unsafe.As<RawData>(this).Data;
 		}
 
 		internal IEnumerator<T> InternalArray__IEnumerable_GetEnumerator<T> ()
@@ -92,7 +105,7 @@ namespace System
 		internal bool InternalArray__ICollection_Contains<T> (T item)
 		{
 			if (this.Rank > 1)
-				throw new RankException (Locale.GetText ("Only single dimension arrays are supported."));
+				throw new RankException ("Only single dimension arrays are supported.");
 
 			int length = this.Length;
 			for (int i = 0; i < length; i++) {
@@ -147,7 +160,7 @@ namespace System
 		internal int InternalArray__IndexOf<T> (T item)
 		{
 			if (this.Rank > 1)
-				throw new RankException (Locale.GetText ("Only single dimension arrays are supported."));
+				throw new RankException ("Only single dimension arrays are supported.");
 
 			int length = this.Length;
 			for (int i = 0; i < length; i++) {
@@ -350,8 +363,7 @@ namespace System
 
 			var lb  = GetLowerBound (0);
 			if (index < lb || index > GetUpperBound (0))
-				throw new IndexOutOfRangeException (Locale.GetText (
-					"Index has to be between upper and lower bound of the array."));
+				throw new IndexOutOfRangeException ("Index has to be between upper and lower bound of the array.");
 
 			if (GetType ().GetElementType ().IsPointer)
 				throw new NotSupportedException ("Type is not supported.");
@@ -378,8 +390,7 @@ namespace System
 
 			var lb  = GetLowerBound (0);
 			if (index < lb || index > GetUpperBound (0))
-				throw new IndexOutOfRangeException (Locale.GetText (
-					"Index has to be >= lower bound and <= upper bound of the array."));
+				throw new IndexOutOfRangeException ("Index has to be >= lower bound and <= upper bound of the array.");
 
 			if (GetType ().GetElementType ().IsPointer)
 				throw new NotSupportedException ("Type is not supported.");
@@ -476,18 +487,16 @@ namespace System
 				throw new NotSupportedException ("Array type can not be an open generic type");
 
 			if (lengths.Length < 1)
-				throw new ArgumentException (Locale.GetText ("Arrays must contain >= 1 elements."));
+				throw new ArgumentException ("Arrays must contain >= 1 elements.");
 
 			if (lengths.Length != lowerBounds.Length)
-				throw new ArgumentException (Locale.GetText ("Arrays must be of same size."));
+				throw new ArgumentException ("Arrays must be of same size.");
 
 			for (int j = 0; j < lowerBounds.Length; j ++) {
 				if (lengths [j] < 0)
-					throw new ArgumentOutOfRangeException ("lengths", Locale.GetText (
-						"Each value has to be >= 0."));
+					throw new ArgumentOutOfRangeException ("lengths", "Each value has to be >= 0.");
 				if ((long)lowerBounds [j] + (long)lengths [j] > (long)Int32.MaxValue)
-					throw new ArgumentOutOfRangeException ("lengths", Locale.GetText (
-						"Length + bound must not exceed Int32.MaxValue."));
+					throw new ArgumentOutOfRangeException ("lengths", "Length + bound must not exceed Int32.MaxValue.");
 			}
 
 			if (lengths.Length > 255)
@@ -544,19 +553,16 @@ namespace System
 				throw new ArgumentNullException ("destinationArray");
 
 			if (length < 0)
-				throw new ArgumentOutOfRangeException ("length", Locale.GetText (
-					"Value has to be >= 0."));;
+				throw new ArgumentOutOfRangeException ("length", "Value has to be >= 0.");
 
 			if (sourceArray.Rank != destinationArray.Rank)
 				throw new RankException(SR.Rank_MultiDimNotSupported);
 
 			if (sourceIndex < 0)
-				throw new ArgumentOutOfRangeException ("sourceIndex", Locale.GetText (
-					"Value has to be >= 0."));;
+				throw new ArgumentOutOfRangeException ("sourceIndex", "Value has to be >= 0.");
 
 			if (destinationIndex < 0)
-				throw new ArgumentOutOfRangeException ("destinationIndex", Locale.GetText (
-					"Value has to be >= 0."));;
+				throw new ArgumentOutOfRangeException ("destinationIndex", "Value has to be >= 0.");
 
 			if (FastCopy (sourceArray, sourceIndex, destinationArray, destinationIndex, length))
 				return;
@@ -572,26 +578,27 @@ namespace System
 				throw new ArgumentException ("length");
 
 			if (dest_pos > destinationArray.Length - length) {
-				string msg = "Destination array was not long enough. Check " +
-					"destIndex and length, and the array's lower bounds";
-				throw new ArgumentException (msg, string.Empty);
+				throw new ArgumentException ("Destination array was not long enough. Check destIndex and length, and the array's lower bounds", nameof (destinationArray));
 			}
 
 			Type src_type = sourceArray.GetType ().GetElementType ();
 			Type dst_type = destinationArray.GetType ().GetElementType ();
+			var dst_type_vt = dst_type.IsValueType;
 
 			if (!Object.ReferenceEquals (sourceArray, destinationArray) || source_pos > dest_pos) {
 				for (int i = 0; i < length; i++) {
 					Object srcval = sourceArray.GetValueImpl (source_pos + i);
 
+					if (srcval == null && dst_type_vt)
+						throw new InvalidCastException ();
+
 					try {
 						destinationArray.SetValueImpl (srcval, dest_pos + i);
 					} catch (ArgumentException) {
 						throw CreateArrayTypeMismatchException ();
-					} catch {
+					} catch (InvalidCastException) {
 						if (CanAssignArrayElement (src_type, dst_type))
 							throw;
-
 						throw CreateArrayTypeMismatchException ();
 					}
 				}
@@ -614,7 +621,7 @@ namespace System
 			}
 		}
 
-		static Exception CreateArrayTypeMismatchException ()
+		static ArrayTypeMismatchException CreateArrayTypeMismatchException ()
 		{
 			return new ArrayTypeMismatchException ();
 		}
@@ -655,12 +662,20 @@ namespace System
 
 		static int IndexOfImpl<T>(T[] array, T value, int startIndex, int count)
 		{
+#if NETCORE
+			throw new NotImplementedException ();
+#else
 			return EqualityComparer<T>.Default.IndexOf (array, value, startIndex, count);
+#endif
 		}
 
 		static int LastIndexOfImpl<T>(T[] array, T value, int startIndex, int count)
 		{
+#if NETCORE
+			throw new NotImplementedException ();
+#else
 			return EqualityComparer<T>.Default.LastIndexOf (array, value, startIndex, count);
+#endif
 		}
 
 		static void SortImpl (Array keys, Array items, int index, int length, IComparer comparer)

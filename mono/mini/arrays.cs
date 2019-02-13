@@ -768,6 +768,20 @@ class Tests
 		return 0;
 	}
 
+	public struct TestStruct {
+	}
+
+	// #11603
+	public static int test_0_ldelema () {
+		try {
+			TestStruct[] frames = null;
+			_ = frames[0];
+			return 1;
+		} catch (NullReferenceException) {
+			return 0;
+		}
+	}
+
 	static bool alloc_long (long l) {
 		try {
 			var arr = new byte[l];
@@ -805,6 +819,28 @@ class Tests
 		for (int i = 0; i < 10; ++i)
 			arr [i] = 1;
 		return llvm_ldlen_licm (arr);
+	}
+
+	private unsafe static void WritePtr (FooStruct *val, out FooStruct* ptr)
+	{
+		ptr = val;
+	}
+
+	public unsafe static int test_0_ldelema_ptr () {
+		int i;
+		int len = 10;
+		FooStruct*[] ptr_array = new FooStruct* [len];
+		FooStruct str = new FooStruct (3);
+
+		for (i = 0; i < len; i++)
+			WritePtr (&str, out ptr_array [i]);
+
+		for (i = 0; i < len; i++) {
+			if (ptr_array [i]->i != 3)
+				return i;
+		}
+
+                return 0;
 	}
 }
 

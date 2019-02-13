@@ -103,7 +103,7 @@ mono_arch_get_unbox_trampoline (MonoMethod *method, gpointer addr)
 	start = code = mono_domain_code_reserve (domain, 28);
 
 	S390_SET  (code, s390_r1, addr);
-	s390_aghi (code, this_pos, sizeof(MonoObject));
+	s390_aghi (code, this_pos, MONO_ABI_SIZEOF (MonoObject));
 	s390_br   (code, s390_r1);
 
 	g_assert ((code - start) <= 28);
@@ -159,7 +159,7 @@ mono_arch_patch_callsite (guint8 *method_start, guint8 *orig_code, guint8 *addr)
 /*------------------------------------------------------------------*/
 
 void
-mono_arch_patch_plt_entry (guint8 *code, gpointer *got, mgreg_t *regs, guint8 *addr)
+mono_arch_patch_plt_entry (guint8 *code, gpointer *got, host_mgreg_t *regs, guint8 *addr)
 {
 	g_assert_not_reached ();
 }
@@ -289,7 +289,7 @@ mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInf
 				
 	/* Set arguments */
 
-	/* Arg 1: mgreg_t *regs */
+	/* Arg 1: host_mgreg_t *regs */
 	s390_la  (buf, s390_r2, 0, LMFReg, G_STRUCT_OFFSET(MonoLMF, gregs[0]));
 		
 	/* Arg 2: code (next address to the instruction that called us) */
@@ -328,9 +328,9 @@ mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInf
 	/*
 	 * Exception case:
 	 * We have an exception we want to throw in the caller's frame, so pop
-	 * the trampoline frame and throw from the caller.
+	 * the trampoline frame and throw from the caller. 
 	 */
-	S390_SET  (buf, s390_r1, (guint *)mono_get_throw_exception_addr ());
+	S390_SET  (buf, s390_r1, (guint *)mono_get_rethrow_preserve_exception_addr ());
 	s390_aghi (buf, STK_BASE, sizeof(trampStack_t));
 	s390_lg   (buf, s390_r1, 0, s390_r1, 0); 
 	s390_lmg  (buf, s390_r6, s390_r14, STK_BASE, S390_REG_SAVE_OFFSET);
@@ -369,7 +369,7 @@ mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInf
 
 	/* Flush instruction cache, since we've generated code */
 	mono_arch_flush_icache (code, buf - code);
-	MONO_PROFILER_RAISE (jit_code_buffer, (buf, code - buf, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL));
+	MONO_PROFILER_RAISE (jit_code_buffer, (buf, code - buf, MONO_PROFILER_CODE_BUFFER_HELPER, NULL));
 	
 	g_assert (info);
 	tramp_name = mono_get_generic_trampoline_name (tramp_type);
@@ -477,7 +477,7 @@ mono_arch_create_rgctx_lazy_fetch_trampoline (guint32 slot, MonoTrampInfo **info
 	mrgctx = MONO_RGCTX_SLOT_IS_MRGCTX (slot);
 	index = MONO_RGCTX_SLOT_INDEX (slot);
 	if (mrgctx)
-		index += MONO_SIZEOF_METHOD_RUNTIME_GENERIC_CONTEXT / sizeof (gpointer);
+		index += MONO_SIZEOF_METHOD_RUNTIME_GENERIC_CONTEXT / sizeof (target_mgreg_t);
 	for (depth = 0; ; ++depth) {
 		int size = mono_class_rgctx_get_array_size (depth, mrgctx);
 
@@ -524,7 +524,7 @@ mono_arch_create_rgctx_lazy_fetch_trampoline (guint32 slot, MonoTrampInfo **info
 	}
 
 	/* fetch slot */
-	s390_lg (code, s390_r1, 0, s390_r1, (sizeof (gpointer) * (index  + 1)));
+	s390_lg (code, s390_r1, 0, s390_r1, (sizeof (target_mgreg_t) * (index  + 1)));
 	/* is the slot null? */
 	s390_ltgr (code, s390_r1, s390_r1);
 	/* if yes, jump to actual trampoline */
@@ -546,7 +546,7 @@ mono_arch_create_rgctx_lazy_fetch_trampoline (guint32 slot, MonoTrampInfo **info
 	s390_lgr (code, MONO_ARCH_VTABLE_REG, s390_r2);
 #endif
 
-	tramp = mono_arch_create_specific_trampoline (GUINT_TO_POINTER (slot),
+	tramp = (guint8*)mono_arch_create_specific_trampoline (GUINT_TO_POINTER (slot),
 		MONO_TRAMPOLINE_RGCTX_LAZY_FETCH, mono_get_root_domain (), NULL);
 
 	/* jump to the actual trampoline */
@@ -595,28 +595,11 @@ mono_arch_get_static_rgctx_trampoline (gpointer arg, gpointer addr)
 	g_assert ((code - start) < buf_len);
 
 	mono_arch_flush_icache (start, code - start);
-	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_HELPER, NULL));
+	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL));
 
 	mono_tramp_info_register (mono_tramp_info_create (NULL, start, code - start, NULL, NULL), domain);
 
 	return(start);
 }	
-
-/*========================= End of Function ========================*/
-
-/*------------------------------------------------------------------*/
-/*                                                                  */
-/* Name	    - mono_arch_get_interp_to_native_trampoline.            */
-/*                                                                  */
-/* Function - 							    */
-/*                                                                  */
-/*------------------------------------------------------------------*/
-
-gpointer
-mono_arch_get_interp_to_native_trampoline (MonoTrampInfo **info)
-{
-	g_assert_not_reached ();
-	return NULL;
-}
 
 /*========================= End of Function ========================*/

@@ -26,6 +26,9 @@ allowed_defines = { "TARGET_X86" : 1,
                     "TARGET_SPARC" : 1,
                     "TARGET_S390X" : 1,
                     "TARGET_MIPS" : 1,
+                    "TARGET_RISCV" : 1,
+                    "TARGET_RISCV32" : 1,
+                    "TARGET_RISCV64" : 1,
                     "TARGET_WASM" : 1
                     }
                     
@@ -95,9 +98,17 @@ def parse_mini_ops (target_define):
     return opcodes
 
 def parse_input(infile, opcodes):
+
+    # Comments are pound sign to end of string.
+    remove_comments = re.compile ("#.*")
+
     for line in infile:
         line = line.strip ()
-        if line == "" or line.startswith ("#"):
+        # remove comments
+        line = re.sub (remove_comments, "", line)
+
+        # Ignore empty lines -- including it was just a comment.
+        if line == "":
             continue
         # Lines look like:
         # expand_i2: dest:x src1:i len:18

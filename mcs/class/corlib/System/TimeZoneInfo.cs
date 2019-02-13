@@ -149,7 +149,7 @@ namespace System
 			return true;
 		}
 
-#if !MONODROID && !MONOTOUCH && !XAMMAC
+#if !MONODROID && !MONOTOUCH && !XAMMAC && !WASM
 		static TimeZoneInfo CreateLocal ()
 		{
 #if WIN_PLATFORM
@@ -245,7 +245,7 @@ namespace System
 			throw new NotImplementedException ("This method is not implemented for this platform");
 #endif
 		}
-#endif // !MONODROID && !MONOTOUCH && !XAMMAC
+#endif // !MONODROID && !MONOTOUCH && !XAMMAC && !WASM
 
 		string standardDisplayName;
 		public string StandardName {
@@ -266,11 +266,12 @@ namespace System
 			}
 		}
 #if LIBC
+		const string DefaultTimeZoneDirectory = "/usr/share/zoneinfo";
 		static string timeZoneDirectory;
 		static string TimeZoneDirectory {
 			get {
 				if (timeZoneDirectory == null)
-					timeZoneDirectory = "/usr/share/zoneinfo";
+					timeZoneDirectory = readlink (DefaultTimeZoneDirectory) ?? DefaultTimeZoneDirectory;
 				return timeZoneDirectory;
 			}
 			set {

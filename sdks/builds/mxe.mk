@@ -1,39 +1,36 @@
 
-$(TOP)/sdks/builds/toolchains/mxe:
-	git clone -b xamarin https://github.com/xamarin/mxe.git $@
+ifeq ($(UNAME),Linux)
+LINUX_FLAVOR=$(shell ./determine-linux-flavor.sh)
+endif
 
-##
-# Parameters
-#  $(1): target
-#  $(2): arch
-define MxeTemplate
+LINUX_WITH_MINGW=:Ubuntu:,:Debian:,:Debian GNU/Linux:
+LINUX_HAS_MINGW=$(if $(findstring :$(LINUX_FLAVOR):,$(LINUX_WITH_MINGW)),yes)
 
-.stamp-mxe-$(1)-toolchain: | $$(TOP)/sdks/builds/toolchains/mxe
-	cd $$(TOP)/sdks/builds/toolchains/mxe && git checkout $$(MXE_HASH)
-	touch $$@
+ifeq ($(LINUX_HAS_MINGW),yes)
+MXE_PREFIX=/usr
 
-.stamp-mxe-$(1)-configure:
-	touch $$@
+.PHONY: provision-mxe
+provision-mxe:
+	@echo $(LINUX_FLAVOR) Linux does not require mxe provisioning. mingw from packages is used instead
+else
+MXE_SRC?=$(TOP)/sdks/builds/toolchains/mxe
+MXE_PREFIX_DIR?=$(HOME)/android-toolchain
 
-.PHONY: build-custom-mxe-$(1)
-build-custom-mxe-$(1):
-	PATH="$$$$PATH:$$(dir $$(shell which autopoint))" $$(MAKE) -C $$(TOP)/sdks/builds/toolchains/mxe gcc cmake zlib pthreads dlfcn-win32 mman-win32 \
-		MXE_TARGETS="$(2)-w64-mingw32.static" PREFIX="$$(TOP)/sdks/out/mxe-$(1)" OS_SHORT_NAME="disable-native-plugins"
+# This is not overridable
+MXE_PREFIX:=$(MXE_PREFIX_DIR)/mxe-$(shell echo $(MXE_HASH) | head -c 7)
 
-.PHONY: setup-custom-mxe-$(1)
-setup-custom-mxe-$(1):
+$(MXE_PREFIX)/.stamp:
+	rm -rf $(MXE_PREFIX) $(MXE_SRC)
+	git clone -b xamarin https://github.com/xamarin/mxe.git $(MXE_SRC) \
+		&& git -C $(MXE_SRC) checkout $(MXE_HASH)
+	$(MAKE) -C $(MXE_SRC) gcc cmake zlib pthreads dlfcn-win32 mman-win32 \
+		PREFIX="$(MXE_PREFIX)" MXE_TARGETS="i686-w64-mingw32.static x86_64-w64-mingw32.static" \
+			OS_SHORT_NAME="disable-native-plugins" PATH="$$PATH:$(MXE_PREFIX)/bin:$(dir $(shell brew list gettext | grep bin/autopoint$))"
+	touch $@
 
-.PHONY: package-mxe-$(1)
-package-mxe-$(1):
+.PHONY: provision-mxe
+provision-mxe: $(MXE_PREFIX)/.stamp
+endif
 
-.PHONY: clean-mxe-$(1)
-clean-mxe-$(1):
-	$$(MAKE) -C $$(TOP)/sdks/builds/toolchains/mxe clean \
-		MXE_TARGETS="$(2)-w64-mingw32.static" PREFIX="$$(TOP)/sdks/out/mxe-$(1)"
-
-TARGETS += mxe-$(1)
-
-endef
-
-$(eval $(call MxeTemplate,Win32,i686))
-$(eval $(call MxeTemplate,Win64,x86_64))
+.PHONY: provision
+provision: provision-mxe

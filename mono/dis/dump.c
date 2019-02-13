@@ -21,6 +21,7 @@
 #include "mono/metadata/class-internals.h"
 #include "mono/utils/mono-compiler.h"
 #include "mono/utils/mono-error-internals.h"
+#include "mono/utils/mono-math.h"
 
 void
 dump_table_assembly (MonoImage *m)
@@ -284,8 +285,7 @@ dump_table_memberref (MonoImage *m)
 			 x ? x : "",
 			 sig);
 
-		if (x)
-			g_free (x);
+		g_free (x);
 		g_free (sig);
 	}
 }
@@ -578,14 +578,14 @@ dump_table_method (MonoImage *m)
 				mono_metadata_string_heap (m, mono_metadata_decode_row_col (td, current_type - 2, MONO_TYPEDEF_NAMESPACE)),
 				mono_metadata_string_heap (m, mono_metadata_decode_row_col (td, current_type - 2, MONO_TYPEDEF_NAME)));
 			first_m = last_m;
-			type_container = mono_metadata_load_generic_params (m, MONO_TOKEN_TYPE_DEF | (current_type - 1), NULL);
+			type_container = mono_metadata_load_generic_params (m, MONO_TOKEN_TYPE_DEF | (current_type - 1), NULL, NULL);
 			if (type_container) {
 				mono_metadata_load_generic_param_constraints_checked (m, MONO_TOKEN_TYPE_DEF | (current_type - 1), type_container, error);
 				g_assert (mono_error_ok (error)); /*FIXME don't swallow the error message*/
 			}
 		}
 
-		method_container = mono_metadata_load_generic_params (m, MONO_TOKEN_METHOD_DEF | i, type_container);
+		method_container = mono_metadata_load_generic_params (m, MONO_TOKEN_METHOD_DEF | i, type_container, NULL);
 		if (method_container) {
 			mono_metadata_load_generic_param_constraints_checked (m, MONO_TOKEN_METHOD_DEF | i, method_container, error);
 			g_assert (mono_error_ok (error)); /*FIXME don't swallow the error message*/
@@ -867,14 +867,13 @@ handle_enum:
 			break;
 		case MONO_TYPE_R4: {
 			float val;
-			int inf;
 			readr4 (p, &val);
-			inf = dis_isinf (val);
+			const int inf = mono_isinf (val);
 			if (inf == -1) 
 				g_string_append_printf (res, "(00 00 80 ff)"); /* negative infinity */
 			else if (inf == 1)
 				g_string_append_printf (res, "(00 00 80 7f)"); /* positive infinity */
-			else if (dis_isnan (val))
+			else if (mono_isnan (val))
 				g_string_append_printf (res, "(00 00 c0 ff)"); /* NaN */
 			else
 				g_string_append_printf (res, "%g", val);
@@ -883,15 +882,13 @@ handle_enum:
 		}
 		case MONO_TYPE_R8: {
 			double val;
-			int inf;
-			
 			readr8 (p, &val);
-			inf = dis_isinf (val);
+			const int inf = mono_isinf (val);
 			if (inf == -1) 
 				g_string_append_printf (res, "(00 00 00 00 00 00 f0 ff)"); /* negative infinity */
 			else if (inf == 1)
 				g_string_append_printf (res, "(00 00 00 00 00 00 f0 7f)"); /* positive infinity */
-			else if (isnan (val))
+			else if (mono_isnan (val))
 				g_string_append_printf (res, "(00 00 00 00 00 00 f8 ff)"); /* NaN */
 			else
 				g_string_append_printf (res, "%g", val);
@@ -899,8 +896,8 @@ handle_enum:
 			break;
 		}
 		case MONO_TYPE_VALUETYPE:
-			if (mono_class_is_enum (sig->params [i]->data.klass)) {
-				type = mono_class_enum_basetype (sig->params [i]->data.klass)->type;
+			if (m_class_is_enumtype (sig->params [i]->data.klass)) {
+				type = mono_class_enum_basetype_internal (sig->params [i]->data.klass)->type;
 				goto handle_enum;
 			} else {
 				g_warning ("generic valutype not handled in custom attr value decoding");
@@ -971,7 +968,7 @@ dump_table_customattr (MonoImage *m)
 		method = get_method (m, mtoken, NULL);
 		meth = mono_get_method_checked (m, mtoken, NULL, NULL, error);
 		if (meth) {
-			params = custom_attr_params (m, mono_method_signature (meth), mono_metadata_blob_heap (m, cols [MONO_CUSTOM_ATTR_VALUE]));
+			params = custom_attr_params (m, mono_method_signature_internal (meth), mono_metadata_blob_heap (m, cols [MONO_CUSTOM_ATTR_VALUE]));
 			fprintf (output, "%d: %s: %s [%s]\n", i, desc, method, params);
 			g_free (params);
 		} else {

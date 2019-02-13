@@ -31,6 +31,7 @@
 #include "mono/utils/mono-digest.h"
 #include <mono/utils/mono-mmap.h>
 #include <mono/utils/mono-counters.h>
+#include <mono/utils/mono-error-internals.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef HAVE_UNISTD_H
@@ -376,12 +377,12 @@ dump_verify_info (MonoImage *image, int flags, gboolean valid_only)
 			errors = mono_method_verify (method, flags);
 			if (errors) {
 				MonoClass *klass = mono_method_get_class (method);
-				char *name = mono_type_full_name (&klass->byval_arg);
-				if (mono_method_signature (method) == NULL) {
+				char *name = mono_type_full_name (m_class_get_byval_arg (klass));
+				if (mono_method_signature_internal (method) == NULL) {
 					g_print ("In method: %s::%s(ERROR)\n", name, mono_method_get_name (method));
 				} else {
 					char *sig;
-					sig = mono_signature_get_desc (mono_method_signature (method), FALSE);	
+					sig = mono_signature_get_desc (mono_method_signature_internal (method), FALSE);	
 					g_print ("In method: %s::%s(%s)\n", name, mono_method_get_name (method), sig);
 					g_free (sig);
 				}
@@ -422,15 +423,13 @@ usage (void)
 static int
 verify_image_file (const char *fname)
 {
-	GSList *errors = NULL, *tmp;
+	ERROR_DECL (error);
+
 	MonoImage *image;
 	MonoTableInfo *table;
 	MonoAssembly *assembly;
 	MonoImageOpenStatus status;
 	int i, count = 0;
-	const char* desc [] = {
-		"Ok", "Error", "Warning", NULL, "CLS", NULL, NULL, NULL, "Not Verifiable"
-	};
 
 	if (!strstr (fname, "mscorlib.dll")) {
 		image = mono_image_open_raw (fname, &status);
@@ -439,7 +438,7 @@ verify_image_file (const char *fname)
 			return 1;
 		}
 
-		if (!mono_verifier_verify_pe_data (image, &errors))
+		if (!mono_verifier_verify_pe_data (image, error))
 			goto invalid_image;
 
 		if (!mono_image_load_pe_data (image)) {
@@ -447,7 +446,7 @@ verify_image_file (const char *fname)
 			return 1;
 		}
 
-		if (!mono_verifier_verify_cli_data (image, &errors))
+		if (!mono_verifier_verify_cli_data (image, error))
 			goto invalid_image;
 
 		if (!mono_image_load_cli_data (image)) {
@@ -455,7 +454,7 @@ verify_image_file (const char *fname)
 			return 1;
 		}
 
-		if (!mono_verifier_verify_table_data (image, &errors))
+		if (!mono_verifier_verify_table_data (image, error))
 			goto invalid_image;
 
 		mono_image_load_names (image);
@@ -490,7 +489,7 @@ verify_image_file (const char *fname)
 		mono_marshal_init ();
 		image = mono_get_corlib ();
 
-		if (!mono_verifier_verify_pe_data (image, &errors))
+		if (!mono_verifier_verify_pe_data (image, error))
 			goto invalid_image;
 
 		if (!mono_image_load_pe_data (image)) {
@@ -498,7 +497,7 @@ verify_image_file (const char *fname)
 			return 1;
 		}
 
-		if (!mono_verifier_verify_cli_data (image, &errors))
+		if (!mono_verifier_verify_cli_data (image, error))
 			goto invalid_image;
 
 		if (!mono_image_load_cli_data (image)) {
@@ -506,11 +505,11 @@ verify_image_file (const char *fname)
 			return 1;
 		}
 
-		if (!mono_verifier_verify_table_data (image, &errors))
+		if (!mono_verifier_verify_table_data (image, error))
 			goto invalid_image;
 	}
 
-	if (!verify_partial_md && !mono_verifier_verify_full_table_data (image, &errors))
+	if (!verify_partial_md && !mono_verifier_verify_full_table_data (image, error))
 		goto invalid_image;
 
 
@@ -524,11 +523,11 @@ verify_image_file (const char *fname)
 			mono_error_cleanup (error);
 			continue;
 		}
-		mono_class_init (klass);
+		mono_class_init_internal (klass);
 		if (mono_class_has_failure (klass)) {
 			ERROR_DECL (type_load_error);
 			mono_error_set_for_class_failure (type_load_error, klass);
-			printf ("Could not initialize class(0x%08x) %s.%s due to %s\n", token, klass->name_space, klass->name, mono_error_get_message (type_load_error));
+			printf ("Could not initialize class(0x%08x) %s.%s due to %s\n", token, m_class_get_name_space (klass), m_class_get_name (klass), mono_error_get_message (type_load_error));
 			mono_error_cleanup (type_load_error);
 			++count;
 		}
@@ -537,7 +536,7 @@ verify_image_file (const char *fname)
 		if (mono_class_has_failure (klass)) {
 			ERROR_DECL (type_load_error);
 			mono_error_set_for_class_failure (type_load_error, klass);
-			printf ("Could not initialize vtable of class(0x%08x) %s.%s due to %s\n", token, klass->name_space, klass->name, mono_error_get_message (type_load_error));
+			printf ("Could not initialize vtable of class(0x%08x) %s.%s due to %s\n", token, m_class_get_name_space (klass), m_class_get_name (klass), mono_error_get_message (type_load_error));
 			mono_error_cleanup (type_load_error);
 			++count;
 		}
@@ -547,13 +546,11 @@ verify_image_file (const char *fname)
 	return 0;
 
 invalid_image:
-	for (tmp = errors; tmp; tmp = tmp->next) {
-		MonoVerifyInfo *info = (MonoVerifyInfo *)tmp->data;
-		g_print ("%s: %s\n", desc [info->status], info->message);
-		if (info->status == MONO_VERIFY_ERROR)
-			count++;
+	if (!is_ok (error)) {
+		g_print ("FAIL: %s\n", mono_error_get_message (error));
+		mono_error_cleanup (error);
+		++count;
 	}
-	mono_free_verify_list (errors);
 	if (count)
 		g_print ("Error count: %d\n", count);
 	return 1;
@@ -561,21 +558,22 @@ invalid_image:
 
 static gboolean
 try_load_from (MonoAssembly **assembly, const gchar *path1, const gchar *path2,
-					const gchar *path3, const gchar *path4, gboolean refonly)
+					const gchar *path3, const gchar *path4,
+					const MonoAssemblyOpenRequest *req)
 {
 	gchar *fullpath;
 
 	*assembly = NULL;
 	fullpath = g_build_filename (path1, path2, path3, path4, NULL);
 	if (g_file_test (fullpath, G_FILE_TEST_IS_REGULAR))
-		*assembly = mono_assembly_open_predicate (fullpath, refonly, FALSE, NULL, NULL, NULL);
+		*assembly = mono_assembly_request_open (fullpath, req, NULL);
 
 	g_free (fullpath);
 	return (*assembly != NULL);
 }
 
 static MonoAssembly *
-real_load (gchar **search_path, const gchar *culture, const gchar *name, gboolean refonly)
+real_load (gchar **search_path, const gchar *culture, const gchar *name, const MonoAssemblyOpenRequest *req)
 {
 	MonoAssembly *result = NULL;
 	gchar **path;
@@ -599,22 +597,22 @@ real_load (gchar **search_path, const gchar *culture, const gchar *name, gboolea
 		/* See test cases in bug #58992 and bug #57710 */
 		/* 1st try: [culture]/[name].dll (culture may be empty) */
 		strcpy (filename + len - 4, ".dll");
-		if (try_load_from (&result, *path, local_culture, "", filename, refonly))
+		if (try_load_from (&result, *path, local_culture, "", filename, req))
 			break;
 
 		/* 2nd try: [culture]/[name].exe (culture may be empty) */
 		strcpy (filename + len - 4, ".exe");
-		if (try_load_from (&result, *path, local_culture, "", filename, refonly))
+		if (try_load_from (&result, *path, local_culture, "", filename, req))
 			break;
 
 		/* 3rd try: [culture]/[name]/[name].dll (culture may be empty) */
 		strcpy (filename + len - 4, ".dll");
-		if (try_load_from (&result, *path, local_culture, name, filename, refonly))
+		if (try_load_from (&result, *path, local_culture, name, filename, req))
 			break;
 
 		/* 4th try: [culture]/[name]/[name].exe (culture may be empty) */
 		strcpy (filename + len - 4, ".exe");
-		if (try_load_from (&result, *path, local_culture, name, filename, refonly))
+		if (try_load_from (&result, *path, local_culture, name, filename, req))
 			break;
 	}
 
@@ -632,12 +630,15 @@ pedump_preload (MonoAssemblyName *aname,
 {
 	MonoAssembly *result = NULL;
 	gboolean refonly = GPOINTER_TO_UINT (user_data);
+	MonoAssemblyOpenRequest req;
+	mono_assembly_request_prepare (&req.request, sizeof (req), refonly ? MONO_ASMCTX_REFONLY : MONO_ASMCTX_DEFAULT);
+
 
 	if (assemblies_path && assemblies_path [0] != NULL) {
-		result = real_load (assemblies_path, aname->culture, aname->name, refonly);
+		result = real_load (assemblies_path, aname->culture, aname->name, &req);
 	}
 	if (!result)
-		result = real_load (assembly_directory, aname->culture, aname->name, refonly);
+		result = real_load (assembly_directory, aname->culture, aname->name, &req);
 
 	return result;
 }
@@ -787,6 +788,7 @@ main (int argc, char *argv [])
 	if (dump_data)
 		dump_dotnet_iinfo (image);
 	if (verify_pe) {
+		MonoAssemblyOpenRequest req;
 		MonoAssembly *assembly;
 		MonoImage *image;
 		MonoImageOpenStatus status;
@@ -794,7 +796,8 @@ main (int argc, char *argv [])
 
 		mono_verifier_set_mode (verifier_mode);
 
-		assembly = mono_assembly_open_predicate (file, FALSE, FALSE, NULL, NULL, NULL);
+		mono_assembly_request_prepare (&req.request, sizeof (req), MONO_ASMCTX_DEFAULT);
+		assembly = mono_assembly_request_open (file, &req, NULL);
 		/*fake an assembly for netmodules so the verifier works*/
 		if (!assembly && (image = mono_image_open (file, &status)) && image->tables [MONO_TABLE_ASSEMBLY].rows == 0) {
 			assembly = g_new0 (MonoAssembly, 1);

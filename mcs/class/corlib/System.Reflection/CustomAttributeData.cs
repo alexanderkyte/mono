@@ -55,6 +55,7 @@ namespace System.Reflection {
 		{
 		}
 
+		// custom-attrs.c:create_custom_attr_data ()
 		internal CustomAttributeData (ConstructorInfo ctorInfo, Assembly assembly, IntPtr data, uint data_length)
 		{
 			this.ctorInfo = ctorInfo;
@@ -62,6 +63,18 @@ namespace System.Reflection {
 			this.lazyData.assembly = assembly;
 			this.lazyData.data = data;
 			this.lazyData.data_length = data_length;
+		}
+
+		internal CustomAttributeData (ConstructorInfo ctorInfo)
+			: this (ctorInfo, Array.Empty<CustomAttributeTypedArgument> (), Array.Empty<CustomAttributeNamedArgument> ())
+		{
+		}
+
+		internal CustomAttributeData (ConstructorInfo ctorInfo, IList<CustomAttributeTypedArgument> ctorArgs, IList<CustomAttributeNamedArgument> namedArgs)
+		{
+			this.ctorInfo = ctorInfo;
+			this.ctorArgs = ctorArgs;
+			this.namedArgs = namedArgs;
 		}
 
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
@@ -76,9 +89,9 @@ namespace System.Reflection {
 			ResolveArgumentsInternal (ctorInfo, lazyData.assembly, lazyData.data, lazyData.data_length, out ctor_args, out named_args);
 
 			this.ctorArgs = Array.AsReadOnly<CustomAttributeTypedArgument>
-				(ctor_args != null ? UnboxValues<CustomAttributeTypedArgument> (ctor_args) : EmptyArray<CustomAttributeTypedArgument>.Value);
+				(ctor_args != null ? UnboxValues<CustomAttributeTypedArgument> (ctor_args) : Array.Empty<CustomAttributeTypedArgument>());
 			this.namedArgs = Array.AsReadOnly<CustomAttributeNamedArgument> 
-				(named_args != null ? UnboxValues<CustomAttributeNamedArgument> (named_args) : EmptyArray<CustomAttributeNamedArgument>.Value);
+				(named_args != null ? UnboxValues<CustomAttributeNamedArgument> (named_args) : Array.Empty<CustomAttributeNamedArgument>());
 			
 			lazyData = null;
 		}
@@ -131,6 +144,9 @@ namespace System.Reflection {
 			return MonoCustomAttrs.GetCustomAttributesData (target);
 		}
 
+#if NETCORE
+		virtual
+#endif
 		public Type AttributeType {
 			get { return ctorInfo.DeclaringType; }
 		}

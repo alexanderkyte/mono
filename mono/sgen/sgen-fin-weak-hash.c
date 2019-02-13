@@ -122,7 +122,7 @@ sgen_collect_bridge_objects (int generation, ScanCopyContext ctx)
 			continue;
 
 		/* Object is a bridge object and major heap says it's dead  */
-		if (major_collector.is_object_live (object))
+		if (sgen_major_collector.is_object_live (object))
 			continue;
 
 		/* Nursery says the object is dead. */
@@ -186,7 +186,7 @@ sgen_finalize_in_range (int generation, ScanCopyContext ctx)
 	SGEN_HASH_TABLE_FOREACH (hash_table, GCObject *, object, gpointer, dummy) {
 		int tag = tagged_object_get_tag (object);
 		object = tagged_object_get_object (object);
-		if (!major_collector.is_object_live (object)) {
+		if (!sgen_major_collector.is_object_live (object)) {
 			gboolean is_fin_ready = sgen_gc_is_object_ready_for_finalization (object);
 			GCObject *copy = object;
 			copy_func (&copy, queue);
@@ -421,7 +421,7 @@ static gint64 stat_entry_invalidated = 0;
 #endif
 
 static int
-add_stage_entry (int num_entries, volatile gint32 *next_entry, StageEntry *entries, GCObject *obj, void *user_data)
+add_stage_entry (int num_entries, volatile gint32 *next_entry, StageEntry *entries, GCObject *obj, SGenFinalizationProc user_data)
 {
 	gint32 index, new_next_entry, old_next_entry;
 	gint32 previous_state;
@@ -497,8 +497,8 @@ add_stage_entry (int num_entries, volatile gint32 *next_entry, StageEntry *entri
 
 	SGEN_ASSERT (0, index >= 0 && index < num_entries, "Invalid index");
 
-	UnlockedWritePointer ((void *)&entries [index].obj, obj);
-	UnlockedWritePointer (&entries [index].user_data, user_data);
+	UnlockedWritePointer ((volatile gpointer*)&entries [index].obj, obj);
+	UnlockedWritePointer (&entries [index].user_data, (gpointer)user_data);
 
 	mono_memory_write_barrier ();
 
@@ -518,7 +518,7 @@ add_stage_entry (int num_entries, volatile gint32 *next_entry, StageEntry *entri
 	}
 
 	SGEN_ASSERT (0, previous_state == STAGE_ENTRY_INVALID, "Invalid state transition - other thread can only make busy state invalid");
-	UnlockedWritePointer ((void *)&entries [index].obj, NULL);
+	UnlockedWritePointer ((volatile gpointer*)&entries [index].obj, NULL);
 	UnlockedWritePointer (&entries [index].user_data, NULL);
 	mono_memory_write_barrier ();
 	/* INVALID -> FREE */

@@ -286,7 +286,9 @@ open_file_map (const char *c_path, int input_fd, int mode, gint64 *capacity, int
 	}
 
 	if (result != 0 || *capacity > buf.st_size) {
+#ifdef HAVE_FTRUNCATE
 		int unused G_GNUC_UNUSED = ftruncate (fd, (off_t)*capacity);
+#endif
 	}
 
 	handle = g_new0 (MmapHandle, 1);
@@ -347,7 +349,7 @@ open_memory_map (const char *c_mapName, int mode, gint64 *capacity, int access, 
 			*ioerror = COULD_NOT_MAP_MEMORY;
 			goto done;
 		}
-		file_name = (char *)alloca (alloc_size);
+		file_name = g_newa (char, alloc_size);
 		strcpy (file_name, tmp_dir);
 		strcat (file_name, MONO_ANON_FILE_TEMPLATE);
 
@@ -358,7 +360,9 @@ open_memory_map (const char *c_mapName, int mode, gint64 *capacity, int access, 
 		}
 
 		unlink (file_name);
+#ifdef HAVE_FTRUNCATE
 		unused = ftruncate (fd, (off_t)*capacity);
+#endif
 
 		handle = g_new0 (MmapHandle, 1);
 		handle->ref_count = 1;
@@ -379,24 +383,21 @@ done:
 
 /* This is an icall */
 void *
-mono_mmap_open_file (MonoString *path, int mode, MonoString *mapName, gint64 *capacity, int access, int options, int *ioerror)
+mono_mmap_open_file (const gunichar2 *path, gint path_length, int mode, const gunichar2 *mapName, gint mapName_length, gint64 *capacity, int access, int options, int *ioerror, MonoError *error)
 {
-	ERROR_DECL (error);
 	MmapHandle *handle = NULL;
 	g_assert (path || mapName);
 
 	if (!mapName) {
-		char * c_path = mono_string_to_utf8_checked (path, error);
-		if (mono_error_set_pending_exception (error))
-			return NULL;
-		handle = open_file_map (c_path, -1, mode, capacity, access, options, ioerror);
+		char * c_path = mono_utf16_to_utf8 (path, path_length, error);
+		return_val_if_nok (error, NULL);
+		handle = (MmapHandle*)open_file_map (c_path, -1, mode, capacity, access, options, ioerror);
 		g_free (c_path);
 		return handle;
 	}
 
-	char *c_mapName = mono_string_to_utf8_checked (mapName, error);
-	if (mono_error_set_pending_exception (error))
-		return NULL;
+	char *c_mapName = mono_utf16_to_utf8 (mapName, mapName_length, error);
+	return_val_if_nok (error, NULL);
 
 	if (path) {
 		named_regions_lock ();
@@ -405,7 +406,7 @@ mono_mmap_open_file (MonoString *path, int mode, MonoString *mapName, gint64 *ca
 			*ioerror = FILE_ALREADY_EXISTS;
 			handle = NULL;
 		} else {
-			char *c_path = mono_string_to_utf8_checked (path, error);
+			char *c_path = mono_utf16_to_utf8 (path, path_length, error);
 			if (is_ok (error)) {
 				handle = (MmapHandle *)open_file_map (c_path, -1, mode, capacity, access, options, ioerror);
 				if (handle) {
@@ -419,7 +420,7 @@ mono_mmap_open_file (MonoString *path, int mode, MonoString *mapName, gint64 *ca
 		}
 		named_regions_unlock ();
 	} else
-		handle = open_memory_map (c_mapName, mode, capacity, access, options, ioerror);
+		handle = (MmapHandle*)open_memory_map (c_mapName, mode, capacity, access, options, ioerror);
 
 	g_free (c_mapName);
 	return handle;
@@ -427,16 +428,14 @@ mono_mmap_open_file (MonoString *path, int mode, MonoString *mapName, gint64 *ca
 
 /* this is an icall */
 void *
-mono_mmap_open_handle (void *input_fd, MonoString *mapName, gint64 *capacity, int access, int options, int *ioerror)
+mono_mmap_open_handle (void *input_fd, const mono_unichar2 *mapName, gint mapName_length, gint64 *capacity, int access, int options, int *ioerror, MonoError *error)
 {
-	ERROR_DECL (error);
 	MmapHandle *handle;
 	if (!mapName) {
 		handle = (MmapHandle *)open_file_map (NULL, GPOINTER_TO_INT (input_fd), FILE_MODE_OPEN, capacity, access, options, ioerror);
 	} else {
-		char *c_mapName = mono_string_to_utf8_checked (mapName, error);
-		if (mono_error_set_pending_exception (error))
-			return NULL;
+		char *c_mapName = mono_utf16_to_utf8 (mapName, mapName_length, error);
+		return_val_if_nok (error, NULL);
 
 		named_regions_lock ();
 		handle = (MmapHandle*)g_hash_table_lookup (named_regions, c_mapName);
@@ -457,7 +456,7 @@ mono_mmap_open_handle (void *input_fd, MonoString *mapName, gint64 *capacity, in
 }
 
 void
-mono_mmap_close (void *mmap_handle)
+mono_mmap_close (void *mmap_handle, MonoError *error)
 {
 	MmapHandle *handle = (MmapHandle *)mmap_handle;
 
@@ -475,7 +474,7 @@ mono_mmap_close (void *mmap_handle)
 }
 
 void
-mono_mmap_configure_inheritability (void *mmap_handle, gboolean inheritability)
+mono_mmap_configure_inheritability (void *mmap_handle, gint32 inheritability, MonoError *error)
 {
 	MmapHandle *h = (MmapHandle *)mmap_handle;
 	int fd, flags;
@@ -490,16 +489,18 @@ mono_mmap_configure_inheritability (void *mmap_handle, gboolean inheritability)
 }
 
 void
-mono_mmap_flush (void *mmap_handle)
+mono_mmap_flush (void *mmap_handle, MonoError *error)
 {
 	MmapInstance *h = (MmapInstance *)mmap_handle;
 
+#ifdef HAVE_MSYNC
 	if (h)
 		msync (h->address, h->length, MS_SYNC);
+#endif
 }
 
 int
-mono_mmap_map (void *handle, gint64 offset, gint64 *size, int access, void **mmap_handle, void **base_address)
+mono_mmap_map (void *handle, gint64 offset, gint64 *size, int access, void **mmap_handle, void **base_address, MonoError *error)
 {
 	gint64 mmap_offset = 0;
 	MmapHandle *fh = (MmapHandle *)handle;
@@ -537,8 +538,8 @@ mono_mmap_map (void *handle, gint64 offset, gint64 *size, int access, void **mma
 	return COULD_NOT_MAP_MEMORY;
 }
 
-gboolean
-mono_mmap_unmap (void *mmap_handle)
+MonoBoolean
+mono_mmap_unmap (void *mmap_handle, MonoError *error)
 {
 	int res = 0;
 	MmapInstance *h = (MmapInstance *)mmap_handle;

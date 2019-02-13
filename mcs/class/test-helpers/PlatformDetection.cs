@@ -6,7 +6,14 @@ namespace System
 		public static readonly bool IsNotWinRT = true;
 		public static readonly bool IsWinRT = false;
 		public static readonly bool IsWindowsNanoServer = false;
-		public static bool IsFullFramework => true;
+		public static bool IsNotWindowsNanoServer => true;
+		public static bool IsNotWindowsServerCore => true;
+
+		public static bool IsWindows7 => false;
+		public static bool IsWindows10Version1607OrGreater => false;
+		public static bool IsWindows10Version1703OrGreater => false;
+		public static bool IsWindows10Version1709OrGreater => false;
+		public static bool IsFullFramework => false;
 		public static bool IsNonZeroLowerBoundArraySupported => true;
 		public static bool IsUap => false;
 
@@ -14,5 +21,28 @@ namespace System
 		public static bool IsNotWindowsSubsystemForLinux => true;
 		public static bool IsWindowsSubsystemForLinux => false;
 		public static bool IsFedora => false;
+		public static bool IsRedHatFamily => false;
+		public static bool IsRedHatFamily6 => false;
+		public static bool IsOpenSUSE => false;
+		public static bool IsUbuntu1404 => false;
+		public static bool IsNotRedHatFamily6 => true;
+		public static bool IsMacOsHighSierraOrHigher => false;
+		public static bool IsDebian8 => false;
+		public static bool IsInvokingStaticConstructorsSupported => true;
+		public static bool IsReflectionEmitSupported => true;
+
+		public static bool IsNetfx462OrNewer => false;
+
+		public static bool IsSsl2AndSsl3Supported => false;
+
+		public static bool IsWindows {
+			get {
+				PlatformID id = Environment.OSVersion.Platform;
+				return id == PlatformID.Win32Windows || id == PlatformID.Win32NT;
+			}
+		}
+		public static bool IsInAppContainer => false;
+		public static bool IsAlpine => false;
+		public static bool IsNetCore => false;
 	}
 }
