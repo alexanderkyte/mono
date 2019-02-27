@@ -5676,7 +5676,14 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 					values [ins->dreg] = LLVMConstInt (IntPtrType (), 0, FALSE);
 					break;
 				}
+			} else if (ji->type == MONO_PATCH_INFO_LDSTR_LIT) {
+				printf ("HERE: %s %d\n", __FILE__, __LINE__);
+				const char *global_lit_name = g_strdup_printf ("str_lit_global_%x\n", (intptr_t) ins->inst_p0);
+				LLVMValueRef val = LLVMBuildGlobalStringPtr (builder, (const char *) ji->data.target, global_lit_name);
+				values [ins->dreg] = val;
+				break;
 			}
+			printf ("aotconst type is %d\n", ji->type);
 
 			ji->next = cfg->patch_info;
 			cfg->patch_info = ji;
