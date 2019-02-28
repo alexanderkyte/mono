@@ -1926,6 +1926,20 @@ set_metadata_flag (LLVMValueRef v, const char *flag_name)
 }
 
 static void
+set_nonnull_load_flag (LLVMValueRef v)
+{
+	LLVMValueRef md_arg;
+	int md_kind;
+	const char *flag_name;
+
+	// FIXME: Cache this
+	flag_name = "nonnull";
+	md_kind = LLVMGetMDKindID (flag_name, strlen (flag_name));
+	md_arg = LLVMMDString ("<index>", strlen ("<index>"));
+	LLVMSetMetadata (v, md_kind, LLVMMDNode (&md_arg, 1));
+}
+
+static void
 set_invariant_load_flag (LLVMValueRef v)
 {
 	LLVMValueRef md_arg;
@@ -5813,9 +5827,12 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 			name = get_aotconst_name (ji->type, ji->data.target, got_offset);
 			values [ins->dreg] = LLVMBuildLoad (builder, got_entry_addr, name);
 			g_free (name);
-			/* Can't use this in llvmonly mode since the got slots are initialized by the methods themselves */
-			if (!cfg->llvm_only)
+			if (!cfg->llvm_only) {
+				/* Can't use this in llvmonly mode since the got slots are initialized by the methods themselves */
 				set_invariant_load_flag (values [ins->dreg]);
+
+				set_nonnull_load_flag (values [ins->dreg]);
+			}
 			break;
 		}
 		case OP_NOT_REACHED:
