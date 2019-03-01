@@ -4653,7 +4653,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 		//mono_print_ins (ins);
 		switch (ins->opcode) {
 		case OP_NOP:
-		case OP_NOT_NULL:
+		case OP_NOT_NULL: // TODO: ADD mono_llvm_set_*_nonnull here
 		case OP_LIVERANGE_START:
 		case OP_LIVERANGE_END:
 			break;
