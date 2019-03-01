@@ -3876,6 +3876,14 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 	 */
 	lcall = emit_call (ctx, bb, &builder, callee, args, LLVMCountParamTypes (llvm_sig));
 
+	for (int i = 0; i < nargs; i++) {
+		LLVMValueRef ref = args [i];
+		gboolean nonnull = g_hash_table_lookup (ctx->module->module_nonnull, ref) != NULL;
+
+		if (nonnull)
+			mono_llvm_set_call_nonnull_arg (lcall, i);
+	}
+
 	if (ins->opcode != OP_TAILCALL && ins->opcode != OP_TAILCALL_MEMBASE && LLVMGetInstructionOpcode (lcall) == LLVMCall)
 		mono_llvm_set_call_notailcall (lcall);
 
