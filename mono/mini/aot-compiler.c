@@ -4151,6 +4151,15 @@ add_jit_icall_wrapper (gpointer key, gpointer value, gpointer user_data)
 	add_method (acfg, wrapper);
 }
 
+static void
+add_lazy_init_wrappers (MonoAotCompile *acfg)
+{
+	add_method (acfg, mono_marshal_get_aot_init_wrapper (0, "__init_method"));
+	add_method (acfg, mono_marshal_get_aot_init_wrapper (1, "__init_method_gshared_mrgctx"));
+	add_method (acfg, mono_marshal_get_aot_init_wrapper (2, "__init_method_gshared_this"));
+	add_method (acfg, mono_marshal_get_aot_init_wrapper (3, "__init_method_gshared_vtable"));
+}
+
 static MonoMethod*
 get_runtime_invoke_sig (MonoMethodSignature *sig)
 {
@@ -13331,6 +13340,7 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 			flags = (LLVMModuleFlags)(flags | LLVM_MODULE_FLAG_INTERP);
 		mono_llvm_create_aot_module (acfg->image->assembly, acfg->global_prefix, acfg->nshared_got_entries, flags);
 
+		add_lazy_init_wrappers (acfg);
 	}
 #endif
 

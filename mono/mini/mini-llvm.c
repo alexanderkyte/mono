@@ -2945,9 +2945,6 @@ emit_init_icall_wrapper (MonoLLVMModule *module, const char *name, const char *i
 	LLVMVerifyFunction(func, LLVMAbortProcessAction);
 	LLVMDisposeBuilder (builder);
 
-	int method_index = mono_aot_get_unused_method_index ();
-	unwind_register_native_code (module, name, method_index, func);
-
 	return func;
 }
 
@@ -7433,6 +7430,29 @@ emit_method_inner (EmitContext *ctx)
 	}
 #endif
 
+	if (cfg->method->wrapper_type == MONO_WRAPPER_OTHER) {
+		WrapperInfo *info = mono_marshal_get_wrapper_info (cfg->method);
+		if (info->subtype == WRAPPER_SUBTYPE_AOT_INIT) {
+			switch (info->d.aot_init.subtype) {
+				case 0:
+					method = ctx->module->init_method;
+					break;
+				case 1:
+					method = ctx->module->init_method_gshared_mrgctx;
+					break;
+				case 2:
+					method = ctx->module->init_method_gshared_this;
+					break;
+				case 3:
+					method = ctx->module->init_method_gshared_vtable;
+					break;
+			}
+			ctx->lmethod = method;
+			cfg->verbose_level = 2;
+			goto after_codegen;
+		}
+	}
+
 	sig = mono_method_signature_internal (cfg->method);
 	ctx->sig = sig;
 
@@ -7861,6 +7881,7 @@ emit_method_inner (EmitContext *ctx)
 			g_ptr_array_add (ctx->module->callsite_list, g_ptr_array_index (ctx->callsite_list, i));
 	}
 
+after_codegen:
 	if (cfg->verbose_level > 1)
 		mono_llvm_dump_value (method);
 

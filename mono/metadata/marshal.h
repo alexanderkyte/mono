@@ -130,7 +130,8 @@ typedef enum {
 	WRAPPER_SUBTYPE_GSHAREDVT_IN_SIG,
 	WRAPPER_SUBTYPE_GSHAREDVT_OUT_SIG,
 	WRAPPER_SUBTYPE_INTERP_IN,
-	WRAPPER_SUBTYPE_INTERP_LMF
+	WRAPPER_SUBTYPE_INTERP_LMF,
+	WRAPPER_SUBTYPE_AOT_INIT
 } WrapperSubtype;
 
 typedef struct {
@@ -209,6 +210,14 @@ typedef struct {
 	MonoMethodSignature *sig;
 } InterpInWrapperInfo;
 
+typedef struct {
+	// We emit this code when we init the module,
+	// and later match up the native code with this method
+	// using the name.
+	const char *icall_name;
+	int subtype;
+} AOTInitWrapperInfo;
+
 /*
  * This structure contains additional information to uniquely identify a given wrapper
  * method. It can be retrieved by mono_marshal_get_wrapper_info () for certain types
@@ -253,6 +262,8 @@ typedef struct {
 		DelegateInvokeWrapperInfo delegate_invoke;
 		/* INTERP_IN */
 		InterpInWrapperInfo interp_in;
+		/* AOT_INIT */
+		AOTInitWrapperInfo aot_init;
 	} d;
 } WrapperInfo;
 
@@ -413,6 +424,9 @@ mono_marshal_get_vtfixup_ftnptr (MonoImage *image, guint32 token, guint16 type);
 
 MonoMethod *
 mono_marshal_get_icall_wrapper (MonoMethodSignature *sig, const char *name, gconstpointer func, gboolean check_exceptions);
+
+MonoMethod *
+mono_marshal_get_aot_init_wrapper (int subtype, const char *name);
 
 MonoMethod *
 mono_marshal_get_native_wrapper (MonoMethod *method, gboolean check_exceptions, gboolean aot);

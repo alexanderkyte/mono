@@ -2960,6 +2960,46 @@ mono_marshal_get_icall_wrapper (MonoMethodSignature *sig, const char *name, gcon
 	return res;
 }
 
+MonoMethod *
+mono_marshal_get_aot_init_wrapper (int subtype, const char *name)
+{
+	MonoMethodBuilder *mb;
+	MonoMethod *res;
+	WrapperInfo *info;
+	MonoMethodSignature *csig = NULL;
+	MonoType *void_type = mono_get_void_type ();
+	MonoType *obj_type = mono_get_object_type ();
+	MonoType *int_type = mono_get_int_type ();
+
+	switch (subtype) {
+		case 0:
+			csig = mono_metadata_signature_alloc (mono_defaults.corlib, 2);
+			csig->ret = void_type;
+			csig->params [0] = obj_type;
+			csig->params [1] = int_type;
+		case 1:
+		case 2:
+		case 3:
+			csig = mono_metadata_signature_alloc (mono_defaults.corlib, 3);
+			csig->ret = void_type;
+			csig->params [0] = obj_type;
+			csig->params [1] = int_type;
+			csig->params [2] = obj_type;
+		default:
+			g_assert_not_reached ();
+	}
+
+	mb = mono_mb_new (mono_defaults.object_class, name, MONO_WRAPPER_OTHER);
+
+	info = mono_wrapper_info_create (mb, WRAPPER_SUBTYPE_AOT_INIT);
+	info->d.aot_init.icall_name = name;
+	info->d.aot_init.subtype = subtype;
+	res = mono_mb_create (mb, csig, csig->param_count + 16, info);
+	mono_mb_free (mb);
+
+	return res;
+}
+
 #ifndef ENABLE_ILGEN
 static int
 emit_marshal_custom_noilgen (EmitMarshalContext *m, int argnum, MonoType *t,
