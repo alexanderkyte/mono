@@ -2857,6 +2857,21 @@ emit_llvm_code_start (MonoLLVMModule *module)
 	LLVMDisposeBuilder (builder);
 }
 
+static void
+unwind_register_native_code (MonoLLVMModule *module, const char *name, int method_index, LLVMValueRef func)
+{
+	LLVMValueRef md_args [2];
+	md_args [0] = LLVMMDString (name, strlen (name));
+	md_args [1] = LLVMConstInt (LLVMInt32Type (), method_index, FALSE);
+	LLVMValueRef md_node = LLVMMDNode (md_args, 2);
+	LLVMAddNamedMetadataOperand (module->lmodule, "mono.function_indexes", md_node);
+
+	g_assert (module->idx_to_lmethod);
+	if (module->idx_to_lmethod)
+		g_hash_table_insert (module->idx_to_lmethod, GINT_TO_POINTER (method_index), func);
+	module->max_method_idx = MAX (module->max_method_idx, method_index);
+}
+
 static LLVMValueRef
 emit_init_icall_wrapper (MonoLLVMModule *module, const char *name, const char *icall_name, int subtype)
 {
@@ -2929,6 +2944,10 @@ emit_init_icall_wrapper (MonoLLVMModule *module, const char *name, const char *i
 
 	LLVMVerifyFunction(func, LLVMAbortProcessAction);
 	LLVMDisposeBuilder (builder);
+
+	int method_index = mono_aot_get_unused_method_index ();
+	unwind_register_native_code (module, name, method_index, func);
+
 	return func;
 }
 
@@ -9072,10 +9091,20 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 		LLVMSetInitializer (module->inited_var, LLVMConstNull (inited_type));
 	}
 
-	if (!llvm_disable_self_init)
-		emit_init_icall_wrappers (module);
+	module->llvm_types = g_hash_table_new (NULL, NULL);
+	module->plt_entries = g_hash_table_new (g_str_hash, g_str_equal);
+	module->plt_entries_ji = g_hash_table_new (NULL, NULL);
+	module->direct_callables = g_hash_table_new (g_str_hash, g_str_equal);
+	module->method_to_lmethod = g_hash_table_new (NULL, NULL);
+	module->idx_to_lmethod = g_hash_table_new (NULL, NULL);
+	module->idx_to_unbox_tramp = g_hash_table_new (NULL, NULL);
+	module->callsite_list = g_ptr_array_new ();
 
 	emit_llvm_code_start (module);
+
+	// Needs idx_to_lmethod
+	if (!llvm_disable_self_init)
+		emit_init_icall_wrappers (module);
 
 	/* Add a dummy personality function */
 	if (!use_debug_personality) {
@@ -9095,15 +9124,6 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 		LLVMSetLinkage (module->sentinel_exception, LLVMExternalLinkage);
 		mono_llvm_set_is_constant (module->sentinel_exception);
 	}
-
-	module->llvm_types = g_hash_table_new (NULL, NULL);
-	module->plt_entries = g_hash_table_new (g_str_hash, g_str_equal);
-	module->plt_entries_ji = g_hash_table_new (NULL, NULL);
-	module->direct_callables = g_hash_table_new (g_str_hash, g_str_equal);
-	module->method_to_lmethod = g_hash_table_new (NULL, NULL);
-	module->idx_to_lmethod = g_hash_table_new (NULL, NULL);
-	module->idx_to_unbox_tramp = g_hash_table_new (NULL, NULL);
-	module->callsite_list = g_ptr_array_new ();
 }
 
 void
@@ -9331,7 +9351,7 @@ emit_aot_file_info (MonoLLVMModule *module)
 	/* llc defines this directly */
 	if (!module->llvm_only) {
 		fields [tindex ++] = LLVMAddGlobal (lmodule, eltype, module->eh_frame_symbol);
-		fields [tindex ++] = LLVMConstNull (eltype);
+		fields [tindex ++] = module->get_method;
 		fields [tindex ++] = LLVMConstNull (eltype);
 	} else {
 		fields [tindex ++] = LLVMConstNull (eltype);
@@ -9421,7 +9441,7 @@ emit_aot_file_info (MonoLLVMModule *module)
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->plt_got_offset_base, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->got_size, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->plt_size, FALSE);
-	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->nmethods, FALSE);
+	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), module->max_method_idx, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->nextra_methods, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->flags, FALSE);
 	fields [tindex ++] = LLVMConstInt (LLVMInt32Type (), info->opts, FALSE);

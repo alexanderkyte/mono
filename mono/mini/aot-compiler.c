@@ -318,6 +318,7 @@ typedef struct MonoAotCompile {
 	guint32 tramp_page_code_offsets [MONO_AOT_TRAMP_NUM];
 
 	MonoAotOptions aot_opts;
+	gboolean completed; // If TRUE, can't add more methods
 	guint32 nmethods;
 	guint32 nextra_methods;
 	guint32 opts;
@@ -4003,6 +4004,8 @@ add_method_with_index (MonoAotCompile *acfg, MonoMethod *method, int index, gboo
 	if (!g_hash_table_lookup (acfg->method_indexes, method)) {
 		g_ptr_array_add (acfg->methods, method);
 		g_hash_table_insert (acfg->method_indexes, method, GUINT_TO_POINTER (index + 1));
+
+		g_assert (!acfg->completed);
 		acfg->nmethods = acfg->methods->len + 1;
 	}
 
@@ -9364,6 +9367,14 @@ mono_aot_get_plt_symbol (MonoJumpInfoType type, gconstpointer data)
 }
 
 int
+mono_aot_get_unused_method_index (void)
+{
+	g_assert (llvm_acfg);
+	int index = llvm_acfg->method_index++;
+	return index;
+}
+
+int
 mono_aot_get_method_index (MonoMethod *method)
 {
 	g_assert (llvm_acfg);
@@ -13319,6 +13330,7 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 		if (acfg->aot_opts.interp)
 			flags = (LLVMModuleFlags)(flags | LLVM_MODULE_FLAG_INTERP);
 		mono_llvm_create_aot_module (acfg->image->assembly, acfg->global_prefix, acfg->nshared_got_entries, flags);
+
 	}
 #endif
 

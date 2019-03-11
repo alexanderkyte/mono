@@ -2282,7 +2282,7 @@ handle_exception_first_pass (MonoContext *ctx, MonoObject *obj, gint32 *out_filt
 
 		frame_count ++;
 		method = jinfo_get_method (ji);
-		//printf ("M: %s %d.\n", mono_method_full_name (method, TRUE), frame_count);
+		printf ("M: %s %d.\n", mono_method_full_name (method, TRUE), frame_count);
 
 		if (mini_get_debug_options ()->reverse_pinvoke_exceptions && method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED) {
 			g_error ("A native frame was found while unwinding the stack after an exception.\n"

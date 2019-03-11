@@ -20,6 +20,7 @@ void     mono_aot_mark_unused_llvm_plt_entry(MonoJumpInfo *patch_info) MONO_LLVM
 char*    mono_aot_get_plt_symbol            (MonoJumpInfoType type, gconstpointer data) MONO_LLVM_INTERNAL;
 char*    mono_aot_get_direct_call_symbol    (MonoJumpInfoType type, gconstpointer data) MONO_LLVM_INTERNAL;
 int      mono_aot_get_method_index          (MonoMethod *method) MONO_LLVM_INTERNAL;
+int      mono_aot_get_unused_method_index   (void) MONO_LLVM_INTERNAL;
 MonoJumpInfo* mono_aot_patch_info_dup       (MonoJumpInfo* ji) MONO_LLVM_INTERNAL;
 
 #endif

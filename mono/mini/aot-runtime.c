@@ -2385,8 +2385,10 @@ if (container_assm_name && !container_amodule) {
 	}
 
 	/* Compute the boundaries of LLVM code */
-	if (info->flags & MONO_AOT_FILE_FLAG_WITH_LLVM)
+	if (info->flags & MONO_AOT_FILE_FLAG_WITH_LLVM) {
 		compute_llvm_code_range (amodule, &amodule->llvm_code_start, &amodule->llvm_code_end);
+		g_assert (amodule->llvm_code_start > 0);
+	}
 
 	mono_aot_lock ();
 
@@ -2398,6 +2400,8 @@ if (container_assm_name && !container_amodule) {
 		aot_code_low_addr = MIN (aot_code_low_addr, (gsize)amodule->llvm_code_start);
 		aot_code_high_addr = MAX (aot_code_high_addr, (gsize)amodule->llvm_code_end);
 	}
+
+	fprintf (stderr, "Processing endpoints: %p %p for %s\n", amodule->llvm_code_start, amodule->llvm_code_end, assembly->image->name);
 
 	g_hash_table_insert (aot_modules, assembly, amodule);
 	mono_aot_unlock ();
@@ -5226,6 +5230,11 @@ guint32
 mono_aot_get_plt_info_offset (host_mgreg_t *regs, guint8 *code)
 {
 	guint8 *plt_entry = mono_aot_get_plt_entry (code);
+
+	if (!plt_entry) {
+		fprintf (stderr, "BREAK HERE: %s %d\n", __FILE__, __LINE__);
+		plt_entry = mono_aot_get_plt_entry (code);
+	}
 
 	g_assert (plt_entry);
 

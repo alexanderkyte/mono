@@ -304,6 +304,7 @@ mono_jit_info_table_find_internal (MonoDomain *domain, gpointer addr, gboolean t
 		module_ji = jit_info_table_find (table, hp, (gint8*)addr);
 		if (module_ji)
 			ji = jit_info_find_in_aot_func (domain, module_ji->d.image, addr);
+
 		if (hp)
 			mono_hazard_pointer_clear (hp, JIT_INFO_TABLE_HAZARD_INDEX);
 	}

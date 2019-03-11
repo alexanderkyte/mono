@@ -619,7 +619,14 @@ mono_runtime_class_init_full (MonoVTable *vtable, MonoError *error)
 	/* If vtable init fails because of TAE, we don't throw TIE, only the TAE */
 	if (vtable->init_failed && !pending_tae) {
 		/* Either we were the initializing thread or we waited for the initialization */
-		mono_error_set_exception_instance (error, get_type_init_exception_for_vtable (vtable));
+		MonoException *exc = get_type_init_exception_for_vtable (vtable);
+		g_assert (exc);
+
+		mono_error_set_exception_instance (error, exc);
+
+		// FIXME: don't reuse exception 
+		fprintf (stderr, "Error is %s %s\n", mono_error_get_exception_name (error), mono_error_get_message (error));
+
 		return FALSE;
 	}
 	return TRUE;
