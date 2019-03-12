@@ -318,6 +318,7 @@ typedef struct {
 	void (*emit_create_string_hack) (MonoMethodBuilder *mb, MonoMethodSignature *csig, MonoMethod *res);
 	void (*emit_native_icall_wrapper) (MonoMethodBuilder *mb, MonoMethod *method, MonoMethodSignature *csig, gboolean check_exceptions, gboolean aot, MonoMethodPInvoke *pinfo);
 	void (*emit_icall_wrapper) (MonoMethodBuilder *mb, MonoMethodSignature *sig, gconstpointer func, MonoMethodSignature *csig2, gboolean check_exceptions);
+	void (*emit_return) (MonoMethodBuilder *mb);
 	void (*emit_vtfixup_ftnptr) (MonoMethodBuilder *mb, MonoMethod *method, int param_count, guint16 type);
 	void (*mb_skip_visibility) (MonoMethodBuilder *mb);
 	void (*mb_set_dynamic) (MonoMethodBuilder *mb);
@@ -426,7 +427,7 @@ MonoMethod *
 mono_marshal_get_icall_wrapper (MonoMethodSignature *sig, const char *name, gconstpointer func, gboolean check_exceptions);
 
 MonoMethod *
-mono_marshal_get_aot_init_wrapper (int subtype, const char *name);
+mono_marshal_get_aot_init_wrapper (int subtype);
 
 MonoMethod *
 mono_marshal_get_native_wrapper (MonoMethod *method, gboolean check_exceptions, gboolean aot);

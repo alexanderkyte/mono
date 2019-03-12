@@ -2901,7 +2901,9 @@ emit_init_icall_wrapper (MonoLLVMModule *module, const char *name, const char *i
 	default:
 		g_assert_not_reached ();
 	}
+
 	LLVMSetLinkage (func, LLVMInternalLinkage);
+
 	mono_llvm_add_func_attr (func, LLVM_ATTR_NO_INLINE);
 	set_preserveall_cc (func);
 	entry_bb = LLVMAppendBasicBlock (func, "ENTRY");
@@ -7432,23 +7434,39 @@ emit_method_inner (EmitContext *ctx)
 
 	if (cfg->method->wrapper_type == MONO_WRAPPER_OTHER) {
 		WrapperInfo *info = mono_marshal_get_wrapper_info (cfg->method);
+		const gchar *name = NULL;
 		if (info->subtype == WRAPPER_SUBTYPE_AOT_INIT) {
 			switch (info->d.aot_init.subtype) {
 				case 0:
 					method = ctx->module->init_method;
+					name = "init_method";
 					break;
 				case 1:
 					method = ctx->module->init_method_gshared_mrgctx;
+					name = "init_method_gshared_mrgctx";
 					break;
 				case 2:
 					method = ctx->module->init_method_gshared_this;
+					name = "init_method_gshared_this";
 					break;
 				case 3:
 					method = ctx->module->init_method_gshared_vtable;
+					name = "init_method_gshared_vtable";
 					break;
+				default:
+					g_assert_not_reached ();
 			}
 			ctx->lmethod = method;
+			ctx->method_name = g_strdup (name);
+			ctx->cfg->asm_symbol = g_strdup (name);
 			cfg->verbose_level = 2;
+			ctx->module->max_method_idx = MAX (ctx->module->max_method_idx, cfg->method_index);
+
+			if (!cfg->llvm_only && ctx->module->external_symbols) {
+				LLVMSetLinkage (method, LLVMExternalLinkage);
+				LLVMSetVisibility (method, LLVMHiddenVisibility);
+			}
+
 			goto after_codegen;
 		}
 	}
@@ -7901,6 +7919,7 @@ after_codegen:
 		md_args [1] = LLVMConstInt (LLVMInt32Type (), method_index, FALSE);
 		md_node = LLVMMDNode (md_args, 2);
 		LLVMAddNamedMetadataOperand (lmodule, "mono.function_indexes", md_node);
+		printf ("%s :: %d\n", ctx->method_name, method_index);
 		//LLVMSetMetadata (method, md_kind, LLVMMDNode (&md_arg, 1));
 	}
 
