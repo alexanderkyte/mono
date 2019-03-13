@@ -2905,8 +2905,15 @@ emit_init_icall_wrapper (MonoLLVMModule *module, const char *name, const char *i
 	LLVMSetLinkage (func, LLVMInternalLinkage);
 
 	mono_llvm_add_func_attr (func, LLVM_ATTR_NO_INLINE);
-	// set_preserveall_cc (func);
-	LLVMSetFunctionCallConv (func, LLVMMono1CallConv);
+
+	// FIXME? Using this with mono debug info causes unwind.c to explode when
+	// parsing some of these registers saved by this call. Can't unwind through it.
+	// Not an issue with llvmonly because it doesn't use that DWARF
+	if (module->llvm_only)
+		set_preserveall_cc (func);
+	else
+		LLVMSetFunctionCallConv (func, LLVMMono1CallConv);
+
 	entry_bb = LLVMAppendBasicBlock (func, "ENTRY");
 	builder = LLVMCreateBuilder ();
 	LLVMPositionBuilderAtEnd (builder, entry_bb);
@@ -3106,8 +3113,15 @@ emit_init_method (EmitContext *ctx)
 	 * This enables llvm to keep arguments in their original registers/
 	 * scratch registers, since the call will not clobber them.
 	 */
-	// set_call_preserveall_cc (call);
-	LLVMSetInstructionCallConv (call, LLVMMono1CallConv);
+
+	// FIXME? Using this with mono debug info causes unwind.c to explode when
+	// parsing some of these registers saved by this call. Can't unwind through it.
+	// Not an issue with llvmonly because it doesn't use that DWARF
+
+	if (ctx->llvm_only)
+		set_call_preserveall_cc (call);
+	else
+		LLVMSetInstructionCallConv (call, LLVMMono1CallConv);
 
 	LLVMBuildBr (builder, inited_bb);
 	ctx->bblocks [cfg->bb_entry->block_num].end_bblock = inited_bb;
