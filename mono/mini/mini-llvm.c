@@ -2905,7 +2905,8 @@ emit_init_icall_wrapper (MonoLLVMModule *module, const char *name, const char *i
 	LLVMSetLinkage (func, LLVMInternalLinkage);
 
 	mono_llvm_add_func_attr (func, LLVM_ATTR_NO_INLINE);
-	set_preserveall_cc (func);
+	// set_preserveall_cc (func);
+	LLVMSetFunctionCallConv (func, LLVMMono1CallConv);
 	entry_bb = LLVMAppendBasicBlock (func, "ENTRY");
 	builder = LLVMCreateBuilder ();
 	LLVMPositionBuilderAtEnd (builder, entry_bb);
@@ -3105,7 +3106,8 @@ emit_init_method (EmitContext *ctx)
 	 * This enables llvm to keep arguments in their original registers/
 	 * scratch registers, since the call will not clobber them.
 	 */
-	set_call_preserveall_cc (call);
+	// set_call_preserveall_cc (call);
+	LLVMSetInstructionCallConv (call, LLVMMono1CallConv);
 
 	LLVMBuildBr (builder, inited_bb);
 	ctx->bblocks [cfg->bb_entry->block_num].end_bblock = inited_bb;
@@ -7459,7 +7461,6 @@ emit_method_inner (EmitContext *ctx)
 			ctx->lmethod = method;
 			ctx->method_name = g_strdup (name);
 			ctx->cfg->asm_symbol = g_strdup (name);
-			cfg->verbose_level = 2;
 			ctx->module->max_method_idx = MAX (ctx->module->max_method_idx, cfg->method_index);
 
 			if (!cfg->llvm_only && ctx->module->external_symbols) {
@@ -7886,6 +7887,7 @@ emit_method_inner (EmitContext *ctx)
 			LLVMBuildBr (ctx->builder, ctx->inited_bb);
 	}
 
+after_codegen:
 	if (!ctx->module->llvm_disable_self_init) {
 		g_ptr_array_add (ctx->module->cfgs, cfg);
 
