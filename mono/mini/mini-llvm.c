@@ -7920,7 +7920,6 @@ after_codegen:
 		md_args [1] = LLVMConstInt (LLVMInt32Type (), method_index, FALSE);
 		md_node = LLVMMDNode (md_args, 2);
 		LLVMAddNamedMetadataOperand (lmodule, "mono.function_indexes", md_node);
-		printf ("%s :: %d\n", ctx->method_name, method_index);
 		//LLVMSetMetadata (method, md_kind, LLVMMDNode (&md_arg, 1));
 	}
 

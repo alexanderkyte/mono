@@ -9784,8 +9784,6 @@ emit_code (MonoAotCompile *acfg)
 		int call_size;
 
 		if (!ignore_cfg (acfg->cfgs [i])) {
-			fprintf (stderr, "Calling %s\n", acfg->cfgs [i]->asm_symbol);
-
 			arch_emit_direct_call (acfg, acfg->cfgs [i]->asm_symbol, FALSE, acfg->thumb_mixed && acfg->cfgs [i]->compile_llvm, NULL, &call_size);
 		} else {
 			arch_emit_direct_call (acfg, symbol, FALSE, FALSE, NULL, &call_size);
