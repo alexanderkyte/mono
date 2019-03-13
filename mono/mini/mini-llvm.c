@@ -7901,7 +7901,6 @@ after_codegen:
 			g_ptr_array_add (ctx->module->callsite_list, g_ptr_array_index (ctx->callsite_list, i));
 	}
 
-after_codegen:
 	if (cfg->verbose_level > 1)
 		mono_llvm_dump_value (method);
 
