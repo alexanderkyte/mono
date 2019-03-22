@@ -4336,6 +4336,15 @@ add_gc_wrappers (MonoAotCompile *acfg)
 	}
 }
 
+gboolean
+mono_aot_can_specialize (MonoMethod *method)
+{
+	if (!method)
+		return FALSE;
+
+	return FALSE;
+}
+
 static void
 add_wrappers (MonoAotCompile *acfg)
 {

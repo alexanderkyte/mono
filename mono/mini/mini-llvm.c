@@ -65,6 +65,7 @@ typedef struct {
 	GHashTable *plt_entries;
 	GHashTable *plt_entries_ji;
 	GHashTable *method_to_lmethod;
+	GHashTable *method_to_call_info;
 	GHashTable *direct_callables;
 	GHashTable *module_nonnull;
 	char **bb_names;
@@ -3978,18 +3979,33 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 	/*
 	 * Emit the call
 	 */
-	lcall = emit_call (ctx, bb, &builder, callee, args, LLVMCountParamTypes (llvm_sig));
+	int num_params = LLVMCountParamTypes (llvm_sig);
+	lcall = emit_call (ctx, bb, &builder, callee, args, num_params);
 
-	for (int i = 0; i < nargs; i++) {
-		LLVMValueRef ref = args [i];
-		gboolean nonnull = g_hash_table_lookup (ctx->module->module_nonnull, ref) != NULL;
+	if (mono_aot_can_specialize (call->method)) {
+		GArray *call_site_union = (GArray *) g_hash_table_lookup (ctx->module->method_to_call_info, call->method);
 
-		if (nonnull)
-			mono_llvm_set_call_nonnull_arg (lcall, i);
+		if (!call_site_union)
+			call_site_union = g_array_sized_new (FALSE, TRUE, sizeof (gboolean), num_params);
+
+		for (int i = 0; i < num_params; i++) {
+			LLVMValueRef ref = args [i];
+			gboolean any_callers_null = g_array_index (call_site_union, gboolean, i);
+			gboolean nullable = any_callers_null || !g_hash_table_lookup (ctx->module->module_nonnull, ref);
+
+			if (nullable) {
+				g_assert (i < LLVMGetNumArgOperands (lcall));
+				mono_llvm_set_call_nonnull_arg (lcall, i);
+			}
+
+			g_array_insert_val (call_site_union, i, nullable);
+		}
+
+		g_hash_table_insert (ctx->module->method_to_call_info, call->method, call_site_union);
 	}
 
 	// If we just allocated an object, it's not null.
-	if (call->method->wrapper_type == MONO_WRAPPER_ALLOC) {
+	if (call->method && call->method->wrapper_type == MONO_WRAPPER_ALLOC) {
 			mono_llvm_set_call_nonnull_ret (lcall);
 			g_hash_table_insert (ctx->module->module_nonnull, lcall, lcall);
 	}
@@ -9289,8 +9305,9 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 	module->plt_entries_ji = g_hash_table_new (NULL, NULL);
 	module->direct_callables = g_hash_table_new (g_str_hash, g_str_equal);
 	module->module_nonnull = g_hash_table_new (NULL, NULL);
-	module->method_to_lmethod = g_hash_table_new (NULL, NULL);
 	module->idx_to_lmethod = g_hash_table_new (NULL, NULL);
+	module->method_to_lmethod = g_hash_table_new (NULL, NULL);
+	module->method_to_call_info = g_hash_table_new_full (NULL, NULL, NULL, g_free);
 	module->idx_to_unbox_tramp = g_hash_table_new (NULL, NULL);
 	module->callsite_list = g_ptr_array_new ();
 }
@@ -9726,8 +9743,29 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 					mono_llvm_replace_uses_of (callee, lmethod);
 					mono_aot_mark_unused_llvm_plt_entry (ji);
 				}
+
+				if (mono_aot_can_specialize (ji->data.method)) {
+					// check call sites
+					//
+					GArray *call_site_union = (GArray *) g_hash_table_lookup (module->method_to_call_info, ji->data.method);
+					for (int i = 0; i < call_site_union->len; i++) {
+						gboolean any_callers_null = g_array_index (call_site_union, gboolean, i);
+						printf ("%s [%d] == %d", ji->data.method->name, i, any_callers_null ? 1 : 0);
+						if (any_callers_null)
+							continue;
+
+						g_assert (i < LLVMCountParams (lmethod));
+						mono_llvm_set_func_nonnull_arg (lmethod, i);
+					}
+					mono_llvm_dump_value (lmethod);
+				}
+
 			}
 		}
+		// g_hash_table_free (module->method_to_call_info);
+		// g_hash_table_free (module->direct_callable);
+		// module->method_to_call_info = NULL;
+		// module->direct_callable = NULL;
 	}
 
 #if 1
