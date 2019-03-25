@@ -4336,12 +4336,56 @@ add_gc_wrappers (MonoAotCompile *acfg)
 	}
 }
 
+static gboolean enable_method_specialization;
+
 gboolean
 mono_aot_can_specialize (MonoMethod *method)
 {
+	// return FALSE;
+
+	// if (!method || !enable_method_specialization)
 	if (!method)
 		return FALSE;
 
+	if (method->wrapper_type != MONO_WRAPPER_NONE)
+		return FALSE;
+
+	// If it's not private, we can't specialize
+	if ((method->flags & METHOD_ATTRIBUTE_MEMBER_ACCESS_MASK) == METHOD_ATTRIBUTE_PUBLIC) {
+		fprintf (stderr, "Can't specialize because public: %s\n", method->name);
+		return FALSE;
+	}
+
+	// If it has the attribute disabling the specialization, we can't specialize
+	ERROR_DECL (cattr_error);
+	MonoCustomAttrInfo *cattr = mono_custom_attrs_from_method_checked (method, cattr_error);
+	if (!is_ok (cattr_error)) {
+		mono_error_cleanup (cattr_error);
+		fprintf (stderr, "Can't specialize because can't get cattr: %s\n", method->name);
+		goto cleanup_false;
+	} else if (!cattr) {
+		fprintf (stderr, "Can specialize: %s\n", method->name);
+		goto cleanup_true;
+	}
+
+	for (int i = 0; i < cattr->num_attrs; ++i) {
+		if (!cattr->attrs [i].ctor)
+			continue;
+
+		if (!strcmp (m_class_get_name (cattr->attrs [i].ctor->klass), "Reflected")) {
+			fprintf (stderr, "Can't specialize because attr: %s\n", method->name);
+			goto cleanup_false;
+		}
+	}
+
+cleanup_true:
+	mono_custom_attrs_free (cattr);
+	// FIXME: cache with attribute
+	fprintf (stderr, "Can specialize: %s\n", method->name);
+	return TRUE;
+
+cleanup_false:
+	mono_custom_attrs_free (cattr);
 	return FALSE;
 }
 
@@ -7904,6 +7948,8 @@ mono_aot_parse_options (const char *aot_options, MonoAotOptions *opts)
 		// Intentionally undocumented: Used for internal debugging
 		} else if (str_begins_with (arg, "dump")) {
 			opts->dump_json = TRUE;
+		} else if (str_begins_with (arg, "opt-callee")) {
+			enable_method_specialization = TRUE;
 		} else if (str_begins_with (arg, "llvmonly")) {
 			opts->mode = MONO_AOT_MODE_FULL;
 			opts->llvm = TRUE;

@@ -3993,7 +3993,7 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 			gboolean any_callers_null = g_array_index (call_site_union, gboolean, i);
 			gboolean nullable = any_callers_null || !g_hash_table_lookup (ctx->module->module_nonnull, ref);
 
-			if (nullable) {
+			if (!nullable) {
 				g_assert (i < LLVMGetNumArgOperands (lcall));
 				mono_llvm_set_call_nonnull_arg (lcall, i);
 			}
@@ -9307,7 +9307,7 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 	module->module_nonnull = g_hash_table_new (NULL, NULL);
 	module->idx_to_lmethod = g_hash_table_new (NULL, NULL);
 	module->method_to_lmethod = g_hash_table_new (NULL, NULL);
-	module->method_to_call_info = g_hash_table_new_full (NULL, NULL, NULL, g_free);
+	module->method_to_call_info = g_hash_table_new (NULL, NULL);
 	module->idx_to_unbox_tramp = g_hash_table_new (NULL, NULL);
 	module->callsite_list = g_ptr_array_new ();
 }
@@ -9744,13 +9744,18 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 					mono_aot_mark_unused_llvm_plt_entry (ji);
 				}
 
-				if (mono_aot_can_specialize (ji->data.method)) {
+				fprintf (stderr, "%s reached %s %d\n", ji->data.method->name, __FILE__, __LINE__);
+				gboolean can_specialize = mono_aot_can_specialize (ji->data.method);
+				fprintf (stderr, "%s reached %s %d, can specialize? %d\n", ji->data.method->name, __FILE__, __LINE__, can_specialize);
+
+				if (can_specialize) {
 					// check call sites
 					//
 					GArray *call_site_union = (GArray *) g_hash_table_lookup (module->method_to_call_info, ji->data.method);
+					fprintf (stderr, "Can specialize: %s , number call sites: %d\n", ji->data.method->name, call_site_union->len);
 					for (int i = 0; i < call_site_union->len; i++) {
 						gboolean any_callers_null = g_array_index (call_site_union, gboolean, i);
-						printf ("%s [%d] == %d", ji->data.method->name, i, any_callers_null ? 1 : 0);
+						printf ("%s [%d] == %d\n", ji->data.method->name, i, any_callers_null ? 1 : 0);
 						if (any_callers_null)
 							continue;
 
