@@ -4341,7 +4341,7 @@ static gboolean enable_method_specialization;
 gboolean
 mono_aot_can_specialize (MonoMethod *method)
 {
-	// return FALSE;
+	// FIXME: Cache!?
 
 	// if (!method || !enable_method_specialization)
 	if (!method)
@@ -4351,8 +4351,8 @@ mono_aot_can_specialize (MonoMethod *method)
 		return FALSE;
 
 	// If it's not private, we can't specialize
-	if ((method->flags & METHOD_ATTRIBUTE_MEMBER_ACCESS_MASK) == METHOD_ATTRIBUTE_PUBLIC) {
-		fprintf (stderr, "Can't specialize because public: %s\n", method->name);
+	if ((method->flags & METHOD_ATTRIBUTE_MEMBER_ACCESS_MASK) != METHOD_ATTRIBUTE_PRIVATE) {
+		fprintf (stderr, "Can't specialize because not private: %s\n", method->name);
 		return FALSE;
 	}
 
