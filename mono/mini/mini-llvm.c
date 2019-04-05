@@ -7383,6 +7383,10 @@ is_externally_callable (EmitContext *ctx, MonoMethod *method)
 {
 	if (ctx->module->llvm_only && ctx->module->static_link && method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE)
 		return TRUE;
+
+	if (!mono_aot_can_dedup (method))
+		return TRUE;
+
 	return FALSE;
 }
 
@@ -9690,15 +9694,44 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 
 		g_hash_table_iter_init (&iter, module->plt_entries_ji);
 		while (g_hash_table_iter_next (&iter, (void**)&ji, (void**)&callee)) {
+			if (ji->type != MONO_PATCH_INFO_METHOD)
+				continue;
+
+			MonoMethod *method = ji->data.method;
 			if (mono_aot_is_direct_callable (ji)) {
 				LLVMValueRef lmethod;
 
-				lmethod = (LLVMValueRef)g_hash_table_lookup (module->method_to_lmethod, ji->data.method);
+				lmethod = (LLVMValueRef)g_hash_table_lookup (module->method_to_lmethod, method);
+
+
 				/* The types might not match because the caller might pass an rgctx */
 				if (lmethod && LLVMTypeOf (callee) == LLVMTypeOf (lmethod)) {
 					mono_llvm_replace_uses_of (callee, lmethod);
 					mono_aot_mark_unused_llvm_plt_entry (ji);
+					continue;
 				}
+			}
+
+			// If the call is to a method in another AOT module, and not a wrapper, and is not an "extra" method,
+			// emit a direct call
+			//
+
+			if (method->wrapper_type == MONO_WRAPPER_NONE && method->klass->image->assembly != module->assembly && !mono_aot_can_dedup (method)) {
+				LLVMTypeRef llvm_sig = mono_llvm_get_function_type (callee);
+
+				LLVMValueRef external_method = LLVMAddFunction (module->lmodule, mono_aot_get_mangled_method_name (method), llvm_sig);
+				// LLVMSetLinkage (external_method, LLVMAvailableExternallyLinkage);
+
+				// printf ("Replacing \n");
+				// LLVMDumpValue (callee);
+				// printf ("With\n");
+				// LLVMDumpValue (external_method);
+				// printf ("FIN\n");
+
+				mono_llvm_replace_uses_of (callee, external_method);
+
+				mono_aot_mark_unused_llvm_plt_entry (ji);
+				continue;
 			}
 		}
 	}

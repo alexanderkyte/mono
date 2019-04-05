@@ -11778,7 +11778,7 @@ compile_asm (MonoAotCompile *acfg)
 #define LD_OPTIONS "-dynamiclib"
 #elif defined(TARGET_AMD64) && defined(TARGET_MACH)
 #define LD_NAME "clang"
-#define LD_OPTIONS "--shared"
+#define LD_OPTIONS "-undefined dynamic_lookup --shared"
 #elif defined(TARGET_WIN32_MSVC)
 #define LD_NAME "link.exe"
 #define LD_OPTIONS "/DLL /MACHINE:X64 /NOLOGO /INCREMENTAL:NO"
