@@ -6236,7 +6236,9 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 		/*if (mono_aot_can_dedup (method) && (acfg->aot_opts.dedup || acfg->aot_opts.dedup_include))*/
 			/*debug_sym = mono_aot_get_mangled_method_name (method);*/
 		/*else*/
-			debug_sym = get_debug_sym (method, "", acfg->method_label_hash);
+			/*debug_sym = get_debug_sym (method, "", acfg->method_label_hash);*/
+
+		debug_sym = mono_aot_get_mangled_method_name (method);
 
 		cfg->asm_debug_symbol = g_strdup (debug_sym);
 
@@ -6248,7 +6250,11 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 		/*if (mono_aot_can_dedup (method) && (acfg->aot_opts.dedup || acfg->aot_opts.dedup_include))*/
 			/*emit_global_inner (acfg, debug_sym, TRUE);*/
 		/*else*/
-			emit_local_symbol (acfg, debug_sym, symbol, TRUE);
+			/*emit_local_symbol (acfg, debug_sym, symbol, TRUE);*/
+
+		if (!mono_aot_can_dedup (method)) {
+			emit_global_inner (acfg, debug_sym, TRUE);
+		}
 
 		emit_label (acfg, debug_sym);
 	}
@@ -9032,6 +9038,9 @@ sanitize_mangled_string (const char *input)
 			break;
 		case ')':
 			g_string_append (s, "_rparen_");
+			break;
+		case '|':
+			g_string_append (s, "_vertbar_");
 			break;
 		case ',':
 			g_string_append (s, "_comma_");
