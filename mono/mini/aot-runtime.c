@@ -263,6 +263,23 @@ amodule_unlock (MonoAotModule *amodule)
 	mono_os_mutex_unlock (&amodule->mutex);
 }
 
+gboolean
+mono_aot_confirm_llvm_compiled (MonoMethod *method)
+{
+	/*MonoAotModule *amodule = NULL;*/
+
+	/*// If the method index is actually found, it means we didn't fail to compile it*/
+	/*int method_index = find_aot_method (method, &amodule);*/
+	/*if (!method_index)*/
+		/*g_error ("Cannot find AOT library for %s from %s\n", method->name, method->klass->image);*/
+
+	/*guint8* code = (guint8 *)amodule->methods [method_index];*/
+
+	/*// If we have compiled it, only check */
+	/*(code >= amodule->llvm_code_start && code <= amodule->llvm_code_end);*/
+	
+}
+
 /*
  * load_image:
  *
