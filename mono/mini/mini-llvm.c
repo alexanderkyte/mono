@@ -9716,7 +9716,32 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 			// emit a direct call
 			//
 
-			if (method->wrapper_type == MONO_WRAPPER_NONE && method->klass->image->assembly != module->assembly && !mono_aot_can_dedup (method)) {
+			if (method->wrapper_type == MONO_WRAPPER_NONE && method->klass->image->assembly != module->assembly) {
+				if (method->is_inflated) {
+					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
+					continue;
+				}
+
+				if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED) {
+					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
+					continue;
+				}
+
+				if (!strcmp (method->name, ".cctor")) {
+					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
+					continue;
+				}
+
+				if (mono_aot_can_dedup (method)) {
+					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
+					continue;
+				}
+
+				if (mono_class_is_before_field_init (method->klass)) {
+					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
+					continue;
+				}
+
 				LLVMTypeRef llvm_sig = mono_llvm_get_function_type (callee);
 
 				LLVMValueRef external_method = LLVMAddFunction (module->lmodule, mono_aot_get_mangled_method_name (method), llvm_sig);
