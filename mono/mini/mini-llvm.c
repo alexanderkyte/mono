@@ -1775,44 +1775,43 @@ get_callee_llvmonly (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType ty
 	 */
 	if (type == MONO_PATCH_INFO_METHOD) {
 		MonoMethod *method = (MonoMethod*)data;
-		if (m_class_get_image (method->klass)->assembly == ctx->module->assembly) {
-			MonoJumpInfo tmp_ji;
-			tmp_ji.type = type;
-			tmp_ji.data.target = data;
 
-			MonoJumpInfo *ji = mono_aot_patch_info_dup (&tmp_ji);
-			ji->next = ctx->cfg->patch_info;
-			ctx->cfg->patch_info = ji;
-			LLVMTypeRef llvm_type = LLVMPointerType (llvm_sig, 0);
+		MonoJumpInfo tmp_ji;
+		tmp_ji.type = type;
+		tmp_ji.data.target = data;
 
-			ctx->cfg->got_access_count ++;
+		MonoJumpInfo *ji = mono_aot_patch_info_dup (&tmp_ji);
+		ji->next = ctx->cfg->patch_info;
+		ctx->cfg->patch_info = ji;
+		LLVMTypeRef llvm_type = LLVMPointerType (llvm_sig, 0);
 
-			CallSite *info = g_new0 (CallSite, 1);
-			info->method = method;
-			info->ji = ji;
-			info->type = llvm_type;
+		ctx->cfg->got_access_count ++;
 
-			/*
-			 * Emit a dummy load to represent the callee, and either replace it with
-			 * a reference to the llvm method for the callee, or from a load from the
-			 * GOT.
-			 */
-			LLVMValueRef indexes [2];
-			LLVMValueRef got_entry_addr, load;
+		CallSite *info = g_new0 (CallSite, 1);
+		info->method = method;
+		info->ji = ji;
+		info->type = llvm_type;
 
-			LLVMBuilderRef builder = ctx->builder;
-			indexes [0] = LLVMConstInt (LLVMInt32Type (), 0, FALSE);
-			indexes [1] = LLVMConstInt (LLVMInt32Type (), 0, FALSE);
-			got_entry_addr = LLVMBuildGEP (builder, ctx->module->got_var, indexes, 2, "");
+		/*
+		 * Emit a dummy load to represent the callee, and either replace it with
+		 * a reference to the llvm method for the callee, or from a load from the
+		 * GOT.
+		 */
+		LLVMValueRef indexes [2];
+		LLVMValueRef got_entry_addr, load;
 
-			load = LLVMBuildLoad (builder, got_entry_addr, "");
-			load = convert (ctx, load, llvm_type);
-			info->load = load;
+		LLVMBuilderRef builder = ctx->builder;
+		indexes [0] = LLVMConstInt (LLVMInt32Type (), 0, FALSE);
+		indexes [1] = LLVMConstInt (LLVMInt32Type (), 0, FALSE);
+		got_entry_addr = LLVMBuildGEP (builder, ctx->module->got_var, indexes, 2, "");
 
-			g_ptr_array_add (ctx->callsite_list, info);
+		load = LLVMBuildLoad (builder, got_entry_addr, "");
+		load = convert (ctx, load, llvm_type);
+		info->load = load;
 
-			return load;
-		}
+		g_ptr_array_add (ctx->callsite_list, info);
+
+		return load;
 	}
 
 	/*
@@ -7384,7 +7383,7 @@ is_externally_callable (EmitContext *ctx, MonoMethod *method)
 	if (ctx->module->llvm_only && ctx->module->static_link && method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE)
 		return TRUE;
 
-	if (!mono_aot_can_dedup (method))
+	if (mono_aot_can_directly_call (method))
 		return TRUE;
 
 	return FALSE;
@@ -9289,6 +9288,10 @@ mono_llvm_fixup_aot_module (void)
 	 */
 
 	GHashTable *patches_to_null = g_hash_table_new (mono_patch_info_hash, mono_patch_info_equal);
+	printf ("Need to visit %d patches\n", module->callsite_list->len);
+
+	int kept_by_direct_call = 0;
+
 	for (int sindex = 0; sindex < module->callsite_list->len; ++sindex) {
 		CallSite *site = (CallSite*)g_ptr_array_index (module->callsite_list, sindex);
 		method = site->method;
@@ -9298,12 +9301,32 @@ mono_llvm_fixup_aot_module (void)
 		LLVMValueRef indexes [2], got_entry_addr, load;
 		char *name;
 
+
+		if (!lmethod && method->klass->image->assembly != module->assembly && !mono_aot_can_directly_call (method)) {
+			kept_by_direct_call++;
+		}
+
 		/*
 		 * FIXME: Support inflated methods, it asserts in mono_aot_init_gshared_method_this () because the method is not in
 		 * amodule->extra_methods.
 		 */
 		if (lmethod && !(method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED) && !method->is_inflated) {
 			mono_llvm_replace_uses_of (placeholder, lmethod);
+			g_hash_table_insert (patches_to_null, site->ji, site->ji);
+		} else if (!lmethod && method->klass->image->assembly != module->assembly && mono_aot_can_directly_call (method)) {
+			printf ("%s has direct external call %s %d\n", method->name, __FILE__, __LINE__);
+
+			LLVMTypeRef llvm_sig = site->type;
+			LLVMValueRef external_method = LLVMAddFunction (module->lmodule, mono_aot_get_mangled_method_name (method), llvm_sig);
+
+			printf ("Replacing \n");
+			LLVMDumpValue (placeholder);
+			printf ("With\n");
+			LLVMDumpValue (external_method);
+			printf ("FIN\n");
+
+			mono_llvm_replace_uses_of (placeholder, external_method);
+
 			g_hash_table_insert (patches_to_null, site->ji, site->ji);
 		} else {
 			int got_offset = mono_aot_get_got_offset (site->ji);
@@ -9322,6 +9345,7 @@ mono_llvm_fixup_aot_module (void)
 		}
 		g_free (site);
 	}
+	printf ("%d/%d patches kept by direct call\n", kept_by_direct_call, module->callsite_list->len);
 
 	for (int i = 0; i < module->cfgs->len; ++i) {
 		/*
@@ -9703,44 +9727,26 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 
 				lmethod = (LLVMValueRef)g_hash_table_lookup (module->method_to_lmethod, method);
 
-
 				/* The types might not match because the caller might pass an rgctx */
 				if (lmethod && LLVMTypeOf (callee) == LLVMTypeOf (lmethod)) {
 					mono_llvm_replace_uses_of (callee, lmethod);
 					mono_aot_mark_unused_llvm_plt_entry (ji);
 					continue;
 				}
+
+				if (lmethod)
+					continue;
 			}
 
 			// If the call is to a method in another AOT module, and not a wrapper, and is not an "extra" method,
 			// emit a direct call
 			//
 
-			if (method->wrapper_type == MONO_WRAPPER_NONE && method->klass->image->assembly != module->assembly) {
-				if (method->is_inflated) {
-					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
+			if (method->klass->image->assembly != module->assembly) {
+				g_assert_not_reached ();
+				if (!mono_aot_can_directly_call (method))
 					continue;
-				}
-
-				if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED) {
-					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
-					continue;
-				}
-
-				if (!strcmp (method->name, ".cctor")) {
-					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
-					continue;
-				}
-
-				if (mono_aot_can_dedup (method)) {
-					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
-					continue;
-				}
-
-				if (mono_class_is_before_field_init (method->klass)) {
-					// printf("Can't replace %s due to %d\n", method->name, __LINE__);
-					continue;
-				}
+				printf ("%s has direct external call %s %d\n", method->name, __FILE__, __LINE__);
 
 				LLVMTypeRef llvm_sig = mono_llvm_get_function_type (callee);
 

@@ -9319,6 +9319,36 @@ append_mangled_method (GString *s, MonoMethod *method)
 	return TRUE;
 }
 
+gboolean
+mono_aot_can_directly_call (MonoMethod *method)
+{
+	if (method->wrapper_type != MONO_WRAPPER_NONE)
+		return FALSE;
+
+	if (method->is_inflated)
+		return FALSE;
+
+	if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)
+		return FALSE;
+
+	if (!strcmp (method->name, ".cctor"))
+		return FALSE;
+
+	if (mono_aot_can_dedup (method))
+		return FALSE;
+
+	if (mono_class_is_before_field_init (method->klass))
+		return FALSE;
+
+	const char *klass_name = m_class_get_name (method->klass);
+	if (strstr (klass_name, "<PrivateImplementationDetails>") == klass_name) {
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+
 /*
  * mono_aot_get_mangled_method_name:
  *
