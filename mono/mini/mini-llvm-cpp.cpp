@@ -274,6 +274,12 @@ mono_llvm_get_function_type (LLVMValueRef func)
 	return wrap (unwrap<Function>(func)->getFunctionType ());
 }
 
+LLVMTypeRef
+mono_llvm_get_ptr_dst_type (LLVMTypeRef ptr)
+{
+	return wrap (unwrap<PointerType>(ptr)->getElementType ());
+}
+
 #if LLVM_API_VERSION > 500
 static Attribute::AttrKind
 convert_attr (AttrKind kind)

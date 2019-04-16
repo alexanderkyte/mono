@@ -9316,7 +9316,7 @@ mono_llvm_fixup_aot_module (void)
 		} else if (!lmethod && method->klass->image->assembly != module->assembly && mono_aot_can_directly_call (method)) {
 			printf ("%s has direct external call %s %d\n", method->name, __FILE__, __LINE__);
 
-			LLVMTypeRef llvm_sig = site->type;
+			LLVMTypeRef llvm_sig = mono_llvm_get_ptr_dst_type (site->type);
 			LLVMValueRef external_method = LLVMAddFunction (module->lmodule, mono_aot_get_mangled_method_name (method), llvm_sig);
 
 			printf ("Replacing \n");
