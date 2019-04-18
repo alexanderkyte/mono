@@ -9330,15 +9330,15 @@ mono_aot_can_directly_call (MonoMethod *method)
 
 	if (method->signature->pinvoke)
 	{
-		fprintf (stderr, "Bail %s %d\n", __FILE__, __LINE__);
+		fprintf (stderr, "Bail %s %d, pinvoke\n", __FILE__, __LINE__);
 		return FALSE;
 	}
 
-	if (method->is_inflated)
-	{
-		fprintf (stderr, "Bail %s %d\n", __FILE__, __LINE__);
-		return FALSE;
-	}
+	// if (method->is_inflated)
+	// {
+	// 	fprintf (stderr, "Bail %s %d, inflated\n", __FILE__, __LINE__);
+	// 	return FALSE;
+	// }
 
 	if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)
 	{
@@ -9348,7 +9348,7 @@ mono_aot_can_directly_call (MonoMethod *method)
 
 	if (!strcmp (method->name, ".cctor"))
 	{
-		fprintf (stderr, "Bail %s %d as cctor\n", __FILE__, __LINE__);
+		fprintf (stderr, "Bail %s %d as cctor for %s\n", __FILE__, __LINE__, method->klass->name);
 		return FALSE;
 	}
 
@@ -9356,7 +9356,7 @@ mono_aot_can_directly_call (MonoMethod *method)
 	gboolean duplicated = !dedup_mode && mono_aot_can_dedup (method);
 	if (duplicated)
 	{
-		fprintf (stderr, "Bail %s %d\n", __FILE__, __LINE__);
+		fprintf (stderr, "Bail %s %d, duplicated\n", __FILE__, __LINE__);
 		return FALSE;
 	}
 
@@ -9368,8 +9368,18 @@ mono_aot_can_directly_call (MonoMethod *method)
 
 	const char *klass_name = m_class_get_name (method->klass);
 	if (strstr (klass_name, "<PrivateImplementationDetails>") == klass_name) {
-		fprintf (stderr, "Bail %s %d\n", __FILE__, __LINE__);
+		fprintf (stderr, "Bail %s %d, <PrivateImplementationDetails>\n", __FILE__, __LINE__);
 		return FALSE;
+	}
+
+	if (mini_is_gsharedvt_sharable_method (method))
+	{
+		fprintf (stderr, "Bail %s %d, gsharedvt\n", __FILE__, __LINE__);
+		return FALSE;
+	}
+
+	{
+		fprintf (stderr, "Not bail %s %d, %s %s %s\n", __FILE__, __LINE__, m_class_get_name_space (method->klass), m_class_get_name (method->klass), method->name);
 	}
 
 	return TRUE;

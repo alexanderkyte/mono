@@ -7484,8 +7484,29 @@ mono_llvm_emit_method (MonoCompile *cfg)
 				if (LLVMGetInstructionParent (v) == NULL)
 					LLVMInsertIntoBuilder (builder, v);
 			}
-		
+
+			gboolean needs_replacement = mono_aot_can_directly_call (cfg->method);
+	
+			LLVMTypeRef method_type = NULL;
+			if (needs_replacement)
+			{
+				method_type = mono_llvm_get_function_type (ctx->lmethod);
+
+				printf ("Failure swapping \n");
+				LLVMDumpValue (ctx->lmethod);
+				printf ("With\n");
+			}
+
 			LLVMDeleteFunction (ctx->lmethod);
+
+			if (needs_replacement)
+			{
+				ctx->lmethod = LLVMAddFunction (ctx->lmodule, ctx->method_name, method_type);
+				LLVMDumpValue (ctx->lmethod);
+				printf ("FIN\n");
+			}
+		} else {
+			g_warning ("Unable to generate method %s, failure before fallback possible.", ctx->method_name);
 		}
 	}
 
@@ -9319,11 +9340,11 @@ mono_llvm_fixup_aot_module (void)
 			LLVMTypeRef llvm_sig = mono_llvm_get_ptr_dst_type (site->type);
 			LLVMValueRef external_method = LLVMAddFunction (module->lmodule, mono_aot_get_mangled_method_name (method), llvm_sig);
 
-			printf ("Replacing \n");
-			LLVMDumpValue (placeholder);
-			printf ("With\n");
-			LLVMDumpValue (external_method);
-			printf ("FIN\n");
+			// printf ("Replacing \n");
+			// LLVMDumpValue (placeholder);
+			// printf ("With\n");
+			// LLVMDumpValue (external_method);
+			// printf ("FIN\n");
 
 			mono_llvm_replace_uses_of (placeholder, external_method);
 
