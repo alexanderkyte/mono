@@ -7389,6 +7389,12 @@ is_externally_callable (EmitContext *ctx, MonoMethod *method)
 	return FALSE;
 }
 
+void
+mono_llvm_register_failure (MonoCompile *cfg)
+{
+	mono_aot_register_llvm_failure (cfg->method);
+}
+
 /*
  * mono_llvm_emit_method:
  *
@@ -7485,25 +7491,57 @@ mono_llvm_emit_method (MonoCompile *cfg)
 					LLVMInsertIntoBuilder (builder, v);
 			}
 
-			gboolean needs_replacement = mono_aot_can_directly_call (cfg->method);
+			gboolean needs_replacement = FALSE;
 	
 			LLVMTypeRef method_type = NULL;
 			if (needs_replacement)
 			{
 				method_type = mono_llvm_get_function_type (ctx->lmethod);
 
-				printf ("Failure swapping \n");
-				LLVMDumpValue (ctx->lmethod);
-				printf ("With\n");
+				// printf ("Failure swapping \n");
+				// LLVMDumpValue (ctx->lmethod);
+				// printf ("With\n");
 			}
 
 			LLVMDeleteFunction (ctx->lmethod);
 
-			if (needs_replacement)
+			// If we can't compile it, and this is where the code is meant to live,
+			// we emit a stub that calls from the GOT 
+			if (FALSE)
 			{
 				ctx->lmethod = LLVMAddFunction (ctx->lmodule, ctx->method_name, method_type);
-				LLVMDumpValue (ctx->lmethod);
-				printf ("FIN\n");
+				LLVMSetLinkage (ctx->lmethod, LLVMExternalLinkage);
+
+				if (!strcmp (cfg->method->name, "GetTempFileName")) {
+					g_assert_not_reached ();
+				}
+
+				LLVMBasicBlockRef stub_bb = LLVMAppendBasicBlock (ctx->lmethod, "COMPILATION_FAILURE");
+				LLVMBuilderRef builder = create_builder (ctx);
+				LLVMPositionBuilderAtEnd (builder, stub_bb);
+
+				/*MonoJumpInfo tmp_ji;*/
+				/*tmp_ji.type = MONO_PATCH_INFO_METHOD;*/
+				/*tmp_ji.data.target = cfg->method;*/
+
+				/*MonoJumpInfo *ji = mono_aot_patch_info_dup (&tmp_ji);*/
+				/*int got_offset = mono_aot_get_got_offset (ji);*/
+				/*module->max_got_offset = MAX (module->max_got_offset, got_offset);*/
+
+				/*indexes [0] = LLVMConstInt (LLVMInt32Type (), 0, FALSE);*/
+				/*indexes [1] = LLVMConstInt (LLVMInt32Type (), (gssize)got_offset, FALSE);*/
+				/*got_entry_addr = LLVMBuildGEP (builder, module->got_var, indexes, 2, "");*/
+
+				/*name = get_aotconst_name (site->ji->type, site->ji->data.target, got_offset);*/
+				/*load = LLVMBuildLoad (builder, got_entry_addr, "");*/
+				/*load = LLVMBuildBitCast (builder, load, site->type, name ? name : "");*/
+
+				LLVMBuildUnreachable (builder);
+				/*LLVMTypeRef ret_type = LLVMGetReturnType (method_type);*/
+				/*if (ret_type)*/
+
+				// LLVMDumpValue (ctx->lmethod);
+				// printf ("FIN\n");
 			}
 		} else {
 			g_warning ("Unable to generate method %s, failure before fallback possible.", ctx->method_name);
@@ -7610,6 +7648,10 @@ emit_method_inner (EmitContext *ctx)
 
 	method = LLVMAddFunction (lmodule, ctx->method_name, method_type);
 	ctx->lmethod = method;
+
+	if (!strcmp (cfg->method->name, "GetTempFileName")) {
+		g_assert_not_reached ();
+	}
 
 	if (!cfg->llvm_only)
 		LLVMSetFunctionCallConv (method, LLVMMono1CallConv);
@@ -9322,8 +9364,7 @@ mono_llvm_fixup_aot_module (void)
 		LLVMValueRef indexes [2], got_entry_addr, load;
 		char *name;
 
-
-		if (!lmethod && method->klass->image->assembly != module->assembly && !mono_aot_can_directly_call (method)) {
+		if (!lmethod && method->klass->image->assembly != module->assembly && !mono_aot_has_external_symbol (method)) {
 			kept_by_direct_call++;
 		}
 
@@ -9334,8 +9375,8 @@ mono_llvm_fixup_aot_module (void)
 		if (lmethod && !(method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED) && !method->is_inflated) {
 			mono_llvm_replace_uses_of (placeholder, lmethod);
 			g_hash_table_insert (patches_to_null, site->ji, site->ji);
-		} else if (!lmethod && method->klass->image->assembly != module->assembly && mono_aot_can_directly_call (method)) {
-			printf ("%s has direct external call %s %d\n", method->name, __FILE__, __LINE__);
+		} else if (!lmethod && method->klass->image->assembly != module->assembly && mono_aot_has_external_symbol (method) && mono_aot_confirm_llvm_compiled) {
+			// printf ("%s has direct external call %s %d\n", method->name, __FILE__, __LINE__);
 
 			LLVMTypeRef llvm_sig = mono_llvm_get_ptr_dst_type (site->type);
 			LLVMValueRef external_method = LLVMAddFunction (module->lmodule, mono_aot_get_mangled_method_name (method), llvm_sig);
@@ -9764,10 +9805,8 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 			//
 
 			if (method->klass->image->assembly != module->assembly) {
-				g_assert_not_reached ();
-				if (!mono_aot_can_directly_call (method))
+				if (!mono_aot_has_external_symbol (method))
 					continue;
-				printf ("%s has direct external call %s %d\n", method->name, __FILE__, __LINE__);
 
 				LLVMTypeRef llvm_sig = mono_llvm_get_function_type (callee);
 
