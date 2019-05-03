@@ -7649,10 +7649,6 @@ emit_method_inner (EmitContext *ctx)
 	method = LLVMAddFunction (lmodule, ctx->method_name, method_type);
 	ctx->lmethod = method;
 
-	if (!strcmp (cfg->method->name, "GetTempFileName")) {
-		g_assert_not_reached ();
-	}
-
 	if (!cfg->llvm_only)
 		LLVMSetFunctionCallConv (method, LLVMMono1CallConv);
 	if (!cfg->llvm_only && cfg->compile_aot && mono_threads_are_safepoints_enabled ())
@@ -9351,7 +9347,8 @@ mono_llvm_fixup_aot_module (void)
 	 */
 
 	GHashTable *patches_to_null = g_hash_table_new (mono_patch_info_hash, mono_patch_info_equal);
-	printf ("Need to visit %d patches\n", module->callsite_list->len);
+	if (module->callsite_list->len > 0)
+		printf ("Need to visit %d patches\n", module->callsite_list->len);
 
 	int kept_by_direct_call = 0;
 
@@ -9375,7 +9372,7 @@ mono_llvm_fixup_aot_module (void)
 		if (lmethod && !(method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED) && !method->is_inflated) {
 			mono_llvm_replace_uses_of (placeholder, lmethod);
 			g_hash_table_insert (patches_to_null, site->ji, site->ji);
-		} else if (!lmethod && method->klass->image->assembly != module->assembly && mono_aot_has_external_symbol (method) && mono_aot_confirm_llvm_compiled) {
+		} else if (!lmethod && method->klass->image->assembly != module->assembly && mono_aot_has_external_symbol (method)) {
 			// printf ("%s has direct external call %s %d\n", method->name, __FILE__, __LINE__);
 
 			LLVMTypeRef llvm_sig = mono_llvm_get_ptr_dst_type (site->type);
@@ -9407,7 +9404,8 @@ mono_llvm_fixup_aot_module (void)
 		}
 		g_free (site);
 	}
-	printf ("%d/%d patches kept by direct call\n", kept_by_direct_call, module->callsite_list->len);
+	if (module->callsite_list->len > 0)
+		printf ("%d/%d patches kept by direct call\n", kept_by_direct_call, module->callsite_list->len);
 
 	for (int i = 0; i < module->cfgs->len; ++i) {
 		/*
@@ -9778,6 +9776,9 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 		MonoJumpInfo *ji;
 		LLVMValueRef callee;
 
+		int total_cross_module_calls = 0;
+		int kept_by_direct_call = 0;
+
 		g_hash_table_iter_init (&iter, module->plt_entries_ji);
 		while (g_hash_table_iter_next (&iter, (void**)&ji, (void**)&callee)) {
 			if (ji->type != MONO_PATCH_INFO_METHOD)
@@ -9805,8 +9806,12 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 			//
 
 			if (method->klass->image->assembly != module->assembly) {
-				if (!mono_aot_has_external_symbol (method))
+				total_cross_module_calls++;
+
+				if (!mono_aot_has_external_symbol (method)) {
+					kept_by_direct_call++;
 					continue;
+				}
 
 				LLVMTypeRef llvm_sig = mono_llvm_get_function_type (callee);
 
@@ -9825,6 +9830,8 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 				continue;
 			}
 		}
+		if (total_cross_module_calls)
+			printf ("%d/%d patches kept by direct call\n", kept_by_direct_call, total_cross_module_calls);
 	}
 
 	/* Note: You can still dump an invalid bitcode file by running `llvm-dis`

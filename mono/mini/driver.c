@@ -1346,7 +1346,7 @@ static void main_thread_handler (gpointer user_data)
 	MonoAssembly *assembly;
 
 	if (mono_compile_aot) {
-
+		mono_compile_assemblies (main_args->domain, main_args->argv, main_args->argc, main_args->opts, main_args->aot_options);
 	} else {
 		assembly = mono_domain_assembly_open (main_args->domain, main_args->file);
 		if (!assembly){
