@@ -16,6 +16,7 @@ gboolean mono_aot_is_shared_got_offset (int offset) MONO_LLVM_INTERNAL;
 guint32  mono_aot_get_got_offset            (MonoJumpInfo *ji) MONO_LLVM_INTERNAL;
 char*    mono_aot_get_method_name           (MonoCompile *cfg) MONO_LLVM_INTERNAL;
 gboolean mono_aot_can_directly_call         (MonoMethod *method) MONO_LLVM_INTERNAL;
+void     mono_aot_direct_call_stats         (void) MONO_LLVM_INTERNAL;
 void     mono_aot_register_llvm_failure     (MonoMethod *method) MONO_LLVM_INTERNAL;
 gboolean mono_aot_has_external_symbol       (MonoMethod *method) MONO_LLVM_INTERNAL;
 char*    mono_aot_get_mangled_method_name   (MonoMethod *method) MONO_LLVM_INTERNAL;
