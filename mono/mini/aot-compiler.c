@@ -274,6 +274,19 @@ typedef struct _UnwindInfoSectionCacheItem {
 } UnwindInfoSectionCacheItem;
 #endif
 
+typedef struct _MonoAOTDirectCallStats {
+	guint32 wrappers;
+	guint32 pinvoke;
+	guint32 synchronized;
+	guint32 static_ctor;
+	guint32 begin_invoke;
+	guint32 duplicated;
+	guint32 beforefieldinit;
+	guint32 privateimpl;
+	guint32 gsharedvt;
+	guint32 success;
+} MonoAOTDirectCallStats;
+
 typedef struct MonoAotCompile {
 	MonoImage *image;
 	GPtrArray *methods;
@@ -389,6 +402,7 @@ typedef struct MonoAotCompile {
 	int gc_name_offset;
 	// In this mode, we are emitting dedupable methods that we encounter
 	gboolean dedup_emit_mode;
+	MonoAOTDirectCallStats direct_call_stats;
 } MonoAotCompile;
 
 typedef struct {
@@ -9358,9 +9372,20 @@ mono_aot_has_external_symbol (MonoMethod *method)
 	return TRUE;
 }
 
-gboolean
-mono_aot_direct_call_stats (MonoMethod *method)
+void
+mono_aot_direct_call_stats (void)
 {
+	fprintf (stderr, "Call Indirection Statistics:\n");
+	fprintf (stderr, "\tCount: %d Direct Calls Made\n", llvm_acfg->direct_call_stats.success);
+	fprintf (stderr, "\tCount: %d Indirection Cause: Wrappers\n", llvm_acfg->direct_call_stats.wrappers);
+	fprintf (stderr, "\tCount: %d Indirection Cause: Pinvoke\n", llvm_acfg->direct_call_stats.pinvoke);
+	fprintf (stderr, "\tCount: %d Indirection Cause: Synchronized\n", llvm_acfg->direct_call_stats.synchronized);
+	fprintf (stderr, "\tCount: %d Indirection Cause: Static Ctor\n", llvm_acfg->direct_call_stats.static_ctor);
+	fprintf (stderr, "\tCount: %d Indirection Cause: BeginInvoke\n", llvm_acfg->direct_call_stats.begin_invoke);
+	fprintf (stderr, "\tCount: %d Indirection Cause: Duplicated\n", llvm_acfg->direct_call_stats.duplicated);
+	fprintf (stderr, "\tCount: %d Indirection Cause: BeforeFieldInit\n", llvm_acfg->direct_call_stats.beforefieldinit);
+	fprintf (stderr, "\tCount: %d Indirection Cause: PrivateImpl\n", llvm_acfg->direct_call_stats.privateimpl);
+	fprintf (stderr, "\tCount: %d Indirection Cause: GSharedVT\n", llvm_acfg->direct_call_stats.gsharedvt);
 }
 
 gboolean
@@ -9368,13 +9393,13 @@ mono_aot_can_directly_call (MonoMethod *method)
 {
 	if (method->wrapper_type != MONO_WRAPPER_NONE) 
 	{
-		// fprintf (stderr, "Bail %s %d, wrapper %s\n", __FILE__, __LINE__, method->name);
+		llvm_acfg->direct_call_stats.wrappers++;
 		return FALSE;
 	}
 
 	if (method->signature->pinvoke)
 	{
-		// fprintf (stderr, "Bail %s %d, pinvoke\n", __FILE__, __LINE__);
+		llvm_acfg->direct_call_stats.pinvoke++;
 		return FALSE;
 	}
 
@@ -9386,18 +9411,20 @@ mono_aot_can_directly_call (MonoMethod *method)
 
 	if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)
 	{
-		// fprintf (stderr, "Bail %s %d\n", __FILE__, __LINE__);
+		llvm_acfg->direct_call_stats.synchronized++;
 		return FALSE;
 	}
 
 	if (!strcmp (method->name, ".cctor"))
 	{
+		llvm_acfg->direct_call_stats.static_ctor++;
 		// fprintf (stderr, "Bail %s %d as cctor for %s\n", __FILE__, __LINE__, method->klass->name);
 		return FALSE;
 	}
 
 	if (!strcmp (method->name, "BeginInvoke"))
 	{
+		llvm_acfg->direct_call_stats.begin_invoke++;
 		// fprintf (stderr, "Bail %s %d as BeginInvoke for %s\n", __FILE__, __LINE__, method->klass->name);
 		return FALSE;
 	}
@@ -9406,33 +9433,30 @@ mono_aot_can_directly_call (MonoMethod *method)
 	gboolean duplicated = !dedup_mode && mono_aot_can_dedup (method);
 	if (duplicated)
 	{
-		// fprintf (stderr, "Bail %s %d, duplicated\n", __FILE__, __LINE__);
+		llvm_acfg->direct_call_stats.duplicated++;
 		return FALSE;
 	}
 
 	// FIXME: this blocks a *lot* of direct calls. Remove.
 	if (mono_class_is_before_field_init (method->klass))
 	{
-		// fprintf (stderr, "Bail %s %d, %s is before field init \n", __FILE__, __LINE__, m_class_get_name (method->klass));
+		llvm_acfg->direct_call_stats.beforefieldinit++;
 		return FALSE;
 	}
 
 	const char *klass_name = m_class_get_name (method->klass);
 	if (strstr (klass_name, "<PrivateImplementationDetails>") == klass_name) {
-		// fprintf (stderr, "Bail %s %d, <PrivateImplementationDetails>\n", __FILE__, __LINE__);
+		llvm_acfg->direct_call_stats.privateimpl++;
 		return FALSE;
 	}
 
 	if (mini_is_gsharedvt_sharable_method (method))
 	{
-		// fprintf (stderr, "Bail %s %d, gsharedvt\n", __FILE__, __LINE__);
+		llvm_acfg->direct_call_stats.gsharedvt++;
 		return FALSE;
 	}
 
-	{
-		// fprintf (stderr, "Not bail %s %d, %s %s %s\n", __FILE__, __LINE__, m_class_get_name_space (method->klass), m_class_get_name (method->klass), method->name);
-	}
-
+	llvm_acfg->direct_call_stats.success++;
 	return TRUE;
 }
 
