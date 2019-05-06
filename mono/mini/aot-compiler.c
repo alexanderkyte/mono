@@ -280,6 +280,7 @@ typedef struct _MonoAOTDirectCallStats {
 	guint32 synchronized;
 	guint32 static_ctor;
 	guint32 begin_invoke;
+	guint32 end_invoke;
 	guint32 duplicated;
 	guint32 beforefieldinit;
 	guint32 privateimpl;
@@ -9382,6 +9383,7 @@ mono_aot_direct_call_stats (void)
 	fprintf (stderr, "\tCount: %d Indirection Cause: Synchronized\n", llvm_acfg->direct_call_stats.synchronized);
 	fprintf (stderr, "\tCount: %d Indirection Cause: Static Ctor\n", llvm_acfg->direct_call_stats.static_ctor);
 	fprintf (stderr, "\tCount: %d Indirection Cause: BeginInvoke\n", llvm_acfg->direct_call_stats.begin_invoke);
+	fprintf (stderr, "\tCount: %d Indirection Cause: EndInvoke\n", llvm_acfg->direct_call_stats.end_invoke);
 	fprintf (stderr, "\tCount: %d Indirection Cause: Duplicated\n", llvm_acfg->direct_call_stats.duplicated);
 	fprintf (stderr, "\tCount: %d Indirection Cause: BeforeFieldInit\n", llvm_acfg->direct_call_stats.beforefieldinit);
 	fprintf (stderr, "\tCount: %d Indirection Cause: PrivateImpl\n", llvm_acfg->direct_call_stats.privateimpl);
@@ -9421,14 +9423,18 @@ mono_aot_can_directly_call (MonoMethod *method)
 	if (!strcmp (method->name, ".cctor"))
 	{
 		llvm_acfg->direct_call_stats.static_ctor++;
-		// fprintf (stderr, "Bail %s %d as cctor for %s\n", __FILE__, __LINE__, method->klass->name);
 		return FALSE;
 	}
 
 	if (!strcmp (method->name, "BeginInvoke"))
 	{
 		llvm_acfg->direct_call_stats.begin_invoke++;
-		// fprintf (stderr, "Bail %s %d as BeginInvoke for %s\n", __FILE__, __LINE__, method->klass->name);
+		return FALSE;
+	}
+
+	if (!strcmp (method->name, "EndInvoke"))
+	{
+		llvm_acfg->direct_call_stats.end_invoke++;
 		return FALSE;
 	}
 
