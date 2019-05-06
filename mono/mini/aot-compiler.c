@@ -9395,14 +9395,12 @@ mono_aot_can_directly_call (MonoMethod *method)
 {
 	if (method->wrapper_type != MONO_WRAPPER_NONE) 
 	{
-		// fprintf (stderr, "Bail %s %d, wrapper %s\n", __FILE__, __LINE__, method->name);
 		llvm_acfg->direct_call_stats.wrappers++;
 		return FALSE;
 	}
 
 	if (method->signature->pinvoke)
 	{
-		// fprintf (stderr, "Bail %s %d, pinvoke\n", __FILE__, __LINE__);
 		llvm_acfg->direct_call_stats.pinvoke++;
 		return FALSE;
 	}
@@ -9415,7 +9413,6 @@ mono_aot_can_directly_call (MonoMethod *method)
 
 	if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)
 	{
-		// fprintf (stderr, "Bail %s %d\n", __FILE__, __LINE__);
 		llvm_acfg->direct_call_stats.synchronized++;
 		return FALSE;
 	}
@@ -9443,7 +9440,6 @@ mono_aot_can_directly_call (MonoMethod *method)
 	if (duplicated)
 	{
 		llvm_acfg->direct_call_stats.duplicated++;
-		// fprintf (stderr, "Bail %s %d, duplicated\n", __FILE__, __LINE__);
 		return FALSE;
 	}
 
@@ -9451,13 +9447,11 @@ mono_aot_can_directly_call (MonoMethod *method)
 	if (mono_class_is_before_field_init (method->klass))
 	{
 		llvm_acfg->direct_call_stats.beforefieldinit++;
-		// fprintf (stderr, "Bail %s %d, %s is before field init \n", __FILE__, __LINE__, m_class_get_name (method->klass));
 		return FALSE;
 	}
 
 	const char *klass_name = m_class_get_name (method->klass);
 	if (strstr (klass_name, "<PrivateImplementationDetails>") == klass_name) {
-		// fprintf (stderr, "Bail %s %d, <PrivateImplementationDetails>\n", __FILE__, __LINE__);
 		llvm_acfg->direct_call_stats.privateimpl++;
 		return FALSE;
 	}
@@ -9465,15 +9459,10 @@ mono_aot_can_directly_call (MonoMethod *method)
 	if (mini_is_gsharedvt_sharable_method (method))
 	{
 		llvm_acfg->direct_call_stats.gsharedvt++;
-		// fprintf (stderr, "Bail %s %d, gsharedvt\n", __FILE__, __LINE__);
 		return FALSE;
 	}
 
-	{
-		llvm_acfg->direct_call_stats.success++;
-		// fprintf (stderr, "Not bail %s %d, %s %s %s\n", __FILE__, __LINE__, m_class_get_name_space (method->klass), m_class_get_name (method->klass), method->name);
-	}
-
+	llvm_acfg->direct_call_stats.success++;
 	return TRUE;
 }
 

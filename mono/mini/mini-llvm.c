@@ -9405,8 +9405,6 @@ mono_llvm_fixup_aot_module (void)
 		g_free (site);
 	}
 
-	mono_aot_direct_call_stats ();
-
 	if (module->callsite_list->len > 0)
 		printf ("%d/%d patches kept by direct call\n", kept_by_direct_call, module->callsite_list->len);
 
@@ -9733,6 +9731,8 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 
 	emit_llvm_code_end (module);
 
+	mono_aot_direct_call_stats ();
+
 	/* 
 	 * Create the real got variable and replace all uses of the dummy variable with
 	 * the real one.
@@ -9834,7 +9834,6 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 			}
 		}
 		if (total_cross_module_calls) {
-			mono_aot_direct_call_stats ();
 			printf ("%d/%d patches kept by direct call\n", kept_by_direct_call, total_cross_module_calls);
 		}
 	}
