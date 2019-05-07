@@ -9544,20 +9544,27 @@ mono_aot_has_external_symbol (MonoMethod *method)
 	return TRUE;
 }
 
+static void
+aot_direct_call_log_stat (const char *name, int count)
+{
+	if (count)
+		fprintf (stderr, "\tIndirection Cause: %s Count: %d\n", name, count);
+}
+
 void
 mono_aot_direct_call_stats (void)
 {
-	fprintf (stderr, "Call Indirection Statistics:\n");
-	fprintf (stderr, "\tCount: %d Direct Calls Made\n", llvm_acfg->direct_call_stats.success);
-	fprintf (stderr, "\tCount: %d Indirection Cause: Wrappers\n", llvm_acfg->direct_call_stats.wrappers);
-	fprintf (stderr, "\tCount: %d Indirection Cause: Pinvoke\n", llvm_acfg->direct_call_stats.pinvoke);
-	fprintf (stderr, "\tCount: %d Indirection Cause: Synchronized\n", llvm_acfg->direct_call_stats.synchronized);
-	fprintf (stderr, "\tCount: %d Indirection Cause: Static Ctor\n", llvm_acfg->direct_call_stats.static_ctor);
-	fprintf (stderr, "\tCount: %d Indirection Cause: BeginInvoke\n", llvm_acfg->direct_call_stats.begin_invoke);
-	fprintf (stderr, "\tCount: %d Indirection Cause: Duplicated\n", llvm_acfg->direct_call_stats.duplicated);
-	fprintf (stderr, "\tCount: %d Indirection Cause: BeforeFieldInit\n", llvm_acfg->direct_call_stats.beforefieldinit);
-	fprintf (stderr, "\tCount: %d Indirection Cause: PrivateImpl\n", llvm_acfg->direct_call_stats.privateimpl);
-	fprintf (stderr, "\tCount: %d Indirection Cause: GSharedVT\n", llvm_acfg->direct_call_stats.gsharedvt);
+	fprintf (stderr, "Call Indirection Statistics (%s)\n", llvm_acfg->image->assembly->image->name);
+	fprintf (stderr, "\tDirect Calls Made: %d\n", llvm_acfg->direct_call_stats.success);
+	aot_direct_call_log_stat ("Wrappers", llvm_acfg->direct_call_stats.wrappers);
+	aot_direct_call_log_stat ("Pinvoke", llvm_acfg->direct_call_stats.pinvoke);
+	aot_direct_call_log_stat ("Synchronized", llvm_acfg->direct_call_stats.synchronized);
+	aot_direct_call_log_stat ("Static Ctor", llvm_acfg->direct_call_stats.static_ctor);
+	aot_direct_call_log_stat ("BeginInvoke", llvm_acfg->direct_call_stats.begin_invoke);
+	aot_direct_call_log_stat ("Duplicated", llvm_acfg->direct_call_stats.duplicated);
+	aot_direct_call_log_stat ("BeforeFieldInit", llvm_acfg->direct_call_stats.beforefieldinit);
+	aot_direct_call_log_stat ("PrivateImpl", llvm_acfg->direct_call_stats.privateimpl);
+	aot_direct_call_log_stat ("GSharedVT", llvm_acfg->direct_call_stats.gsharedvt);
 }
 
 gboolean
