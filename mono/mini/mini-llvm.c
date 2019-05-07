@@ -9591,8 +9591,6 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 
 	emit_llvm_code_end (module);
 
-	mono_aot_direct_call_stats ();
-
 	/* 
 	 * Create the real got variable and replace all uses of the dummy variable with
 	 * the real one.

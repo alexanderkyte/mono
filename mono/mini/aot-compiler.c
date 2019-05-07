@@ -9548,14 +9548,14 @@ static void
 aot_direct_call_log_stat (const char *name, int count)
 {
 	if (count)
-		fprintf (stderr, "\tIndirection Cause: %s Count: %d\n", name, count);
+		aot_printf (llvm_acfg, "\tIndirection Cause: %s Count: %d\n", name, count);
 }
 
-void
+static void
 mono_aot_direct_call_stats (void)
 {
-	fprintf (stderr, "Call Indirection Statistics (%s)\n", llvm_acfg->image->assembly->image->name);
-	fprintf (stderr, "\tDirect Calls Made: %d\n", llvm_acfg->direct_call_stats.success);
+	aot_printf (llvm_acfg, "Call indirection stats:\n");
+	aot_printf (llvm_acfg, "\tDirect Calls Made: %d\n", llvm_acfg->direct_call_stats.success);
 	aot_direct_call_log_stat ("Wrappers", llvm_acfg->direct_call_stats.wrappers);
 	aot_direct_call_log_stat ("Pinvoke", llvm_acfg->direct_call_stats.pinvoke);
 	aot_direct_call_log_stat ("Synchronized", llvm_acfg->direct_call_stats.synchronized);
@@ -13471,16 +13471,12 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 	MonoAssembly *assem = NULL;
 	GHashTableIter iter;
 
-	fprintf (stderr, "AOT: Analyzing support assemblies\n");
-
 	g_hash_table_iter_init (&iter, to_preprocess);
 	while (g_hash_table_iter_next (&iter, (gpointer *) &assem, NULL)) {
-		fprintf (stderr, "AOT: Analyzing %s\n", assem->image->name);
-
 		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer) &aot_state);
 
 		if (res != 0) {
-			fprintf (stderr, "AOT of image %s failed.\n", assem->image->name);
+			fprintf (stderr, "AOT-time preprocessing of image %s failed.\n", assem->image->name);
 			exit (1);
 		}
 	}
@@ -13922,6 +13918,9 @@ print_stats (MonoAotCompile *acfg)
 
 	if (acfg->aot_opts.dedup || acfg->dedup_emit_mode)
 		mono_dedup_log_stats (acfg);
+
+	if (acfg->aot_opts.llvm || mono_use_llvm)
+		mono_aot_direct_call_stats ();
 }
 
 static void
