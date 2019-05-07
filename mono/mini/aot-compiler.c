@@ -13308,7 +13308,7 @@ mono_setup_direct_external_call_state (MonoAotCompile *acfg, MonoAotState **glob
 		*target_codegen_assembly = TRUE;
 	}
 
-	if (global_aot_state && *global_aot_state && acfg->aot_opts.dedup_include) {
+	if (global_aot_state && *global_aot_state) {
 	// Thread the state through when making the inflate pass
 		*astate = *global_aot_state;
 	}
@@ -13319,7 +13319,7 @@ mono_setup_direct_external_call_state (MonoAotCompile *acfg, MonoAotState **glob
 	}
 
 	g_assert (*astate);
-	acfg->llvm_failures = (*astate)->llvm_failures;
+	acfg->callee_failures = (*astate)->callee_failures;
 }
 
 
@@ -13400,7 +13400,7 @@ static MonoMethodSignature * const * const interp_in_static_sigs [] = {
 #endif
 
 int
-mono_compile_assemblies (MonoDomain *domain, const char *argv, int argc, guint32 opts, const char *aot_options)
+mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts, const char *aot_options)
 {
 	GHashTable *to_preprocess = g_hash_table_new (NULL, NULL);
 	GHashTable *to_emit = g_hash_table_new (NULL, NULL);
@@ -13461,9 +13461,7 @@ mono_compile_assemblies (MonoDomain *domain, const char *argv, int argc, guint32
 				g_assert (referenced_assembly);
 
 
-				// FIXME: memoize per-assembly with file, maybe skip compiling
-				MonoAssembly *referenced_assembly = image->references [i];
-				g_hash_table_insert (to_preprocess, referenced_assembly, referenced_assembly);
+				g_hash_table_insert (to_preprocess, referenced_assembly, (gpointer *) argv [a]);
 			}
 		}
 	}
@@ -13505,7 +13503,13 @@ mono_compile_assemblies (MonoDomain *domain, const char *argv, int argc, guint32
 		}
 	}
 
+	g_hash_table_destroy (to_emit);
+	g_hash_table_destroy (to_preprocess);
+
 	g_assert (aot_state);
+
+	int success = 0;
+	return success;
 }
 
 int
@@ -13543,6 +13547,7 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	// start dedup
 	MonoAotState *astate = NULL;
 	gboolean is_dedup_dummy = FALSE;
+	gboolean target_codegen_assembly = FALSE;
 	mono_setup_dedup_state (acfg, (MonoAotState **) global_aot_state, ass, &astate, &is_dedup_dummy);
 	mono_setup_direct_external_call_state (acfg, (MonoAotState **) global_aot_state, ass, &astate, &target_codegen_assembly);
 
