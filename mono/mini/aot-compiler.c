@@ -376,7 +376,7 @@ typedef struct MonoAotCompile {
 	gboolean llvm;
 	gboolean has_jitted_code;
 	gboolean is_full_aot;
-	gboolean dedup_collect_only;
+	gboolean silent_aot;
 	MonoAotFileFlags flags;
 	MonoDynamicStream blob;
 	gboolean blob_closed;
@@ -13243,6 +13243,8 @@ typedef struct {
 	MonoAssembly *inflated_assembly;
 
 	GHashTable *callee_failures;
+	gboolean collecting_callee_failures;
+
 	gboolean emit_target_assemblies;
 } MonoAotState;
 
@@ -13256,6 +13258,8 @@ alloc_aot_state (void)
 	// Start in "collect mode"
 	state->emit_inflated_methods = FALSE;
 	state->emit_target_assemblies = FALSE;
+	state->collecting_callee_failures = FALSE;
+
 	state->callee_failures = g_hash_table_new (g_str_hash, g_str_equal);
 
 	state->inflated_assembly = NULL;
@@ -13541,9 +13545,15 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	if (target_codegen_assembly && astate && !astate->emit_target_assemblies)
 		return 0;
 
+	// Don't log when not doing code emission
 	if (acfg->aot_opts.dedup_include && !is_dedup_dummy)
-		acfg->dedup_collect_only = TRUE;
+		acfg->silent_aot = TRUE;
+
+	if (astate->collecting_callee_failures)
+		acfg->silent_aot = TRUE;
+
 	// end dedup
+
 
 	if (acfg->aot_opts.logfile) {
 		acfg->logfile = fopen (acfg->aot_opts.logfile, "a+");
@@ -13584,14 +13594,14 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	if (acfg->opts & MONO_OPT_GSHAREDVT)
 		mono_set_generic_sharing_vt_supported (TRUE);
 
-	if (!acfg->dedup_collect_only)
+	if (!acfg->silent_aot)
 		aot_printf (acfg, "Mono Ahead of Time compiler - compiling assembly %s\n", image->name);
 
 	if (!acfg->aot_opts.deterministic)
 		generate_aotid ((guint8*) &acfg->image->aotid);
 
 	char *aotid = mono_guid_to_string (acfg->image->aotid);
-	if (!acfg->dedup_collect_only)
+	if (!acfg->silent_aot)
 		aot_printf (acfg, "AOTID %s\n", aotid);
 	g_free (aotid);
 
