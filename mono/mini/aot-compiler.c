@@ -13443,7 +13443,7 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 		}
 
 		if (aot_opts.dedup_include || aot_opts.dedup) {
-			g_hash_table_insert (to_preprocess, target_assembly, target_assembly);
+			g_hash_table_insert (to_preprocess, target_assembly, (gpointer *) argv [a]);
 			continue;
 		}
 
@@ -13467,6 +13467,7 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 	}
 
 	MonoAotState *aot_state = alloc_aot_state ();
+	aot_state->collecting_callee_failures = TRUE;
 	MonoAssembly *assem = NULL;
 	GHashTableIter iter;
 
@@ -13487,14 +13488,14 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 	if (aot_opts.dedup_include)
 		aot_state->emit_inflated_methods = TRUE;
 
-	if (!aot_opts.disable_direct_external_calls)
+	if (!aot_opts.disable_direct_external_calls) {
 		aot_state->emit_target_assemblies = TRUE;
-
-	fprintf (stderr, "AOT: Compiling target assemblies\n");
+		aot_state->collecting_callee_failures = FALSE;
+	}
 
 	g_hash_table_iter_init (&iter, to_emit);
 	while (g_hash_table_iter_next (&iter, (gpointer *) &assem, NULL)) {
-		fprintf (stderr, "AOT: Compiling %s\n", assem->image->name);
+		g_assert (!aot_state->collecting_callee_failures);
 
 		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer) &aot_state);
 		if (res != 0) {
