@@ -285,6 +285,7 @@ typedef struct MonoAOTDirectCallStats {
 	guint32 beforefieldinit;
 	guint32 privateimpl;
 	guint32 gsharedvt;
+	guint32 callee_failure;
 	guint32 success;
 } MonoAOTDirectCallStats;
 
@@ -9552,19 +9553,19 @@ aot_direct_call_log_stat (const char *name, int count)
 }
 
 static void
-mono_aot_direct_call_stats (void)
+mono_aot_direct_call_stats (MonoAotCompile *acfg)
 {
-	aot_printf (llvm_acfg, "Call indirection stats:\n");
-	aot_printf (llvm_acfg, "\tDirect Calls Made: %d\n", llvm_acfg->direct_call_stats.success);
-	aot_direct_call_log_stat ("Wrappers", llvm_acfg->direct_call_stats.wrappers);
-	aot_direct_call_log_stat ("Pinvoke", llvm_acfg->direct_call_stats.pinvoke);
-	aot_direct_call_log_stat ("Synchronized", llvm_acfg->direct_call_stats.synchronized);
-	aot_direct_call_log_stat ("Static Ctor", llvm_acfg->direct_call_stats.static_ctor);
-	aot_direct_call_log_stat ("BeginInvoke", llvm_acfg->direct_call_stats.begin_invoke);
-	aot_direct_call_log_stat ("Duplicated", llvm_acfg->direct_call_stats.duplicated);
-	aot_direct_call_log_stat ("BeforeFieldInit", llvm_acfg->direct_call_stats.beforefieldinit);
-	aot_direct_call_log_stat ("PrivateImpl", llvm_acfg->direct_call_stats.privateimpl);
-	aot_direct_call_log_stat ("GSharedVT", llvm_acfg->direct_call_stats.gsharedvt);
+	aot_printf (acfg, "Call indirection stats:\n");
+	aot_printf (acfg, "\tDirect Calls Made: %d\n", acfg->direct_call_stats.success);
+	aot_direct_call_log_stat ("Wrappers", acfg->direct_call_stats.wrappers);
+	aot_direct_call_log_stat ("Pinvoke", acfg->direct_call_stats.pinvoke);
+	aot_direct_call_log_stat ("Synchronized", acfg->direct_call_stats.synchronized);
+	aot_direct_call_log_stat ("Static Ctor", acfg->direct_call_stats.static_ctor);
+	aot_direct_call_log_stat ("BeginInvoke", acfg->direct_call_stats.begin_invoke);
+	aot_direct_call_log_stat ("Duplicated", acfg->direct_call_stats.duplicated);
+	aot_direct_call_log_stat ("BeforeFieldInit", acfg->direct_call_stats.beforefieldinit);
+	aot_direct_call_log_stat ("PrivateImpl", acfg->direct_call_stats.privateimpl);
+	aot_direct_call_log_stat ("GSharedVT", acfg->direct_call_stats.gsharedvt);
 }
 
 gboolean
@@ -9576,55 +9577,55 @@ mono_aot_can_directly_call (MonoMethod *method)
 	}
 
 	if (method->signature->pinvoke) {
-		llvm_acfg->direct_call_stats.pinvoke;
+		llvm_acfg->direct_call_stats.pinvoke++;
 		return FALSE;
 	}
 
 	if (method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED) {
-		llvm_acfg->direct_call_stats.synchronized;
+		llvm_acfg->direct_call_stats.synchronized++;
 		return FALSE;
 	}
 
 	if (!strcmp (method->name, ".cctor")) {
-		llvm_acfg->direct_call_stats.static_ctor;
+		llvm_acfg->direct_call_stats.static_ctor++;
 		return FALSE;
 	}
 
 	if (!strcmp (method->name, "BeginInvoke")) {
-		llvm_acfg->direct_call_stats.begin_invoke;
+		llvm_acfg->direct_call_stats.begin_invoke++;
 		return FALSE;
 	}
 
 	if (!strcmp (method->name, "EndInvoke")) {
-		llvm_acfg->direct_call_stats.end_invoke;
+		llvm_acfg->direct_call_stats.end_invoke++;
 		return FALSE;
 	}
 
 	gboolean dedup_mode = llvm_acfg->aot_opts.dedup_include || llvm_acfg->aot_opts.dedup;
 	gboolean duplicated = !dedup_mode && mono_aot_can_dedup (method);
 	if (duplicated) {
-		llvm_acfg->direct_call_stats.duplicated;
+		llvm_acfg->direct_call_stats.duplicated++;
 		return FALSE;
 	}
 
 	// FIXME: this blocks a *lot* of direct calls. Remove.
 	if (mono_class_is_before_field_init (method->klass)) {
-		llvm_acfg->direct_call_stats.beforefieldinit;
+		llvm_acfg->direct_call_stats.beforefieldinit++;
 		return FALSE;
 	}
 
 	const char *klass_name = m_class_get_name (method->klass);
 	if (strstr (klass_name, "<PrivateImplementationDetails>") == klass_name) {
-		llvm_acfg->direct_call_stats.privateimpl;
+		llvm_acfg->direct_call_stats.privateimpl++;
 		return FALSE;
 	}
 
 	if (mini_is_gsharedvt_sharable_method (method)) {
-		llvm_acfg->direct_call_stats.gsharedvt;
+		llvm_acfg->direct_call_stats.gsharedvt++;
 		return FALSE;
 	}
 
-	llvm_acfg->direct_call_stats.success;
+	llvm_acfg->direct_call_stats.success++;
 	return TRUE;
 }
 
@@ -13849,8 +13850,11 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options,
 	if (acfg->aot_opts.dedup_include && !is_dedup_dummy)
 		/* We only collected methods from this assembly */
 		return 0;
+
 	if (!acfg->aot_opts.disable_direct_external_calls && !target_codegen_assembly)
 		return 0;
+
+	mono_aot_direct_call_stats (acfg);
 
 	return emit_aot_image (acfg);
 }
@@ -13920,7 +13924,7 @@ print_stats (MonoAotCompile *acfg)
 		mono_dedup_log_stats (acfg);
 
 	if (acfg->aot_opts.llvm || mono_use_llvm)
-		mono_aot_direct_call_stats ();
+		mono_aot_direct_call_stats (acfg);
 }
 
 static void
