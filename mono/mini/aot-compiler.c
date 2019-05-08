@@ -13405,7 +13405,7 @@ mono_setup_direct_external_call_state (MonoAotCompile *acfg, MonoAotState **glob
 	gpointer value;
 	g_hash_table_iter_init (&iter, (*astate)->exported_method_failures);
 	while (g_hash_table_iter_next (&iter, &key, &value))
-		g_hash_table_insert (acfg->imported_method_failures, g_strdup (key), value);
+		g_hash_table_insert (acfg->imported_method_failures, g_strdup ((char *) key), value);
 
 	// Clear out exports table for a fresh iteration
 	GHashTable *old = (*astate)->exported_method_failures;
@@ -13571,7 +13571,7 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 			continue;
 		}
 
-		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer) &aot_state);
+		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer **) &aot_state);
 
 		if (!aot_opts.disable_direct_external_calls)
 			mono_write_callee_failures (aot_state->exported_method_failures, assem->image);
@@ -13594,7 +13594,7 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 	while (g_hash_table_iter_next (&iter, (gpointer *) &assem, NULL)) {
 		g_assert (!aot_state->collecting_callee_failures);
 
-		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer) &aot_state);
+		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer **) &aot_state);
 
 		if (!aot_opts.disable_direct_external_calls)
 			mono_write_callee_failures (aot_state->exported_method_failures, assem->image);
