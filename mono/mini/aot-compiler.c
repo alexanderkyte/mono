@@ -13239,7 +13239,8 @@ mono_read_string_set (char *filename, GHashTable *out_table, gpointer sentinel, 
 	}
 
 cleanup:
-	fclose (cache);
+	if (cache)
+		fclose (cache);
 	return success;
 
 fail:
