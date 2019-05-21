@@ -69,6 +69,9 @@
 #include "mini-llvm.h"
 #include "mini-runtime.h"
 
+static gboolean
+mono_dynamic_aot_direct_calls (void);
+
 static MonoMethod*
 try_get_method_nofail (MonoClass *klass, const char *method_name, int param_count, int flags)
 {
@@ -4121,14 +4124,15 @@ void
 mono_aot_register_llvm_failure (MonoMethod *method)
 {
 	char *name = mono_aot_get_mangled_method_name (method);
-	fprintf (stderr, "Failed LLVM %s\n", name);
 
-	if (!mono_aot_can_directly_call (method))
+	if (llvm_acfg->aot_opts.disable_direct_external_calls)
 		return;
 
+	fprintf (stderr, "Failed LLVM %s for %s\n", name, llvm_acfg->image->assembly->image->name);
+
 	llvm_acfg->direct_call_stats.callee_failure++;
-	if (llvm_acfg->exported_method_failures)
-		g_hash_table_replace (llvm_acfg->exported_method_failures, name, GINT_TO_POINTER (0x1));
+	g_assert (llvm_acfg->exported_method_failures);
+	g_hash_table_replace (llvm_acfg->exported_method_failures, name, GINT_TO_POINTER (0x1));
 }
 
 static void
@@ -8210,11 +8214,8 @@ mono_aot_parse_options (const char *aot_options, MonoAotOptions *opts)
 		opts->nunbox_arbitrary_trampolines = 0;
 	}
 
-#ifndef MONO_DYNAMIC_AOT_DIRECT_CALLS
-	if (!opts->static_link) {
+	if (!mono_dynamic_aot_direct_calls () && !opts->static_link)
 		opts->disable_direct_external_calls = TRUE;
-	}
-#endif
 
 	g_ptr_array_free (args, /*free_seg=*/TRUE);
 }
@@ -12302,6 +12303,16 @@ compile_asm (MonoAotCompile *acfg)
 	return 0;
 }
 
+static gboolean
+mono_dynamic_aot_direct_calls (void)
+{
+#ifdef MONO_DYNAMIC_AOT_DIRECT_CALLS
+	return TRUE;
+#else
+	return FALSE;
+#endif
+}
+
 static guint8
 profread_byte (FILE *infile)
 {
@@ -13188,12 +13199,12 @@ mono_dedup_log_stats (MonoAotCompile *acfg)
 static void
 mono_write_string_set (char *filename, GHashTable *table)
 {
+	fprintf (stderr, "Failure file at %s has %d failures.\n", filename, g_hash_table_size (table));
+
 	FILE *cache = fopen (filename, "w");
 
 	if (!cache)
 		g_error ("Could not create table at %s because of error: %s\n", filename, strerror (errno));
-
-	fprintf (stderr, "Failure file at %s has %d failures.\n", filename, g_hash_table_size (table));
 
 	GHashTableIter iter;
 	gchar *name = NULL;
@@ -13256,11 +13267,11 @@ mono_read_string_set (char *filename, GHashTable *out_table, gpointer sentinel, 
 
 		g_hash_table_insert (out_table, line, sentinel);
 	}
-	fprintf (stderr, "Failure file at %s has %d failures.\n", filename, g_hash_table_size (out_table));
 
 cleanup:
 	if (cache)
 		fclose (cache);
+	fprintf (stderr, "Reading Failure file at %s has %d failures.\n", filename, g_hash_table_size (out_table));
 	return success;
 
 fail:
@@ -13431,6 +13442,8 @@ mono_setup_direct_external_call_state (MonoAotCompile *acfg, MonoAotState **glob
 	// Clear out exports table for a fresh iteration
 	GHashTable *old = (*astate)->exported_method_failures;
 
+	fprintf (stderr, "Clear out failures for %s\n", acfg->image->assembly->image->name);
+
 	(*astate)->exported_method_failures = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 	acfg->exported_method_failures = (*astate)->exported_method_failures;
 
@@ -13600,10 +13613,6 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 		}
 
 		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer **) &aot_state);
-		g_assert (aot_state->exported_method_failures);
-
-		if (!aot_opts.disable_direct_external_calls)
-			mono_write_callee_failures (aot_state->exported_method_failures, assem->image);
 
 		if (res != 0) {
 			fprintf (stderr, "AOT-time preprocessing of image %s failed.\n", assem->image->name);
@@ -13626,10 +13635,6 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 		g_assert (!aot_state->collecting_callee_failures);
 
 		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer **) &aot_state);
-		g_assert (aot_state->exported_method_failures);
-
-		if (!aot_opts.disable_direct_external_calls)
-			mono_write_callee_failures (aot_state->exported_method_failures, assem->image);
 
 		if (res != 0) {
 			fprintf (stderr, "Deferred AOT of image %s failed.\n", assem->image->name);
@@ -14205,6 +14210,11 @@ emit_aot_image (MonoAotCompile *acfg)
 
 	if (acfg->aot_opts.dedup)
 		mono_flush_method_cache (acfg);
+
+	if (!acfg->aot_opts.disable_direct_external_calls)
+		mono_write_callee_failures (acfg->exported_method_failures, acfg->image->assembly->image);
+	else
+		g_assert_not_reached ();
 
 	emit_code (acfg);
 
