@@ -4120,14 +4120,15 @@ add_method (MonoAotCompile *acfg, MonoMethod *method)
 void
 mono_aot_register_llvm_failure (MonoMethod *method)
 {
+	char *name = mono_aot_get_mangled_method_name (method);
+	fprintf (stderr, "Failed LLVM %s\n", name);
+
 	if (!mono_aot_can_directly_call (method))
 		return;
 
-	char *name = mono_aot_get_mangled_method_name (method);
-
 	llvm_acfg->direct_call_stats.callee_failure++;
 	if (llvm_acfg->exported_method_failures)
-		g_hash_table_insert (llvm_acfg->exported_method_failures, name, GINT_TO_POINTER (0x1));
+		g_hash_table_replace (llvm_acfg->exported_method_failures, name, GINT_TO_POINTER (0x1));
 }
 
 static void
@@ -8210,8 +8211,9 @@ mono_aot_parse_options (const char *aot_options, MonoAotOptions *opts)
 	}
 
 #ifndef MONO_DYNAMIC_AOT_DIRECT_CALLS
-	if (!opts->static_link)
+	if (!opts->static_link) {
 		opts->disable_direct_external_calls = TRUE;
+	}
 #endif
 
 	g_ptr_array_free (args, /*free_seg=*/TRUE);
@@ -9631,8 +9633,10 @@ mono_aot_can_directly_call (MonoMethod *method)
 		return FALSE;
 	}
 
-	gboolean dedup_mode = llvm_acfg->aot_opts.dedup_include || llvm_acfg->aot_opts.dedup;
-	gboolean duplicated = !dedup_mode && mono_aot_can_dedup (method);
+	// FIXME: Fix when used with dedup
+	/*gboolean dedup_mode = llvm_acfg->aot_opts.dedup_include || llvm_acfg->aot_opts.dedup;*/
+	/*gboolean duplicated = !dedup_mode && mono_aot_can_dedup (method);*/
+	gboolean duplicated = mono_aot_can_dedup (method);
 	if (duplicated) {
 		llvm_acfg->direct_call_stats.duplicated++;
 		return FALSE;
@@ -9656,6 +9660,9 @@ mono_aot_can_directly_call (MonoMethod *method)
 	}
 
 	llvm_acfg->direct_call_stats.success++;
+
+	fprintf (stderr, "Direct external call: %s\n", mono_aot_get_mangled_method_name (method));
+
 	return TRUE;
 }
 
@@ -13185,7 +13192,9 @@ mono_write_string_set (char *filename, GHashTable *table)
 
 	if (!cache)
 		g_error ("Could not create table at %s because of error: %s\n", filename, strerror (errno));
-	
+
+	fprintf (stderr, "Failure file at %s has %d failures.\n", filename, g_hash_table_size (table));
+
 	GHashTableIter iter;
 	gchar *name = NULL;
 	g_hash_table_iter_init (&iter, table);
@@ -13247,6 +13256,7 @@ mono_read_string_set (char *filename, GHashTable *out_table, gpointer sentinel, 
 
 		g_hash_table_insert (out_table, line, sentinel);
 	}
+	fprintf (stderr, "Failure file at %s has %d failures.\n", filename, g_hash_table_size (out_table));
 
 cleanup:
 	if (cache)
@@ -13542,17 +13552,21 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 			g_strfreev (asm_path);
 
 			if (is_dedup_dummy) {
-				g_hash_table_insert (to_emit, target_assembly, target_assembly);
-				continue;
+				fprintf (stderr, "To emit: %s\n", argv [a]);
+				g_hash_table_insert (to_emit, target_assembly, (gpointer *) argv [a]);
+			} else {
+				fprintf (stderr, "To preprocess: %s\n", argv [a]);
+				g_hash_table_insert (to_preprocess, target_assembly, (gpointer *) argv [a]);
 			}
-		}
 
-		if (aot_opts.dedup_include || aot_opts.dedup) {
-			g_hash_table_insert (to_preprocess, target_assembly, (gpointer *) argv [a]);
 			continue;
 		}
 
-		g_hash_table_insert (to_emit, target_assembly, target_assembly);
+		if (aot_opts.static_link)
+			g_assert (!aot_opts.disable_direct_external_calls);
+
+		fprintf (stderr, "To emit: %s\n", argv [a]);
+		g_hash_table_insert (to_emit, target_assembly, (gpointer *) argv [a]);
 
 		gboolean emitting_llvm = aot_opts.llvm || mono_use_llvm;
 		if (emitting_llvm && !aot_opts.disable_direct_external_calls) {
@@ -13566,7 +13580,8 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 				g_assert (referenced_assembly);
 
 
-				g_hash_table_insert (to_preprocess, referenced_assembly, (gpointer *) argv [a]);
+				fprintf (stderr, "To preprocess: %s\n", referenced_assembly->image->name);
+				g_hash_table_insert (to_preprocess, referenced_assembly, referenced_assembly->image->name);
 			}
 		}
 	}
@@ -13576,6 +13591,8 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 	MonoAssembly *assem = NULL;
 	GHashTableIter iter;
 
+	fprintf (stderr, "Preprocessing\n");
+
 	g_hash_table_iter_init (&iter, to_preprocess);
 	while (g_hash_table_iter_next (&iter, (gpointer *) &assem, NULL)) {
 		if (!aot_opts.disable_direct_external_calls && mono_read_callee_failures (assem->image, aot_state->exported_method_failures)) {
@@ -13583,6 +13600,7 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 		}
 
 		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer **) &aot_state);
+		g_assert (aot_state->exported_method_failures);
 
 		if (!aot_opts.disable_direct_external_calls)
 			mono_write_callee_failures (aot_state->exported_method_failures, assem->image);
@@ -13601,11 +13619,14 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 		aot_state->collecting_callee_failures = FALSE;
 	}
 
+	fprintf (stderr, "Emitting\n");
+
 	g_hash_table_iter_init (&iter, to_emit);
 	while (g_hash_table_iter_next (&iter, (gpointer *) &assem, NULL)) {
 		g_assert (!aot_state->collecting_callee_failures);
 
 		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer **) &aot_state);
+		g_assert (aot_state->exported_method_failures);
 
 		if (!aot_opts.disable_direct_external_calls)
 			mono_write_callee_failures (aot_state->exported_method_failures, assem->image);

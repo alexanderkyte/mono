@@ -7761,6 +7761,7 @@ emit_method_inner (EmitContext *ctx)
 
 	if (cfg->compile_aot) {
 		if (is_externally_callable (ctx, cfg->method)) {
+			fprintf (stderr, "Exposed because externally callable: %s\n", mono_aot_get_mangled_method_name (cfg->method));
 			LLVMSetLinkage (method, LLVMExternalLinkage);
 		} else {
 			LLVMSetLinkage (method, LLVMInternalLinkage);

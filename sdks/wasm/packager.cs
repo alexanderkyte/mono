@@ -693,10 +693,10 @@ class Driver {
 
 		// Rules
 		ninja.WriteLine ("rule aot");
-		ninja.WriteLine ($"  command = MONO_PATH=$mono_path $cross --debug {profiler_aot_args} --aot=$aot_args,{aot_args}llvmonly,asmonly,no-opt,static,direct-icalls,llvm-outfile=$outfile $src_file");
+		ninja.WriteLine ($"  command = MONO_PATH=$mono_path $cross --debug {profiler_aot_args} --aot=$aot_args,{aot_args}llvmonly,asmonly,no-opt,static,stats,direct-icalls,llvm-outfile=$outfile $src_file");
 		ninja.WriteLine ("  description = [AOT] $src_file -> $outfile");
 		ninja.WriteLine ("rule aot-instances");
-		ninja.WriteLine ($"  command = MONO_PATH=$mono_path $cross --debug {profiler_aot_args} --aot={aot_args}llvmonly,asmonly,no-opt,static,direct-icalls,llvm-outfile=$outfile,dedup-include=$dedup_image $src_files");
+		ninja.WriteLine ($"  command = MONO_PATH=$mono_path $cross --debug {profiler_aot_args} --aot={aot_args}llvmonly,asmonly,no-opt,static,stats,direct-icalls,llvm-outfile=$outfile,dedup-include=$dedup_image $src_files");
 		ninja.WriteLine ("  description = [AOT-INSTANCES] $outfile");
 		ninja.WriteLine ("rule mkdir");
 		ninja.WriteLine ("  command = mkdir -p $out");
