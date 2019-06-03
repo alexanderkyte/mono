@@ -18,7 +18,7 @@ guint32  mono_aot_get_got_offset            (MonoJumpInfo *ji) MONO_LLVM_INTERNA
 char*    mono_aot_get_method_name           (MonoCompile *cfg) MONO_LLVM_INTERNAL;
 char*    mono_aot_get_mangled_method_name   (MonoMethod *method) MONO_LLVM_INTERNAL;
 gboolean mono_aot_can_directly_call         (MonoMethod *method) MONO_LLVM_INTERNAL;
-void     mono_aot_register_llvm_failure     (MonoMethod *method) MONO_LLVM_INTERNAL;
+void     mono_aot_register_external_symbol  (MonoMethod *method) MONO_LLVM_INTERNAL;
 gboolean mono_aot_has_external_symbol       (MonoMethod *method) MONO_LLVM_INTERNAL;
 gboolean mono_aot_is_direct_callable        (MonoJumpInfo *patch_info) MONO_LLVM_INTERNAL;
 void     mono_aot_mark_unused_llvm_plt_entry(MonoJumpInfo *patch_info) MONO_LLVM_INTERNAL;

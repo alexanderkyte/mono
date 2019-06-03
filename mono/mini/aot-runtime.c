@@ -4408,6 +4408,15 @@ add_module_cb (gpointer key, gpointer value, gpointer user_data)
 }
 
 gboolean
+mono_aot_can_duplicate (MonoMethod *method)
+{
+	gboolean not_normal_gshared = method->is_inflated && !mono_method_is_generic_sharable_full (method, TRUE, FALSE, FALSE);
+	gboolean extra_method = (method->wrapper_type != MONO_WRAPPER_NONE) || not_normal_gshared;
+
+	return extra_method;
+}
+
+gboolean
 mono_aot_can_dedup (MonoMethod *method)
 {
 #ifdef TARGET_WASM
@@ -4437,10 +4446,7 @@ mono_aot_can_dedup (MonoMethod *method)
 
 	return FALSE;
 #else
-	gboolean not_normal_gshared = method->is_inflated && !mono_method_is_generic_sharable_full (method, TRUE, FALSE, FALSE);
-	gboolean extra_method = (method->wrapper_type != MONO_WRAPPER_NONE) || not_normal_gshared;
-
-	return extra_method;
+	return mono_aot_can_duplicate (method);
 #endif
 }
 

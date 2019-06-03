@@ -285,6 +285,7 @@ typedef struct MonoAOTDirectCallStats {
 	guint32 begin_invoke;
 	guint32 end_invoke;
 	guint32 duplicated;
+	guint32 inflated;
 	guint32 beforefieldinit;
 	guint32 privateimpl;
 	guint32 gsharedvt;
@@ -316,8 +317,8 @@ typedef struct MonoAotCompile {
 	GPtrArray *method_order;
 	GHashTable *dedup_stats;
 	GHashTable *dedup_cache;
-	GHashTable *exported_method_failures;
-	GHashTable *imported_method_failures;
+	GHashTable *exported_method_successes;
+	GHashTable *imported_method_successes;
 	gboolean dedup_cache_changed;
 	GHashTable *export_names;
 	/* Maps MonoClass* -> blob offset */
@@ -4121,18 +4122,23 @@ add_method (MonoAotCompile *acfg, MonoMethod *method)
 }
 
 void
-mono_aot_register_llvm_failure (MonoMethod *method)
+mono_aot_register_external_symbol (MonoMethod *method)
 {
 	char *name = mono_aot_get_mangled_method_name (method);
 
-	if (llvm_acfg->aot_opts.disable_direct_external_calls)
+	if (llvm_acfg->aot_opts.disable_direct_external_calls) {
+		return;
+	}
+
+	gboolean direct_call = mono_aot_can_directly_call (method);
+	if (!direct_call)
 		return;
 
-	fprintf (stderr, "Failed LLVM %s for %s\n", name, llvm_acfg->image->assembly->image->name);
+	fprintf (stderr, "Exported LLVM %s for %s\n", name, llvm_acfg->image->assembly->image->name);
 
 	llvm_acfg->direct_call_stats.callee_failure++;
-	g_assert (llvm_acfg->exported_method_failures);
-	g_hash_table_replace (llvm_acfg->exported_method_failures, name, GINT_TO_POINTER (0x1));
+	g_assert (llvm_acfg->exported_method_successes);
+	g_hash_table_replace (llvm_acfg->exported_method_successes, name, llvm_acfg->image->name);
 }
 
 static void
@@ -6344,8 +6350,22 @@ sanitize_symbol (MonoAotCompile *acfg, char *s)
 	return res;
 }
 
+static gboolean
+can_have_external_sym (MonoAotCompile *acfg, MonoMethod *method)
+{
+	gboolean direct_calls = !acfg->aot_opts.disable_direct_external_calls && (mono_use_llvm || acfg->aot_opts.llvm);
+	if (!direct_calls)
+		return FALSE;
+
+	gboolean duplicated = mono_aot_can_duplicate (method) && !(acfg->aot_opts.dedup || acfg->aot_opts.dedup_include);
+	if (duplicated)
+		return FALSE;
+
+	return TRUE;
+}
+
 static char*
-get_debug_sym (MonoMethod *method, const char *prefix, GHashTable *cache)
+get_debug_sym_internal (MonoMethod *method, const char *prefix, GHashTable *cache)
 {
 	char *name1, *name2, *cached;
 	int i, j, len, count;
@@ -6391,7 +6411,7 @@ get_debug_sym (MonoMethod *method, const char *prefix, GHashTable *cache)
 		cached_method = (MonoMethod *)g_hash_table_lookup (cache, name2);
 		if (!(cached_method && cached_method != method))
 			break;
-		sprintf (name2 + j, "_%d", count);
+		sprintf (name2 + j, "_Q%d", count);
 		count ++;
 	}
 
@@ -6399,6 +6419,17 @@ get_debug_sym (MonoMethod *method, const char *prefix, GHashTable *cache)
 	g_hash_table_insert (cache, cached, method);
 
 	return name2;
+}
+
+static char*
+get_debug_sym (MonoAotCompile *acfg, MonoMethod *method, const char *prefix, GHashTable *cache)
+{
+	gboolean external = can_have_external_sym (acfg, method);
+
+	if (external)
+		return mono_aot_get_mangled_method_name (method);
+
+	return get_debug_sym_internal (method, "", acfg->method_label_hash);
 }
 
 static void
@@ -6436,14 +6467,12 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 		 *   yet supported.
 		 * - it allows the setting of breakpoints of aot-ed methods.
 		 */
-		gboolean duplicated = mono_aot_can_dedup (method) && !(acfg->aot_opts.dedup || acfg->aot_opts.dedup_include);
-		gboolean direct_calls = !acfg->aot_opts.disable_direct_external_calls && (mono_use_llvm || acfg->aot_opts.llvm);
-		gboolean external = duplicated || !direct_calls;
+		gboolean external = can_have_external_sym (acfg, method);
 
 		if (external)
-			debug_sym = get_debug_sym (method, "", acfg->method_label_hash);
-		else
 			debug_sym = mono_aot_get_mangled_method_name (method);
+		else
+			debug_sym = get_debug_sym_internal (method, "", acfg->method_label_hash);
 
 		cfg->asm_debug_symbol = g_strdup (debug_sym);
 
@@ -6451,9 +6480,9 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 			fprintf (acfg->fp, "	.no_dead_strip %s\n", debug_sym);
 
 		if (external)
-			emit_local_symbol (acfg, debug_sym, symbol, TRUE);
-		else
 			emit_global_inner (acfg, debug_sym, TRUE);
+		else
+			emit_local_symbol (acfg, debug_sym, symbol, TRUE);
 
 		emit_label (acfg, debug_sym);
 	}
@@ -7240,7 +7269,8 @@ get_plt_entry_debug_sym (MonoAotCompile *acfg, MonoJumpInfo *ji, GHashTable *cac
 
 	switch (ji->type) {
 	case MONO_PATCH_INFO_METHOD:
-		debug_sym = get_debug_sym (ji->data.method, prefix, cache);
+		debug_sym = get_debug_sym_internal (ji->data.method, prefix, cache);
+		fprintf (stderr, "Debug sym at %s %d is %s\n", __FILE__, __LINE__, debug_sym);
 		break;
 	case MONO_PATCH_INFO_JIT_ICALL_ID:
 		debug_sym = g_strdup_printf ("%s_jit_icall_%s", prefix, mono_find_jit_icall_info (ji->data.jit_icall_id)->name);
@@ -7254,7 +7284,7 @@ get_plt_entry_debug_sym (MonoAotCompile *acfg, MonoJumpInfo *ji, GHashTable *cac
 		break;
 	case MONO_PATCH_INFO_ICALL_ADDR:
 	case MONO_PATCH_INFO_ICALL_ADDR_CALL: {
-		char *s = get_debug_sym (ji->data.method, "", cache);
+		char *s = get_debug_sym_internal (ji->data.method, "", cache);
 		
 		debug_sym = g_strdup_printf ("%s_icall_native_%s", prefix, s);
 		g_free (s);
@@ -8918,9 +8948,9 @@ mono_aot_get_method_name (MonoCompile *cfg)
 
 	if (llvm_acfg->aot_opts.static_link)
 		/* Include the assembly name too to avoid duplicate symbol errors */
-		return g_strdup_printf ("%s_%s", llvm_acfg->assembly_name_sym, get_debug_sym (cfg->orig_method, "", llvm_acfg->method_label_hash));
+		return g_strdup_printf ("%s_%s", llvm_acfg->assembly_name_sym, get_debug_sym (llvm_acfg, cfg->orig_method, "", llvm_acfg->method_label_hash));
 	else
-		return get_debug_sym (cfg->orig_method, "", llvm_acfg->method_label_hash);
+		return get_debug_sym (llvm_acfg, cfg->orig_method, "", llvm_acfg->method_label_hash);
 }
 
 static gboolean
@@ -9554,25 +9584,13 @@ mono_aot_get_mangled_method_name (MonoMethod *method)
 gboolean
 mono_aot_has_external_symbol (MonoMethod *method)
 {
-	if (!mono_aot_can_directly_call (method))
-		return FALSE;
-
-	// Now that we know that we *can* make this a directly-called
-	// method, we have to ask *did* we? 
 	gchar *name = mono_aot_get_mangled_method_name (method);
-	gboolean failed = g_hash_table_lookup (llvm_acfg->imported_method_failures, name) != NULL;
+	gboolean failed = g_hash_table_lookup (llvm_acfg->imported_method_successes, name) == NULL;
+	if (!failed)
+		fprintf (stderr, "Imported methods found for %s: %s\n", llvm_acfg->image->name, name);
 	g_free (name);
 
-	if (failed)
-		return FALSE;
-
-	// FIXME: cache by making per-assembly file of failures,
-	// memoize this without introducing true build dependency
-
-	// Can't just look the symbol up because it would prohibit
-	// circular direct calls
-
-	return TRUE;
+	return !failed;
 }
 
 static void
@@ -9587,11 +9605,13 @@ mono_aot_direct_call_stats (MonoAotCompile *acfg)
 {
 	aot_printf (acfg, "Call indirection stats:\n");
 	aot_printf (acfg, "\tDirect Calls Made: %d\n", acfg->direct_call_stats.success);
+
 	aot_direct_call_log_stat ("Wrappers", acfg->direct_call_stats.wrappers);
 	aot_direct_call_log_stat ("Pinvoke", acfg->direct_call_stats.pinvoke);
 	aot_direct_call_log_stat ("Synchronized", acfg->direct_call_stats.synchronized);
 	aot_direct_call_log_stat ("Static Ctor", acfg->direct_call_stats.static_ctor);
 	aot_direct_call_log_stat ("BeginInvoke", acfg->direct_call_stats.begin_invoke);
+	aot_direct_call_log_stat ("Inflated", acfg->direct_call_stats.inflated);
 	aot_direct_call_log_stat ("Duplicated", acfg->direct_call_stats.duplicated);
 	aot_direct_call_log_stat ("BeforeFieldInit", acfg->direct_call_stats.beforefieldinit);
 	aot_direct_call_log_stat ("PrivateImpl", acfg->direct_call_stats.privateimpl);
@@ -9611,6 +9631,11 @@ mono_aot_can_directly_call (MonoMethod *method)
 
 	if (method->signature->pinvoke) {
 		llvm_acfg->direct_call_stats.pinvoke++;
+		return FALSE;
+	}
+
+	if (method->is_inflated) {
+		llvm_acfg->direct_call_stats.inflated++;
 		return FALSE;
 	}
 
@@ -9636,9 +9661,10 @@ mono_aot_can_directly_call (MonoMethod *method)
 
 	// FIXME: Fix when used with dedup
 	/*gboolean dedup_mode = llvm_acfg->aot_opts.dedup_include || llvm_acfg->aot_opts.dedup;*/
-	/*gboolean duplicated = !dedup_mode && mono_aot_can_dedup (method);*/
-	gboolean duplicated = mono_aot_can_dedup (method);
-	if (duplicated) {
+	gboolean dedup_mode = FALSE;
+	gboolean duplicated = mono_aot_can_duplicate (method);
+	gboolean deduped = duplicated && dedup_mode && mono_aot_can_dedup (method);
+	if (duplicated && !deduped) {
 		llvm_acfg->direct_call_stats.duplicated++;
 		return FALSE;
 	}
@@ -9660,9 +9686,19 @@ mono_aot_can_directly_call (MonoMethod *method)
 		return FALSE;
 	}
 
-	llvm_acfg->direct_call_stats.success++;
+	{
+		gchar *mangled_name = mono_aot_get_mangled_method_name (method);
 
-	fprintf (stderr, "Direct external call: %s\n", mono_aot_get_mangled_method_name (method));
+		if (!strcmp (mangled_name, "aot_mscorlib_System_System_dot_Console__get_Out_cl18_System_2eIO_2eTextWriter__")) {
+			return FALSE;
+		}
+
+		if (!strcmp (mangled_name, "aot_mscorlib_System_System_dot_Console__get_Error_cl18_System_2eIO_2eTextWriter__")) {
+			return FALSE;
+		}
+	}
+
+	llvm_acfg->direct_call_stats.success++;
 
 	return TRUE;
 }
@@ -9824,7 +9860,7 @@ emit_llvm_file (MonoAotCompile *acfg)
 		optbc = g_strdup_printf ("%s.opt.bc", acfg->tmpbasename);
 	}
 
-	mono_llvm_emit_aot_module (tempbc, g_path_get_basename (acfg->image->name));
+	mono_llvm_emit_aot_module (tempbc, g_path_get_basename (acfg->image->name), acfg->imported_method_successes);
 
 	if (acfg->aot_opts.no_opt)
 		return TRUE;
@@ -13199,7 +13235,7 @@ mono_dedup_log_stats (MonoAotCompile *acfg)
 static void
 mono_write_string_set (char *filename, GHashTable *table)
 {
-	fprintf (stderr, "Failure file at %s has %d failures.\n", filename, g_hash_table_size (table));
+	fprintf (stderr, "success file at %s has %d successs.\n", filename, g_hash_table_size (table));
 
 	FILE *cache = fopen (filename, "w");
 
@@ -13271,7 +13307,7 @@ mono_read_string_set (char *filename, GHashTable *out_table, gpointer sentinel, 
 cleanup:
 	if (cache)
 		fclose (cache);
-	fprintf (stderr, "Reading Failure file at %s has %d failures.\n", filename, g_hash_table_size (out_table));
+	fprintf (stderr, "Reading success file at %s has %d successs.\n", filename, g_hash_table_size (out_table));
 	return success;
 
 fail:
@@ -13330,12 +13366,12 @@ early_exit:
 }
 
 static void
-mono_write_callee_failures (GHashTable *exported_method_failures, MonoImage *image)
+mono_write_callee_failures (GHashTable *exported_method_successes, MonoImage *image)
 {
-	char *filename = g_strdup_printf ("%s.%s.aot_failure", image->name, image->guid);
-	g_assert (exported_method_failures);
+	char *filename = g_strdup_printf ("%s.%s.aot_exported", image->name, image->guid);
+	g_assert (exported_method_successes);
 
-	mono_write_string_set (filename, exported_method_failures);
+	mono_write_string_set (filename, exported_method_successes);
 
 	g_free (filename);
 }
@@ -13343,8 +13379,8 @@ mono_write_callee_failures (GHashTable *exported_method_failures, MonoImage *ima
 static gboolean
 mono_read_callee_failures (MonoImage *aimage, GHashTable *failures)
 {
-	char *filename = g_strdup_printf ("%s.%s.aot_failure", aimage->name, aimage->guid);
-	gboolean success = mono_read_string_set (filename, failures, GINT_TO_POINTER (0x1), TRUE);
+	char *filename = g_strdup_printf ("%s.%s.aot_exported", aimage->name, aimage->guid);
+	gboolean success = mono_read_string_set (filename, failures, aimage->name, TRUE);
 
 	g_free (filename);
 	return success;
@@ -13356,8 +13392,8 @@ typedef struct {
 	gboolean emit_inflated_methods;
 	MonoAssembly *inflated_assembly;
 
-	GHashTable *exported_method_failures;
-	GHashTable *imported_method_failures;
+	GHashTable *exported_method_successes;
+	GHashTable *imported_method_successes;
 	gboolean collecting_callee_failures;
 
 	gboolean emit_target_assemblies;
@@ -13375,8 +13411,8 @@ alloc_aot_state (void)
 	state->emit_target_assemblies = FALSE;
 	state->collecting_callee_failures = FALSE;
 
-	state->imported_method_failures = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-	state->exported_method_failures = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+	state->imported_method_successes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+	state->exported_method_successes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
 	state->inflated_assembly = NULL;
 	return state;
@@ -13406,6 +13442,28 @@ mono_add_deferred_extra_methods (MonoAotCompile *acfg, MonoAotState *astate)
 }
 
 static void
+mono_aot_state_export_to_import (MonoAotState *astate)
+{
+	if (!astate->exported_method_successes)
+		return;
+
+	astate->imported_method_successes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+	// Everything we previously failed to export is now something we fail to import
+	GHashTableIter iter;
+	gpointer key;
+	gpointer value;
+	g_hash_table_iter_init (&iter, astate->exported_method_successes);
+	while (g_hash_table_iter_next (&iter, &key, &value))
+		g_hash_table_insert (astate->imported_method_successes, g_strdup ((char *) key), value);
+
+	// Clear out exports table for a fresh iteration
+	GHashTable *old = astate->exported_method_successes;
+	astate->exported_method_successes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+	g_hash_table_destroy (old);
+}
+
+static void
 mono_setup_direct_external_call_state (MonoAotCompile *acfg, MonoAotState **global_aot_state, MonoAssembly *ass, MonoAotState **astate, gboolean *target_codegen_assembly)
 {
 	if (acfg->aot_opts.disable_direct_external_calls)
@@ -13429,25 +13487,8 @@ mono_setup_direct_external_call_state (MonoAotCompile *acfg, MonoAotState **glob
 
 	g_assert (*astate);
 
-	acfg->imported_method_failures = (*astate)->imported_method_failures;
-	// Everything we previously failed to export is now something we fail to import
-
-	GHashTableIter iter;
-	gpointer key;
-	gpointer value;
-	g_hash_table_iter_init (&iter, (*astate)->exported_method_failures);
-	while (g_hash_table_iter_next (&iter, &key, &value))
-		g_hash_table_insert (acfg->imported_method_failures, g_strdup ((char *) key), value);
-
-	// Clear out exports table for a fresh iteration
-	GHashTable *old = (*astate)->exported_method_failures;
-
-	fprintf (stderr, "Clear out failures for %s\n", acfg->image->assembly->image->name);
-
-	(*astate)->exported_method_failures = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-	acfg->exported_method_failures = (*astate)->exported_method_failures;
-
-	g_hash_table_destroy (old);
+	acfg->imported_method_successes = (*astate)->imported_method_successes;
+	acfg->exported_method_successes = (*astate)->exported_method_successes;
 }
 
 
@@ -13575,9 +13616,6 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 			continue;
 		}
 
-		if (aot_opts.static_link)
-			g_assert (!aot_opts.disable_direct_external_calls);
-
 		fprintf (stderr, "To emit: %s\n", argv [a]);
 		g_hash_table_insert (to_emit, target_assembly, (gpointer *) argv [a]);
 
@@ -13599,6 +13637,9 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 		}
 	}
 
+	if (g_hash_table_size (to_emit) <= 0)
+		return FALSE;
+
 	MonoAotState *aot_state = alloc_aot_state ();
 	aot_state->collecting_callee_failures = !aot_opts.disable_direct_external_calls;
 	MonoAssembly *assem = NULL;
@@ -13608,10 +13649,11 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 
 	g_hash_table_iter_init (&iter, to_preprocess);
 	while (g_hash_table_iter_next (&iter, (gpointer *) &assem, NULL)) {
-		if (!aot_opts.disable_direct_external_calls && mono_read_callee_failures (assem->image, aot_state->exported_method_failures)) {
+		if (!aot_opts.disable_direct_external_calls && mono_read_callee_failures (assem->image, aot_state->exported_method_successes)) {
 			continue;
 		}
 
+		mono_aot_state_export_to_import (aot_state);
 		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer **) &aot_state);
 
 		if (res != 0) {
@@ -13634,6 +13676,7 @@ mono_compile_assemblies (MonoDomain *domain, char **argv, int argc, guint32 opts
 	while (g_hash_table_iter_next (&iter, (gpointer *) &assem, NULL)) {
 		g_assert (!aot_state->collecting_callee_failures);
 
+		mono_aot_state_export_to_import (aot_state);
 		int res = mono_compile_assembly (assem, opts, aot_options, (gpointer **) &aot_state);
 
 		if (res != 0) {
@@ -14177,7 +14220,8 @@ emit_aot_image (MonoAotCompile *acfg)
 			} else if (COMPILE_LLVM (cfg)) {
 				cfg->asm_symbol = g_strdup_printf ("%s%s", acfg->llvm_label_prefix, cfg->llvm_method_name);
 			} else if (acfg->global_symbols || acfg->llvm) {
-				cfg->asm_symbol = get_debug_sym (cfg->orig_method, "", acfg->method_label_hash);
+				cfg->asm_symbol = get_debug_sym_internal (cfg->orig_method, "", acfg->method_label_hash);
+				fprintf (stderr, "Debug asym sym at %s %d is %s\n", __FILE__, __LINE__, cfg->asm_symbol);
 			} else {
 				cfg->asm_symbol = g_strdup_printf ("%s%sm_%x", acfg->temp_prefix, acfg->llvm_label_prefix, method_index);
 			}
@@ -14212,9 +14256,7 @@ emit_aot_image (MonoAotCompile *acfg)
 		mono_flush_method_cache (acfg);
 
 	if (!acfg->aot_opts.disable_direct_external_calls)
-		mono_write_callee_failures (acfg->exported_method_failures, acfg->image->assembly->image);
-	else
-		g_assert_not_reached ();
+		mono_write_callee_failures (acfg->exported_method_successes, acfg->image->assembly->image);
 
 	emit_code (acfg);
 

@@ -3282,7 +3282,6 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 					printf ("LLVM failed for '%s.%s': %s\n", m_class_get_name (method->klass), method->name, cfg->exception_message);
 					//g_free (nm);
 				}
-				mono_aot_register_llvm_failure (cfg->method);
 				if (cfg->llvm_only) {
 					g_free (cfg->exception_message);
 					cfg->disable_aot = TRUE;
@@ -3462,7 +3461,6 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 					MONO_PROBE_METHOD_COMPILE_END (method, FALSE);
 				return cfg;
 			}
-			mono_aot_register_llvm_failure (cfg->method);
 			mono_destroy_compile (cfg);
 			try_generic_shared = FALSE;
 			goto restart_compile;
@@ -3822,13 +3820,13 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 
 		if (!cfg->disable_llvm)
 			mono_llvm_emit_method (cfg);
+
 		if (cfg->disable_llvm) {
 			if (cfg->verbose_level >= (cfg->llvm_only ? 0 : 1)) {
 				//nm = mono_method_full_name (cfg->method, TRUE);
 				printf ("LLVM failed for '%s.%s': %s\n", m_class_get_name (method->klass), method->name, cfg->exception_message);
 				//g_free (nm);
 			}
-			mono_aot_register_llvm_failure (cfg->method);
 			if (cfg->llvm_only) {
 				cfg->disable_aot = TRUE;
 				return cfg;
@@ -3836,6 +3834,9 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 			mono_destroy_compile (cfg);
 			try_llvm = FALSE;
 			goto restart_compile;
+		} else {
+			// If we succeeded in emitting the symbol, keep track of the symbol
+			mono_aot_register_external_symbol (cfg->method);
 		}
 
 		if (cfg->verbose_level > 0 && !cfg->compile_aot) {

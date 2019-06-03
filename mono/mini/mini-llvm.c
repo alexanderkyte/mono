@@ -66,6 +66,7 @@ typedef struct {
 	GHashTable *plt_entries_ji;
 	GHashTable *method_to_lmethod;
 	GHashTable *method_to_call_info;
+	GHashTable *external_call_references;
 	GHashTable *lvalue_to_lcalls;
 	GHashTable *direct_callables;
 	char **bb_names;
@@ -1877,6 +1878,7 @@ get_callee_llvmonly (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType ty
 		callee = (LLVMValueRef)g_hash_table_lookup (ctx->module->direct_callables, callee_name);
 		if (!callee) {
 			callee = LLVMAddFunction (ctx->lmodule, callee_name, llvm_sig);
+			fprintf (stderr, "Made callee declaration %s %d: %s\n", __FILE__, __LINE__, callee_name);
 
 			LLVMSetVisibility (callee, LLVMHiddenVisibility);
 
@@ -1983,6 +1985,8 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 	if (!callee_name)
 		return NULL;
 
+	fprintf (stderr, "Callee symbol: %s\n", callee_name);
+
 	if (ctx->cfg->compile_aot)
 		/* Add a patch so referenced wrappers can be compiled in full aot mode */
 		mono_add_patch_info (ctx->cfg, 0, type, data);
@@ -1991,6 +1995,7 @@ get_callee (EmitContext *ctx, LLVMTypeRef llvm_sig, MonoJumpInfoType type, gcons
 	callee = (LLVMValueRef)g_hash_table_lookup (ctx->module->plt_entries, callee_name);
 	if (!callee) {
 		callee = LLVMAddFunction (ctx->lmodule, callee_name, llvm_sig);
+		fprintf (stderr, "Made callee declaration %s %d: %s\n", __FILE__, __LINE__, callee_name);
 
 		LLVMSetVisibility (callee, LLVMHiddenVisibility);
 
@@ -8339,6 +8344,7 @@ static inline void
 AddFunc (LLVMModuleRef module, const char *name, LLVMTypeRef ret_type, LLVMTypeRef *param_types, int nparams)
 {
 	LLVMAddFunction (module, name, LLVMFunctionType (ret_type, param_types, nparams, FALSE));
+	fprintf (stderr, "Made func  %s %d: %s\n", __FILE__, __LINE__, name);
 }
 
 static inline void
@@ -9056,6 +9062,7 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 	module->method_to_call_info = g_hash_table_new (NULL, NULL);
 	module->idx_to_unbox_tramp = g_hash_table_new (NULL, NULL);
 	module->callsite_list = g_ptr_array_new ();
+	module->external_call_references = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 }
 
 void
@@ -9095,7 +9102,17 @@ mono_llvm_fixup_aot_module (void)
 			g_hash_table_insert (patches_to_null, site->ji, site->ji);
 		} else if (!lmethod && method->klass->image->assembly != module->assembly && mono_aot_has_external_symbol (method)) {
 			LLVMTypeRef llvm_sig = mono_llvm_get_ptr_dst_type (site->type);
-			LLVMValueRef external_method = LLVMAddFunction (module->lmodule, mono_aot_get_mangled_method_name (method), llvm_sig);
+
+			gchar *external_name = mono_aot_get_mangled_method_name (method);
+			LLVMValueRef external_method = (LLVMValueRef) g_hash_table_lookup (module->external_call_references, external_name);
+			if (external_method) {
+				fprintf (stderr, "Looked up at %s %d: %s\n", __FILE__, __LINE__, external_name);
+				g_free (external_name);
+			} else {
+				fprintf (stderr, "Made callee external call declaration at %s %d: %s\n", __FILE__, __LINE__, external_name);
+				external_method = LLVMAddFunction (module->lmodule, external_name, llvm_sig);
+				g_hash_table_insert (module->external_call_references, external_name, external_method);
+			}
 
 			mono_llvm_replace_uses_of (placeholder, external_method);
 			g_hash_table_insert (patches_to_null, site->ji, site->ji);
@@ -9593,11 +9610,43 @@ mono_llvm_propagate_nonnull_final (GHashTable *all_specializable, MonoLLVMModule
 #endif
 }
 
+void
+mono_llvm_log_direct_calls (GHashTable *imported_methods)
+{
+	{
+		MonoLLVMModule *module = &aot_module;
+		const gchar *caller_name = module->assembly->image->name;
+		gchar *external_name = NULL;
+
+		fprintf (stderr, "Direct calls outgoing from %s:\n", caller_name);
+
+		GHashTableIter iter;
+		g_hash_table_iter_init (&iter, module->external_call_references);
+		while (g_hash_table_iter_next (&iter, (gpointer *) &external_name, NULL)) {
+			const gchar *image_name = (const gchar *) g_hash_table_lookup (imported_methods, external_name);
+			fprintf (stderr, "\tMethod: %s Source: %s\n.", external_name, image_name);
+		}
+	}
+
+	{
+		fprintf (stderr, "Total Imports: %d\n", g_hash_table_size (imported_methods));
+		
+		GHashTableIter iter;
+		gchar *external_name = NULL;
+		gchar *image_name = NULL;
+
+		g_hash_table_iter_init (&iter, imported_methods);
+		while (g_hash_table_iter_next (&iter, (gpointer *) &external_name, (gpointer *) &image_name)) {
+			fprintf (stderr, "\tMethod: %s Source: %s\n", external_name, image_name);
+		}
+	}
+}
+
 /*
  * Emit the aot module into the LLVM bitcode file FILENAME.
  */
 void
-mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
+mono_llvm_emit_aot_module (const char *filename, const char *cu_name, GHashTable *exported)
 {
 	LLVMTypeRef got_type, inited_type;
 	LLVMValueRef real_got, real_inited;
@@ -9698,7 +9747,18 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 					continue;
 
 				LLVMTypeRef llvm_sig = mono_llvm_get_function_type (callee);
-				LLVMValueRef external_method = LLVMAddFunction (module->lmodule, mono_aot_get_mangled_method_name (method), llvm_sig);
+
+				gchar *external_name = mono_aot_get_mangled_method_name (method);
+				LLVMValueRef external_method = (LLVMValueRef) g_hash_table_lookup (module->external_call_references, external_name);
+				if (external_method) {
+					fprintf (stderr, "Looked up at %s %d: %s\n", __FILE__, __LINE__, external_name);
+					g_free (external_name);
+				} else {
+					fprintf (stderr, "Made callee external call declaration at %s %d: %s\n", __FILE__, __LINE__, external_name);
+					external_method = LLVMAddFunction (module->lmodule, external_name, llvm_sig);
+					g_hash_table_insert (module->external_call_references, external_name, external_method);
+				}
+
 				mono_llvm_replace_uses_of (callee, external_method);
 
 				mono_aot_mark_unused_llvm_plt_entry (ji);
@@ -9726,6 +9786,8 @@ mono_llvm_emit_aot_module (const char *filename, const char *cu_name)
 		}
 	}
 #endif
+
+	mono_llvm_log_direct_calls (exported);
 }
 
 

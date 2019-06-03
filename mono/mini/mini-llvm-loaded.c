@@ -22,6 +22,7 @@ typedef struct {
 	void (*emit_aot_data)(const char *symbol, guint8 *data, int data_len);
 	void (*free_domain_info)(MonoDomain *domain);
 	void (*create_vars)(MonoCompile *cfg);
+  void (*mono_llvm_log_direct_calls);
 } LoadedBackend;
 
 static LoadedBackend backend;
@@ -100,6 +101,12 @@ mono_llvm_create_vars (MonoCompile *cfg)
 	backend.create_vars (cfg);
 }
 
+void 
+mono_llvm_log_direct_calls (GHashTable *sources)
+{
+	backend.log_direct_calls (sources);
+}
+
 int
 mono_llvm_load (const char* bpath)
 {
@@ -135,6 +142,8 @@ mono_llvm_load (const char* bpath)
 	err = mono_dl_symbol (llvm_lib, "mono_llvm_emit_aot_data", (void**)&backend.emit_aot_data);
 	if (err) goto symbol_error;
 	err = mono_dl_symbol (llvm_lib, "mono_llvm_create_vars", (void**)&backend.create_vars);
+	if (err) goto symbol_error;
+	err = mono_dl_symbol (llvm_lib, "mono_llvm_log_direct_calls", (void**)&backend.log_direct_calls);
 	if (err) goto symbol_error;
 	return TRUE;
 symbol_error:
